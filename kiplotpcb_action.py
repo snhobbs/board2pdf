@@ -212,10 +212,10 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     # plot_options.SetPlotPadsOnSilkLayer(False);
     plot_options.SetUseAuxOrigin(False)
     plot_options.SetNegative(False)
-    # plot_options.SetDrillMarksType(NO_DRILL_SHAPE)
     plot_options.SetScale(1.0)
     plot_options.SetAutoScale(False)
     # plot_options.SetPlotMode(PLOT_MODE)
+    # plot_options.SetLineWidth(2000)
 
     template_filelist = []
 
@@ -227,6 +227,10 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             dialog_panel.m_staticText_status.SetLabel("Status: Plotting " + layer_info[0] + " for template " + template_name)
             plot_options.SetPlotFrameRef(layer_info[3])
             plot_options.SetMirror(template[1])
+            if pcbnew.IsCopperLayer(layer_info[1]):
+                plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
+            else:
+                plot_options.SetDrillMarksType(0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
             plot_controller.SetLayer(layer_info[1])
             plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, "Assembly")
             plot_controller.PlotLayer()

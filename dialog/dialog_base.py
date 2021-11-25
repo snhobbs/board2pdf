@@ -236,6 +236,9 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_textCtrl_color = wx.TextCtrl( sbSizer611.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer2.Add( self.m_textCtrl_color, 0, wx.ALL, 5 )
 
+        self.m_button14 = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer2.Add( self.m_button14, 0, wx.ALL, 5 )
+
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
 
@@ -338,6 +341,7 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
         self.m_textCtrl_color.Bind( wx.EVT_TEXT, self.OnSaveLayer )
+        self.m_button14.Bind( wx.EVT_BUTTON, self.OnPickColor )
         self.layersSortOrderBox.Bind( wx.EVT_LISTBOX, self.OnLayerEdit )
         self.m_button11.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderUp )
         self.m_button21.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderDown )
@@ -383,6 +387,9 @@ class SettingsDialogPanel ( wx.Panel ):
         event.Skip()
 
     def OnSaveLayer( self, event ):
+        event.Skip()
+
+    def OnPickColor( self, event ):
         event.Skip()
 
     def OnLayerEdit( self, event ):

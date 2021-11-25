@@ -132,6 +132,37 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 else:
                     self.disabledTemplatesSortOrderBox.SetSelection(max(selection, 0))
 
+    def OnPickColor(self, event):
+        _rgbstring = re.compile(r'#[a-fA-F0-9]{3}(?:[a-fA-F0-9]{3})?$')
+        color_value = self.m_textCtrl_color.GetValue()
+        if self.current_layer == "":
+            wx.MessageBox("You must first select a layer.")
+        else:
+            if not bool(_rgbstring.match(color_value)):
+                color_value = "#000000"
+
+            value = color_value.lstrip('#')
+            lv = len(value)
+            rgb = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+            rgb = wx.Colour(rgb[0], rgb[1], rgb[2], 255)
+
+            data = wx.ColourData()
+            data.SetChooseFull(True)
+
+            # set the first custom color (index 0) to the last used color
+            data.SetCustomColour(0, rgb)
+
+            # set the default color in the chooser to the last used color
+            data.SetColour(rgb)
+
+            cd = wx.ColourDialog(self, data)
+            #cd.GetColourData().SetChooseFull(True)
+
+            if cd.ShowModal() == wx.ID_OK:
+                self.m_textCtrl_color.ChangeValue(str('#%02X%02X%02X' % cd.GetColourData().Colour[:3]))
+
+            cd.Destroy()
+            self.OnSaveLayer(event)
 
     def OnLayerSortOrderUp(self, event):
         selection = self.layersSortOrderBox.Selection
@@ -266,10 +297,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         if template_name != "":
             # Check if selected frame layer is enabled. Otherwise, add it to the top of the enabled list.
             frame_layer = self.m_comboBox_frame.GetValue()
-            if self.layersSortOrderBox.FindString(frame_layer) == wx.NOT_FOUND:
-                self.layersSortOrderBox.Insert(frame_layer, 0)
-                if self.disabledLayersSortOrderBox.FindString(frame_layer) != wx.NOT_FOUND:
-                    self.disabledLayersSortOrderBox.Delete(frame_layer)
+            if frame_layer != "None":
+                if self.layersSortOrderBox.FindString(frame_layer) == wx.NOT_FOUND:
+                    self.layersSortOrderBox.Insert(frame_layer, 0)
+                    if self.disabledLayersSortOrderBox.FindString(frame_layer) != wx.NOT_FOUND:
+                        self.disabledLayersSortOrderBox.Delete(frame_layer)
 
             enabled_layers = ','.join(self.layersSortOrderBox.GetItems())
             this_template = {"mirrored": self.m_checkBox_mirror.IsChecked(),
