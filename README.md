@@ -4,6 +4,8 @@ KiPlotPdf is a KiCad Action Plugin to create good looking pdf files from the boa
 
 This plugin ONLY works with the KiCad 6.0 Release Candidate. It does NOT work with KiCad 5.1.x. Take the leap! You won't regret it.
 
+[https://gitlab.com/dennevi/KiPlotPdf/](https://gitlab.com/dennevi/KiPlotPdf/)
+
 ## Installation
 Clone or download and unpack this plugin to the correct path on your system. The path varies depending on your operating system. The plugin shall be placed in a new directory in this path. Under Windows the recommended path is %USERPROFILE%\Documents\KiCad\6.0\scripting\plugins\. More information can be found [here](https://dev-docs.kicad.org/en/python/pcbnew/)
 
@@ -15,7 +17,7 @@ The plugin includes a default configuration which should make it more or less se
 If you want to revert your locally saved settings and go back to the default configuration, just delete the config.ini file in the plugin directory. If config.ini is not found, default_config.ini will be used instead.
 
 ## Support
-First search the [KiCad forum](https://forum.kicad.info/) to see if someone else has asked the same thing. If not, post a topic in the "External Plugins" category. You may tag me in the topic by adding @albin to the text. This assures that I'll see your question.
+First search the [KiCad forum](https://forum.kicad.info/) to see if someone else has asked the same thing. If not, post your question in [this thread](https://forum.kicad.info/t/32269) in the forum. That way I will see your post and answer as soon as I can.
 
 ## Contributing
 If you find a bug, please add an issue in the GitLab project.
