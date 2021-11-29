@@ -1,2 +1,2 @@
-from .kiplotpcb_action import kiplotpcb
-kiplotpcb().register()
+from .kiplotpdf_action import kiplotpdf
+kiplotpdf().register()

@@ -16,7 +16,7 @@
         <property name="help_provider">none</property>
         <property name="indent_with_spaces">1</property>
         <property name="internationalize">0</property>
-        <property name="name">wxFormBuilderExample</property>
+        <property name="name">KiPlotPdf</property>
         <property name="namespace"></property>
         <property name="path">./dialog</property>
         <property name="precompiled_header"></property>
@@ -48,7 +48,7 @@
             <property name="size">463,497</property>
             <property name="style">wxDEFAULT_DIALOG_STYLE|wxSTAY_ON_TOP</property>
             <property name="subclass">; ; forward_declare</property>
-            <property name="title">wxFormBuilderExample</property>
+            <property name="title">KiPlotPdf</property>
             <property name="tooltip"></property>
             <property name="window_extra_style"></property>
             <property name="window_name"></property>

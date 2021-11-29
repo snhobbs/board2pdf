@@ -107,6 +107,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 else:
                     self.templatesSortOrderBox.SetSelection(max(selection, 0))
             self.ClearTemplateSettings()
+            self.OnTemplateEdit(event)
 
     def OnTemplateEnable(self, event):
         selection = self.disabledTemplatesSortOrderBox.Selection
