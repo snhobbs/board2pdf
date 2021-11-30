@@ -1,2 +1,2 @@
-from .kiplotpdf_action import kiplotpdf
-kiplotpdf().register()
+from .board2pdf_action import board2pdf
+board2pdf().register()

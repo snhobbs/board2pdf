@@ -30,12 +30,12 @@ from . import dialog
 def run_with_dialog():
     board = pcbnew.GetBoard()
     pcb_file_name = board.GetFileName()
-    kiplotpdf_dir = os.path.dirname(os.path.abspath(__file__))
-    configfile = os.path.join(kiplotpdf_dir, "config.ini")
+    board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
+    configfile = os.path.join(board2pdf_dir, "config.ini")
 
     # If config.ini file doesn't exist, copy the default file to this file.
     if not os.path.exists(configfile):
-        default_configfile = os.path.join(kiplotpdf_dir, "default_config.ini")
+        default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
         shutil.copyfile(default_configfile, configfile)
 
     # Not sure it this is needed any more.
@@ -115,9 +115,9 @@ def run_with_dialog():
 
         dlg.panel.Destroy()
 
-class kiplotpdf(pcbnew.ActionPlugin):
+class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):
-        self.name = "KiPlotPdf"
+        self.name = "Board2Pdf"
         self.category = "Tool"
         self.description = "Plot pcb to pdf."
         self.show_toolbar_button = True  # Optional, defaults to False

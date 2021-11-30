@@ -1,10 +1,10 @@
-# KiPlotPdf
+# Board2Pdf
 
-KiPlotPdf is a KiCad Action Plugin to create good looking pdf files from the board.
+Board2Pdf is a KiCad Action Plugin to create good looking pdf files from the board.
 
 This plugin ONLY works with the KiCad 6.0 Release Candidate. It does NOT work with KiCad 5.1.x. Take the leap! You won't regret it.
 
-[https://gitlab.com/dennevi/KiPlotPdf/](https://gitlab.com/dennevi/KiPlotPdf/)
+[https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
 ## Installation
 Clone or download and unpack this plugin to the correct path on your system. The path varies depending on your operating system. The plugin shall be placed in a new directory in this path. Under Windows the recommended path is %USERPROFILE%\Documents\KiCad\6.0\scripting\plugins\. More information can be found [here](https://dev-docs.kicad.org/en/python/pcbnew/)
