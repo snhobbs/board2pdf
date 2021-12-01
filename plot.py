@@ -76,6 +76,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
         open_files.append(file)
         pdfReader = PyPDF2.PdfFileReader(file)
         pageObj = pdfReader.getPage(0)
+        pageObj.compressContentStreams()
         output.addPage(pageObj)
         #pdfReader.stream.close()
 
