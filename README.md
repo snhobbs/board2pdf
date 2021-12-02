@@ -7,6 +7,9 @@ This plugin ONLY works with the KiCad 6.0 Release Candidate. It does NOT work wi
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
 ## Installation
+The easiest way to install is to open KiCad -> Plugin And Content Manager. Select Board2Pdf in the Plugins tab, press Install and then Apply Changes.
+
+### Manual Installation
 Clone or download and unpack this plugin to the correct path on your system. The path varies depending on your operating system. The plugin shall be placed in a new directory in this path. Under Windows the recommended path is %USERPROFILE%\Documents\KiCad\6.0\scripting\plugins\. More information can be found [here](https://dev-docs.kicad.org/en/python/pcbnew/)
 
 You can also find this directory from inside the PCB Editor (Pcbnew) by pressing the Folder icon ("Open Plugin Directory") under Preferences -> Preferences -> PCB Editor -> Action Plugins. Here you can also see all your installed plugins, and if one of them doesn't load correctly you can get information from the button with the yellow warning triangle.
