@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+#from __future__ import absolute_import
 
 import os
 import shutil
@@ -7,8 +7,6 @@ import pcbnew
 import wx
 #import ast
 import json
-
-from . import plot
 
 try:
     # python 3.x
@@ -25,6 +23,7 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(dirname))
     __import__(__package__)
 
+from . import plot
 from . import dialog
 
 def run_with_dialog():
@@ -100,7 +99,7 @@ def run_with_dialog():
                 config_del_temp_files = True
 
     finally:
-        dlg = dialog.SettingsDialog(save_config, perform_export, 'v0.2', templates)
+        dlg = dialog.SettingsDialog(save_config, perform_export, 'v0.3', templates)
 
         # Update dialog with data from saved config.
         dlg.panel.outputDirPicker.Path = config_output_dest_dir
@@ -113,7 +112,7 @@ def run_with_dialog():
         #response = dlg.ShowModal()
         #if response == wx.ID_CANCEL:
 
-        dlg.panel.Destroy()
+        dlg.Destroy()
 
 class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):

@@ -1,3 +1,4 @@
+
 import os
 import shutil
 import pcbnew
@@ -14,34 +15,42 @@ def hex_to_rgb(value):
     return rgb
 
 def colorize_pdf(folder, inputFile, outputFile, color):
-    with open(os.path.join(folder, inputFile), "rb") as f:
-        source = PyPDF2.PdfFileReader(f, "rb")
-        output = PyPDF2.PdfFileWriter()
+    try:
+        with open(os.path.join(folder, inputFile), "rb") as f:
+            source = PyPDF2.PdfFileReader(f, "rb")
+            output = PyPDF2.PdfFileWriter()
 
-        for page in range(source.getNumPages()):
-            page = source.getPage(page)
-            content_object = page["/Contents"].getObject()
-            content = PyPDF2.pdf.ContentStream(content_object, source)
+            for page in range(source.getNumPages()):
+                page = source.getPage(page)
+                content_object = page["/Contents"].getObject()
+                content = PyPDF2.pdf.ContentStream(content_object, source)
 
-            i = 0
-            for operands, operator in content.operations:
-                if operator == PyPDF2.utils.b_("rg") or operator == PyPDF2.utils.b_("RG"):
-                    if operands == [0, 0, 0]:
-                        rgb = content.operations[i][0]
-                        content.operations[i] = (
-                            [PyPDF2.generic.FloatObject(color[0]), PyPDF2.generic.FloatObject(color[1]), PyPDF2.generic.FloatObject(color[2])], content.operations[i][1])
-                    else:
-                        print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
-                              type(rgb[1]), type(rgb[2]))
-                i = i + 1
+                i = 0
+                for operands, operator in content.operations:
+                    if operator == PyPDF2.utils.b_("rg") or operator == PyPDF2.utils.b_("RG"):
+                        if operands == [0, 0, 0]:
+                            rgb = content.operations[i][0]
+                            content.operations[i] = (
+                                [PyPDF2.generic.FloatObject(color[0]), PyPDF2.generic.FloatObject(color[1]), PyPDF2.generic.FloatObject(color[2])], content.operations[i][1])
+                        #else:
+                        #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
+                        #          type(rgb[1]), type(rgb[2]))
+                    i = i + 1
 
-            page.__setitem__(PyPDF2.generic.NameObject('/Contents'), content)
-            output.addPage(page)
+                page.__setitem__(PyPDF2.generic.NameObject('/Contents'), content)
+                output.addPage(page)
+            try:
+                with open(os.path.join(folder, outputFile), "wb") as outputStream:
+                    output.write(outputStream)
+            except (IOError, ValueError, EOFError) as er:
+                wx.MessageBox("Failed on file " + outputFile + " in " + folder + ". Error: " + str(er))
+            except:
+                wx.MessageBox("Failed on file " + outputFile + " in " + folder)
 
-        with open(os.path.join(folder, outputFile), "wb") as outputStream:
-            output.write(outputStream)
-        outputStream.close()
-    f.close()
+    except (IOError, ValueError, EOFError) as e:
+        wx.MessageBox("Failed on file " + inputFile + " in " + folder + ". Error: " + str(e))
+    except:
+        wx.MessageBox("Failed on file " + inputFile + " in " + folder)
 
 def merge_pdf(input_folder, input_files, output_folder, output_file):
     output = PyPDF2.PdfFileWriter()
@@ -99,7 +108,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         dialog_panel.Refresh()
         dialog_panel.Update()
 
-    temp_dir = os.path.join(output_path, "temp")
+    temp_dir = os.path.abspath(os.path.join(output_path, "temp"))
+
+    #wx.MessageBox("temp_dir: " + temp_dir)
 
     progress = 5
     setProgress(progress)
@@ -266,4 +277,4 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
-    wx.MessageBox("All done!\n\nPdf created: " + os.path.join(output_path, final_assembly_file))
+    wx.MessageBox("All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_path, final_assembly_file)))
