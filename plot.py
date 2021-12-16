@@ -110,10 +110,12 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     # If output_patch is relative, add the path of the board file.
     if(output_path[0]=='.'):
-        temp_dir = os.path.abspath(os.path.join(os.path.dirname(board.GetFileName()), output_path, "temp"))
+        output_dir = os.path.abspath(os.path.join(os.path.dirname(board.GetFileName()), output_path))
+        temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
         # wx.MessageBox("Relative path: " + temp_dir)
     else:
-        temp_dir = os.path.abspath(os.path.join(output_path, "temp"))
+        output_dir = os.path.abspath(output_path)
+        temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
     progress = 5
     setProgress(progress)
@@ -268,7 +270,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     dialog_panel.m_staticText_status.SetLabel("Status: Adding all templates to a single file")
 
     final_assembly_file = base_filename + "-Assembly.pdf"
-    create_pdf_from_pages(temp_dir, template_filelist, output_path, final_assembly_file)
+    create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)
 
     progress = 100
     setProgress(progress)
@@ -280,4 +282,4 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
-    wx.MessageBox("All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_path, final_assembly_file)))
+    wx.MessageBox("All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file)))
