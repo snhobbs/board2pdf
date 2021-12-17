@@ -43,37 +43,49 @@ def colorize_pdf(folder, inputFile, outputFile, color):
                 with open(os.path.join(folder, outputFile), "wb") as outputStream:
                     output.write(outputStream)
             except (IOError, ValueError, EOFError) as er:
-                wx.MessageBox("Failed on file " + outputFile + " in " + folder + ". Error: " + str(er))
+                wx.MessageBox("colorize_pdf failed on output file " + outputFile + " in " + folder + ". Error: " + str(er), 'Error', wx.OK | wx.ICON_ERROR)
             except:
-                wx.MessageBox("Failed on file " + outputFile + " in " + folder)
+                wx.MessageBox("colorize_pdf failed on output file " + outputFile + " in " + folder, 'Error', wx.OK | wx.ICON_ERROR)
 
     except (IOError, ValueError, EOFError) as e:
-        wx.MessageBox("Failed on file " + inputFile + " in " + folder + ". Error: " + str(e))
+        wx.MessageBox("colorize_pdf failed on input file " + inputFile + " in " + folder + ". Error: " + str(e), 'Error', wx.OK | wx.ICON_ERROR)
     except:
-        wx.MessageBox("Failed on file " + inputFile + " in " + folder)
+        wx.MessageBox("colorize_pdf failed on input file " + inputFile + " in " + folder, 'Error', wx.OK | wx.ICON_ERROR)
 
 def merge_pdf(input_folder, input_files, output_folder, output_file):
     output = PyPDF2.PdfFileWriter()
     i = 0
     open_files = []
     for filename in input_files:
-        file = open(os.path.join(input_folder, filename), 'rb')
-        open_files.append(file)
-        pdfReader = PyPDF2.PdfFileReader(file)
-        pageObj = pdfReader.getPage(0)
-        if(i == 0):
-            merged_page = pageObj
-        else:
-            merged_page.mergePage(pageObj)
-        i = i + 1
-        #pdfReader.stream.close()
+        try:
+            file = open(os.path.join(input_folder, filename), 'rb')
+            open_files.append(file)
+            pdfReader = PyPDF2.PdfFileReader(file)
+            pageObj = pdfReader.getPage(0)
+            if(i == 0):
+                merged_page = pageObj
+            else:
+                merged_page.mergePage(pageObj)
+            i = i + 1
+            #pdfReader.stream.close()
+        except (IOError, ValueError, EOFError) as e:
+            wx.MessageBox("merge_pdf failed on input file " + filename + " in " + input_folder + ". Error: " + str(e), 'Error', wx.OK | wx.ICON_ERROR)
+        except:
+            wx.MessageBox("merge_pdf failed on input file " + filename + " in " + input_folder, 'Error', wx.OK | wx.ICON_ERROR)
     output.addPage(merged_page)
 
-    pdfOutput = open(os.path.join(output_folder, output_file), 'wb')
-    output.write(pdfOutput)
-    # Outputting the PDF
-    pdfOutput.close()
-    # Close the files
+    try:
+        pdfOutput = open(os.path.join(output_folder, output_file), 'wb')
+        # Outputting the PDF
+        output.write(pdfOutput)
+    except (IOError, ValueError, EOFError) as e:
+        wx.MessageBox("merge_pdf failed on output file " + output_file + " in " + output_folder + ". Error: " + str(e), 'Error', wx.OK | wx.ICON_ERROR)
+    except:
+        wx.MessageBox("merge_pdf failed on output file " + output_file + " in " + output_folder, 'Error', wx.OK | wx.ICON_ERROR)
+    finally:
+        pdfOutput.close()
+
+    # Close the input files
     for f in open_files:
         f.close()
 
@@ -81,18 +93,30 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
     output = PyPDF2.PdfFileWriter()
     open_files = []
     for filename in input_files:
-        file = open(os.path.join(input_folder, filename), 'rb')
-        open_files.append(file)
-        pdfReader = PyPDF2.PdfFileReader(file)
-        pageObj = pdfReader.getPage(0)
-        pageObj.compressContentStreams()
-        output.addPage(pageObj)
-        #pdfReader.stream.close()
+        try:
+            file = open(os.path.join(input_folder, filename), 'rb')
+            open_files.append(file)
+            pdfReader = PyPDF2.PdfFileReader(file)
+            pageObj = pdfReader.getPage(0)
+            pageObj.compressContentStreams()
+            output.addPage(pageObj)
+            #pdfReader.stream.close()
+        except (IOError, ValueError, EOFError) as e:
+            wx.MessageBox("create_pdf_from_pages failed on input file " + filename + " in " + input_folder + ". Error: " + str(e), 'Error', wx.OK | wx.ICON_ERROR)
+        except:
+            wx.MessageBox("create_pdf_from_pages failed on input file " + filename + " in " + input_folder, 'Error', wx.OK | wx.ICON_ERROR)
 
-    pdfOutput = open(os.path.join(output_folder, output_file), 'wb')
-    output.write(pdfOutput)
-    # Outputting the PDF
-    pdfOutput.close()
+    try:
+        pdfOutput = open(os.path.join(output_folder, output_file), 'wb')
+        # Outputting the PDF
+        output.write(pdfOutput)
+    except (IOError, ValueError, EOFError) as e:
+        wx.MessageBox("create_pdf_from_pages failed on output file " + output_file + " in " + output_folder + ". Error: " + str(e), 'Error', wx.OK | wx.ICON_ERROR)
+    except:
+        wx.MessageBox("create_pdf_from_pages failed on output file " + output_file + " in " + output_folder, 'Error', wx.OK | wx.ICON_ERROR)
+    finally:
+        pdfOutput.close()
+
     # Close the files
     for f in open_files:
         f.close()
@@ -111,11 +135,11 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     # If output_patch is relative, add the path of the board file.
     if(output_path[0]=='.'):
         output_dir = os.path.abspath(os.path.join(os.path.dirname(board.GetFileName()), output_path))
-        temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
         # wx.MessageBox("Relative path: " + temp_dir)
     else:
         output_dir = os.path.abspath(output_path)
-        temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
+
+    temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
     progress = 5
     setProgress(progress)
@@ -222,12 +246,13 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     # Iterate over the templates
     for template in templates_list:
         template_name = template[0]
+        # wx.MessageBox("Now starting with template: " + template_name)
         # Plot layers to pdf files
         for layer_info in template[2]:
             dialog_panel.m_staticText_status.SetLabel("Status: Plotting " + layer_info[0] + " for template " + template_name)
             plot_options.SetPlotFrameRef(layer_info[3])
             plot_options.SetMirror(template[1])
-            if pcbnew.IsCopperLayer(layer_info[1]):
+            if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
                 plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
             else:
                 plot_options.SetDrillMarksType(0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
@@ -272,14 +297,19 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     final_assembly_file = base_filename + "-Assembly.pdf"
     create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)
 
-    progress = 100
-    setProgress(progress)
-
     # Delete temp files if setting says so
     if (del_temp_files):
-        shutil.rmtree(temp_dir)
+        try:
+            shutil.rmtree(temp_dir)
+        except OSError as e:
+            wx.MessageBox("del_temp_files failed on dir " + temp_dir + ". Error: " + str(e), 'Error', wx.OK | wx.ICON_ERROR)
+        except:
+            wx.MessageBox("del_temp_files failed on dir " + temp_dir, 'Error', wx.OK | wx.ICON_ERROR)
         dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
+
+    progress = 100
+    setProgress(progress)
 
     wx.MessageBox("All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file)))
