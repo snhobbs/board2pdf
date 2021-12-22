@@ -17,7 +17,7 @@ You can also find this directory from inside the PCB Editor (Pcbnew) by pressing
 ## Usage
 The plugin includes a default configuration which should make it more or less self explanatory if you test it out. The basic idea is that each template will result in a page in the pdf file that's created by this plugin. You can enable any number of templates to get different views and color modes of the pcb. Each template can be individually configured to give the desired output. It's completely up to you which layers to show, and which colors the layers shall have.
 
-Some more information can be found in the [Wiki](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Wiki).
+Some more information can be found in the [Wiki](https://gitlab.com/dennevi/Board2Pdf/-/wikis/home).
 
 If you want to revert your locally saved settings and go back to the default configuration, just delete the config.ini file in the plugin directory. If config.ini is not found, default_config.ini will be used instead.
 
