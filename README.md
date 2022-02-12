@@ -37,7 +37,7 @@ Credit goes to qu1ck, the author of the [InteractiveHtmlBom](https://github.com/
 ## Unlicense
 For more information, please refer to <http://unlicense.org/>
 
-However, it should be noted that PyPlotPdf relies upon PyPDF2 which is licensed under BSD License (UNKNOWN). What this means and how that impacts you is up to you to find out.
+However, it should be noted that Board2Pdf relies upon PyPDF2 which is licensed under BSD License (UNKNOWN). What this means and how that impacts you is up to you to find out.
 
 ## Project status
 This project is considered to be finished. When serious bugs are reported I will try my best to fix them, but don't expect to much progress in adding features from my side.

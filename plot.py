@@ -132,12 +132,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         dialog_panel.Refresh()
         dialog_panel.Update()
 
-    # If output_patch is relative, add the path of the board file.
-    if(output_path[0]=='.'):
-        output_dir = os.path.abspath(os.path.join(os.path.dirname(board.GetFileName()), output_path))
-        # wx.MessageBox("Relative path: " + temp_dir)
-    else:
-        output_dir = os.path.abspath(output_path)
+    output_dir = os.path.abspath(output_path)
 
     temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
