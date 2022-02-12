@@ -159,7 +159,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_controller = pcbnew.PLOT_CONTROLLER(board)
     plot_options = plot_controller.GetPlotOptions()
 
-    base_filename = os.path.basename(board.GetFileName()).split(".")[0]
+    base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
 
     plot_options.SetOutputDirectory(temp_dir)
 
