@@ -24,14 +24,10 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-
 """
 Utility functions for PDF library.
 """
-__author__ = "Mathieu Fenniak"
-__author_email__ = "biziqe@mathieu.fenniak.net"
-
-
+from binascii import hexlify
 import sys
 
 try:
@@ -39,11 +35,14 @@ try:
 except ImportError:  # Py3
     import builtins
 
+__author__ = "Mathieu Fenniak"
+__author_email__ = "biziqe@mathieu.fenniak.net"
+
 
 xrange_fn = getattr(builtins, "xrange", range)
 _basestring = getattr(builtins, "basestring", str)
 
-bytes_type = type(bytes()) # Works the same in Python 2.X and 3.X
+bytes_type = type(bytes())  # Works the same in Python 2.X and 3.X
 string_type = getattr(builtins, "unicode", str)
 int_types = (int, long) if sys.version_info[0] < 3 else (int,)
 
@@ -64,9 +63,9 @@ def isBytes(b):
     return isinstance(b, bytes_type)
 
 
-#custom implementation of warnings.formatwarning
+# custom implementation of warnings.formatwarning
 def formatWarning(message, category, filename, lineno, line=None):
-    file = filename.replace("/", "\\").rsplit("\\", 1)[1] # find the file name
+    file = filename.replace("/", "\\").rsplit("\\", 1)[-1]  # find the file name
     return "%s: %s [%s:%s]\n" % (category.__name__, message, file, lineno)
 
 
@@ -75,45 +74,58 @@ def readUntilWhitespace(stream, maxchars=None):
     Reads non-whitespace characters and returns them.
     Stops upon encountering whitespace or when maxchars is reached.
     """
-    txt = b_("")
+    txt = pypdfBytes("")
+
     while True:
         tok = stream.read(1)
+
         if tok.isspace() or not tok:
             break
+
         txt += tok
         if len(txt) == maxchars:
             break
+
     return txt
 
 
 def readNonWhitespace(stream):
     """
     Finds and reads the next non-whitespace character (ignores whitespace).
+
+    :param stream: a file-like object.
     """
     tok = WHITESPACES[0]
+
     while tok in WHITESPACES:
         tok = stream.read(1)
+
     return tok
 
 
 def skipOverWhitespace(stream):
     """
-    Similar to readNonWhitespace, but returns a Boolean if more than
+    Similar to ``readNonWhitespace()``, but returns a Boolean if more than
     one whitespace character was read.
+
+    :param stream: a file-like object.
     """
     tok = WHITESPACES[0]
-    cnt = 0;
+    cnt = 0
+
     while tok in WHITESPACES:
         tok = stream.read(1)
-        cnt+=1
-    return (cnt > 1)
+        cnt += 1
+
+    return cnt > 1
 
 
 def skipOverComment(stream):
     tok = stream.read(1)
     stream.seek(-1, 1)
-    if tok == b_('%'):
-        while tok not in (b_('\n'), b_('\r')):
+
+    if tok == pypdfBytes("%"):
+        while tok not in (pypdfBytes("\n"), pypdfBytes("\r")):
             tok = stream.read(1)
 
 
@@ -123,21 +135,23 @@ def readUntilRegex(stream, regex, ignore_eof=False):
     Raise PdfStreamError on premature end-of-file.
     :param bool ignore_eof: If true, ignore end-of-line and return immediately
     """
-    name = b_('')
+    name = pypdfBytes("")
+
     while True:
         tok = stream.read(16)
+
         if not tok:
             # stream has truncated prematurely
-            if ignore_eof == True:
+            if ignore_eof:
                 return name
-            else:
-                raise PdfStreamError("Stream has ended unexpectedly")
+            raise PdfStreamError("Stream has ended unexpectedly")
         m = regex.search(tok)
         if m is not None:
-            name += tok[:m.start()]
-            stream.seek(m.start()-len(tok), 1)
+            name += tok[: m.start()]
+            stream.seek(m.start() - len(tok), 1)
             break
         name += tok
+
     return name
 
 
@@ -156,50 +170,44 @@ class ConvertFunctionsToVirtualList(object):
             return cls(indices.__len__, lambda idx: self[indices[idx]])
         if not isInt(index):
             raise TypeError("sequence indices must be integers")
+
         len_self = len(self)
+
         if index < 0:
             # support negative indexes
             index = len_self + index
         if index < 0 or index >= len_self:
             raise IndexError("sequence index out of range")
+
         return self.getFunction(index)
 
 
-def RC4_encrypt(key, plaintext):
-    S = [i for i in range(256)]
+def RC4Encrypt(key, plaintext):
+    S = list(range(256))
     j = 0
+
     for i in range(256):
-        j = (j + S[i] + ord_(key[i % len(key)])) % 256
+        j = (j + S[i] + pypdfOrd(key[i % len(key)])) % 256
         S[i], S[j] = S[j], S[i]
+
     i, j = 0, 0
-    retval = b_("")
+    retval = []
+
     for x in range(len(plaintext)):
         i = (i + 1) % 256
         j = (j + S[i]) % 256
         S[i], S[j] = S[j], S[i]
         t = S[(S[i] + S[j]) % 256]
-        retval += b_(chr(ord_(plaintext[x]) ^ t))
-    return retval
+        retval.append(pypdfBytes(chr(pypdfOrd(plaintext[x]) ^ t)))
+
+    return pypdfBytes("").join(retval)
 
 
 def matrixMultiply(a, b):
-    return [[sum([float(i)*float(j)
-                  for i, j in zip(row, col)]
-                ) for col in zip(*b)]
-            for row in a]
-
-
-def markLocation(stream):
-    """Creates text file showing current location in context."""
-    # Mainly for debugging
-    RADIUS = 5000
-    stream.seek(-RADIUS, 1)
-    outputDoc = open('PyPDF2_pdfLocation.txt', 'w')
-    outputDoc.write(stream.read(RADIUS))
-    outputDoc.write('HERE')
-    outputDoc.write(stream.read(RADIUS))
-    outputDoc.close()
-    stream.seek(-RADIUS, 1)
+    return [
+        [sum([float(i) * float(j) for i, j in zip(row, col)]) for col in zip(*b)]
+        for row in a
+    ]
 
 
 class PyPdfError(Exception):
@@ -222,74 +230,130 @@ class PdfStreamError(PdfReadError):
     pass
 
 
-if sys.version_info[0] < 3:
-    def b_(s):
-        return s
-else:
-    B_CACHE = {}
-
-    def b_(s):
-        bc = B_CACHE
-        if s in bc:
-            return bc[s]
-        if type(s) == bytes:
+def pypdfBytes(s):
+    """
+    :type s: Union[bytes, str, int, unicode]
+    :rtype: bytes
+    """
+    if sys.version_info[0] < 3:
+        if isinstance(s, int):
+            return chr(s)
+        if isinstance(s, bytes):
             return s
-        else:
-            r = s.encode('latin-1')
-            if len(s) < 2:
-                bc[s] = r
-            return r
-
-
-def u_(s):
-    if sys.version_info[0] < 3:
-        return unicode(s, 'unicode_escape')
-    else:
+        return s.encode("latin-1")
+    if isinstance(s, int):
+        return bytes([s])
+    if isinstance(s, bytes):
         return s
+    return s.encode("latin-1")
 
 
-def str_(b):
+def pypdfUnicode(s):
+    """
+    :type s: Union[bytes, str, unicode]
+    :returns: ``unicode`` for Python 2, ``str`` for Python 3.
+    :rtype: Union[str, unicode]
+    """
     if sys.version_info[0] < 3:
-        return b
-    else:
-        if type(b) == bytes:
-            return b.decode('latin-1')
-        else:
-            return b
+        if isinstance(s, unicode):
+            return s
+        return unicode(s, "unicode_escape")
+    if isinstance(s, str):
+        return s
+    return s.decode("unicode_escape")
 
 
-def ord_(b):
-    if sys.version_info[0] < 3 or type(b) == str:
-        return ord(b)
-    else:
-        return b
-
-
-def chr_(c):
+def pypdfStr(b):
+    """
+    :type b: Union[bytes, str, unicode]
+    :rtype: str
+    """
     if sys.version_info[0] < 3:
-        return c
-    else:
+        if isinstance(b, unicode):
+            return b.encode("latin-1")
+        return b
+    if isinstance(b, bytes):
+        return b.decode("latin-1")
+    return b
+
+
+def pypdfOrd(b):
+    """
+    :type b: Union[int, bytes, str, unicode]
+    :rtype: int
+    """
+    if isinstance(b, int):
+        return b
+    return ord(b)
+
+
+def pypdfChr(c):
+    """
+    :type c: Union[int, bytes, str, unicode]
+    :rtype: str
+    """
+    if isinstance(c, int):
         return chr(c)
+    return chr(ord(c))
 
 
-def barray(b):
+def pypdfBytearray(b):
+    """
+    Abstracts the conversion from a ``bytes`` variable to a ``bytearray`` value
+    over versions 2.7.x and 3 of Python.
+    """
     if sys.version_info[0] < 3:
         return b
-    else:
-        return bytearray(b)
+    return bytearray(b)
 
 
-def hexencode(b):
-    if sys.version_info[0] < 3:
-        return b.encode('hex')
-    else:
-        import codecs
-        coder = codecs.getencoder('hex_codec')
-        return coder(b)[0]
+def hexEncode(s):
+    """
+    Abstracts the conversion from a LATIN 1 string to an hex-valued string
+    representation of the former over versions 2.7.x and 3 of Python.
+
+    :param str s: a ``str`` to convert from LATIN 1 to an hexadecimal string
+        representation.
+    :return: a hex-valued string, e.g. ``hexEncode("$A'") == "244127"``.
+    :rtype: str
+    """
+    if sys.version_info < (3, 0):
+        return s.encode("hex")
+    if isinstance(s, str):
+        s = s.encode("LATIN1")
+
+    # The output is in the set of "0123456789ABCDEF" characters. Using the
+    # ASCII decoder is a safeguard against anomalies, albeit unlikely
+    return hexlify(s).decode("ASCII")
 
 
 def hexStr(num):
-    return hex(num).replace('L', '')
+    return hex(num).replace("L", "")
 
 
-WHITESPACES = [b_(x) for x in [' ', '\n', '\r', '\t', '\x00']]
+WHITESPACES = [pypdfBytes(x) for x in [" ", "\n", "\r", "\t", "\x00"]]
+
+
+def paethPredictor(left, up, up_left):
+    p = left + up - up_left
+    dist_left = abs(p - left)
+    dist_up = abs(p - up)
+    dist_up_left = abs(p - up_left)
+
+    if dist_left <= dist_up and dist_left <= dist_up_left:
+        return left
+    if dist_up <= dist_up_left:
+        return up
+    return up_left
+
+
+def pairs(sequence):
+    """
+    :param sequence: an indexable sequence value with ``__len__()``.
+    :return: an iterable of paired values from ``sequence``.
+    """
+    if (len(sequence) % 2) != 0:
+        raise ValueError("sequence must contain an even number of elements")
+
+    for i in range(0, len(sequence) - 1, 2):
+        yield (sequence[i], sequence[i + 1])
