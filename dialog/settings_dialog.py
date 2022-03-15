@@ -296,11 +296,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
     def SaveTemplate(self):
         template_name = self.m_textCtrl_template_name.GetValue()
         if template_name != "":
-            # Check if selected frame layer is enabled. Otherwise, add it to the top of the enabled list.
+            # Check if selected frame layer is enabled. Otherwise, add it to the bottom of the enabled list.
             frame_layer = self.m_comboBox_frame.GetValue()
             if frame_layer != "None":
                 if self.layersSortOrderBox.FindString(frame_layer) == wx.NOT_FOUND:
-                    self.layersSortOrderBox.Insert(frame_layer, 0)
+                    self.layersSortOrderBox.Append(frame_layer)
                     if self.disabledLayersSortOrderBox.FindString(frame_layer) != wx.NOT_FOUND:
                         self.disabledLayersSortOrderBox.Delete(frame_layer)
 

@@ -50,7 +50,7 @@ def colorize_pdf(folder, inputFile, outputFile, color):
             output.close()
 
     except:
-        wx.MessageBox("colorize_pdf failed on input file " + inputFile + " in " + folder + ". Error: " + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        wx.MessageBox("colorize_pdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
 def merge_pdf(input_folder, input_files, output_folder, output_file):
     try:
@@ -70,14 +70,18 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
                 i = i + 1
                 #pdfReader.stream.close()
             except:
-                wx.MessageBox("merge_pdf failed on input file " + filename + " in " + input_folder + ". Error: " + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                error_bitmap = ""
+                error_msg = traceback.format_exc()
+                if 'KeyError: 0' in error_msg:
+                    error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
+                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
         output.addPage(merged_page)
 
         output.write()
         output.close()
 
     except:
-        wx.MessageBox("merge_pdf failed on output file " + output_file + " in " + output_folder + ". Error: " + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        wx.MessageBox("merge_pdf failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
     # Close the input files
     for f in open_files:
@@ -97,12 +101,12 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
                 output.addPage(pageObj)
                 #pdfReader.stream.close()
             except:
-                wx.MessageBox("create_pdf_from_pages failed on input file " + filename + " in " + input_folder + ". Error: " + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                wx.MessageBox("create_pdf_from_pages failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
         output.write()
         output.close()
     except:
-        wx.MessageBox("create_pdf_from_pages failed on output file " + output_file + " in " + output_folder + ". Error: " + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
     # Close the files
     for f in open_files:
@@ -284,7 +288,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         try:
             shutil.rmtree(temp_dir)
         except:
-            wx.MessageBox("del_temp_files failed on dir " + temp_dir + ". Error: " + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+            wx.MessageBox("del_temp_files failed\n\nOn dir " + temp_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
         dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
