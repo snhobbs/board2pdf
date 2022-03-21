@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version Oct 26 2018)
+## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -226,7 +226,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer611 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Layer Properties" ), wx.VERTICAL )
 
-        gSizer2 = wx.GridSizer( 1, 3, 0, 0 )
+        gSizer2 = wx.GridSizer( 2, 3, 0, 0 )
 
         self.m_staticText14 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Layer color", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText14.Wrap( -1 )
@@ -238,6 +238,14 @@ class SettingsDialogPanel ( wx.Panel ):
 
         self.m_button14 = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer2.Add( self.m_button14, 0, wx.ALL, 5 )
+
+        self.m_staticText9 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Negative plot", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText9.Wrap( -1 )
+
+        gSizer2.Add( self.m_staticText9, 0, wx.ALL, 5 )
+
+        self.m_checkBox_negative = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer2.Add( self.m_checkBox_negative, 0, wx.ALL, 5 )
 
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
@@ -352,7 +360,7 @@ class SettingsDialogPanel ( wx.Panel ):
         pass
 
 
-    # Virtual event handlers, overide them in your derived class
+    # Virtual event handlers, override them in your derived class
     def OnTemplateEdit( self, event ):
         event.Skip()
 

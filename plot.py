@@ -127,9 +127,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
+    dialog_panel.m_staticText_status.SetLabel("Status: Started plotting...")
     progress = 5
     setProgress(progress)
-    dialog_panel.m_staticText_status.SetLabel("Status: Started plotting...")
 
     steps = 1
     # Count number of process steps
@@ -196,6 +196,13 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                             s.append(True)
                         else:
                             s.append(False)
+                        if el in templates[t]["layers_negative"]: # Bool specifying if layer is negative
+                            if templates[t]["layers_negative"][el] == "true":
+                                s.append(True)
+                            else:
+                                s.append(False)
+                        else:
+                            s.append(False)
                         settings.insert(0, s) # Prepend to settings
 
             temp.append(settings)
@@ -206,8 +213,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     [
         ["Greyscale Top", False,
             [
-             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False),
-             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False),
+             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True),
+             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False),
             ]
         ],
     ]
@@ -221,7 +228,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_options.SetExcludeEdgeLayer(True);
     # plot_options.SetPlotPadsOnSilkLayer(False);
     plot_options.SetUseAuxOrigin(False)
-    plot_options.SetNegative(False)
     plot_options.SetScale(1.0)
     plot_options.SetAutoScale(False)
     # plot_options.SetPlotMode(PLOT_MODE)
@@ -236,7 +242,11 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         # Plot layers to pdf files
         for layer_info in template[2]:
             dialog_panel.m_staticText_status.SetLabel("Status: Plotting " + layer_info[0] + " for template " + template_name)
+            progress = progress + progress_step
+            setProgress(progress)
+
             plot_options.SetPlotFrameRef(layer_info[3])
+            plot_options.SetNegative(layer_info[4])
             plot_options.SetMirror(template[1])
             if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
                 plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
@@ -246,8 +256,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, "Assembly")
             plot_controller.PlotLayer()
 
-            progress = progress + progress_step
-            setProgress(progress)
         plot_controller.ClosePlot()
 
         filelist = []
@@ -257,28 +265,27 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             inputFile = base_filename + "-" + ln + ".pdf"
             if(layer_info[2] != "#000000"):
                 dialog_panel.m_staticText_status.SetLabel("Status: Coloring " + layer_info[0] + " for template " + template_name)
+                progress = progress + progress_step
+                setProgress(progress)
 
                 outputFile = base_filename + "-" + ln + "-colored.pdf"
                 colorize_pdf(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2]))
                 filelist.append(outputFile)
-
-                progress = progress + progress_step
-                setProgress(progress)
             else:
                 filelist.append(inputFile)
 
         # Merge pdf files
         dialog_panel.m_staticText_status.SetLabel("Status: Merging all layers of template " + template_name)
+        progress = progress + progress_step
+        setProgress(progress)
 
         assembly_file = base_filename + "-" + template[0] + ".pdf"
         merge_pdf(temp_dir, filelist, temp_dir, assembly_file)
         template_filelist.append(assembly_file)
 
-        progress = progress + progress_step
-        setProgress(progress)
-
     # Add all generated pdfs to one file
     dialog_panel.m_staticText_status.SetLabel("Status: Adding all templates to a single file")
+    setProgress(progress)
 
     final_assembly_file = base_filename + "-Assembly.pdf"
     create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)

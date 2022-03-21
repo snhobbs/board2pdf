@@ -207,6 +207,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     self.disabledLayersSortOrderBox.SetSelection(max(selection, 0))
 
     def OnTemplateEdit(self, event):
+        self.OnSaveLayer(self)
         self.SaveTemplate()
 
         selection = self.templatesSortOrderBox.Selection
@@ -237,12 +238,19 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 if self.layersSortOrderBox.FindString(l) == wx.NOT_FOUND:
                     self.disabledLayersSortOrderBox.Append(l)
 
-            # Create dictionary with all layers and their color
+            # Create dictionary with all layers and their color, and one with layer being negative or not
             if item in self.templates:
                 if "layers" in self.templates[item]:
-                    self.layersDict = self.templates[item]["layers"]
+                    self.layersColorDict = self.templates[item]["layers"]
+                else:
+                    self.layersColorDict = {}
+                if "layers_negative" in self.templates[item]:
+                    self.layersNegativeDict = self.templates[item]["layers_negative"]
+                else:
+                    self.layersNegativeDict = {}
             else:
-                self.layersDict = {}
+                self.layersColorDict = {}
+                self.layersNegativeDict = {}
 
             # Update the comboBox where user can select one layer to plot the "frame"
             layers.insert(0, "None")
@@ -265,24 +273,39 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                         self.m_checkBox_mirror.SetValue(True)
 
     def OnLayerEdit(self, event):
+        self.OnSaveLayer(self)
         selection = self.layersSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
             self.disabledLayersSortOrderBox.SetSelection(-1)
             item = self.layersSortOrderBox.GetString(selection)
             self.current_layer = item
-            if item not in self.layersDict:
+            if item not in self.layersColorDict:
                 color = "#000000"
             else:
-                color = self.layersDict[item]
+                color = self.layersColorDict[item]
             self.m_textCtrl_color.ChangeValue(color)
+
+            if item in self.layersNegativeDict:
+                if self.layersNegativeDict[item] == "true":
+                    self.m_checkBox_negative.SetValue(True)
+                else:
+                    self.m_checkBox_negative.SetValue(False)
+            else:
+                self.m_checkBox_negative.SetValue(False)
 
     def OnTemplateNameChange(self, event):
         self.SaveTemplate()
 
     def OnSaveLayer(self, event):
-        self.layersDict[self.current_layer] = self.m_textCtrl_color.GetValue()
-        #self.m_textCtrl_color.ChangeValue("")
-        #self.current_layer = ""
+        if self.current_layer != "":
+            self.layersColorDict[self.current_layer] = self.m_textCtrl_color.GetValue()
+            if self.m_checkBox_negative.IsChecked():
+                self.layersNegativeDict[self.current_layer] = "true"
+            else:
+                self.layersNegativeDict[self.current_layer] = "false"
+            #self.layersNegativeDict[self.current_layer] = self.m_checkBox_negative.IsChecked()
+            #self.m_textCtrl_color.ChangeValue("")
+            #self.current_layer = ""
 
 
     # Helper functions
@@ -308,7 +331,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             this_template = {"mirrored": self.m_checkBox_mirror.IsChecked(),
                              "enabled_layers": enabled_layers,
                              "frame": self.m_comboBox_frame.GetValue(),
-                             "layers": self.layersDict}
+                             "layers": self.layersColorDict,
+                             "layers_negative": self.layersNegativeDict}
             if template_name != self.current_template:
                 # Template has changed name. Remove the old name.
                 self.templates.pop(self.current_template, None)
@@ -327,5 +351,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_mirror.SetValue(False)
         self.m_comboBox_frame.Clear()
         self.m_textCtrl_color.ChangeValue("")
+        self.m_checkBox_negative.SetValue(False)
         self.layersSortOrderBox.Clear()
         self.disabledLayersSortOrderBox.Clear()
