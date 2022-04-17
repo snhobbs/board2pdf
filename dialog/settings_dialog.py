@@ -238,7 +238,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 if self.layersSortOrderBox.FindString(l) == wx.NOT_FOUND:
                     self.disabledLayersSortOrderBox.Append(l)
 
-            # Create dictionary with all layers and their color, and one with layer being negative or not
+            # Create dictionary with all layers and their color, one with layer being
+            # negative or not, and one with layer tenting vias or not
             if item in self.templates:
                 if "layers" in self.templates[item]:
                     self.layersColorDict = self.templates[item]["layers"]
@@ -248,9 +249,14 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     self.layersNegativeDict = self.templates[item]["layers_negative"]
                 else:
                     self.layersNegativeDict = {}
+                if "layers_tent" in self.templates[item]:
+                    self.layersTentDict = self.templates[item]["layers_tent"]
+                else:
+                    self.layersTentDict = {}
             else:
                 self.layersColorDict = {}
                 self.layersNegativeDict = {}
+                self.layersTentDict = {}
 
             # Update the comboBox where user can select one layer to plot the "frame"
             layers.insert(0, "None")
@@ -292,6 +298,14 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     self.m_checkBox_negative.SetValue(False)
             else:
                 self.m_checkBox_negative.SetValue(False)
+                
+            if item in self.layersTentDict:
+                if self.layersTentDict[item] == "true":
+                    self.m_checkBox_tent.SetValue(True)
+                else:
+                    self.m_checkBox_tent.SetValue(False)
+            else:
+                self.m_checkBox_tent.SetValue(False)
 
     def OnTemplateNameChange(self, event):
         self.SaveTemplate()
@@ -306,6 +320,10 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             #self.layersNegativeDict[self.current_layer] = self.m_checkBox_negative.IsChecked()
             #self.m_textCtrl_color.ChangeValue("")
             #self.current_layer = ""
+            if self.m_checkBox_tent.IsChecked():
+                self.layersTentDict[self.current_layer] = "true"
+            else:
+                self.layersTentDict[self.current_layer] = "false"
 
 
     # Helper functions
@@ -332,7 +350,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                              "enabled_layers": enabled_layers,
                              "frame": self.m_comboBox_frame.GetValue(),
                              "layers": self.layersColorDict,
-                             "layers_negative": self.layersNegativeDict}
+                             "layers_negative": self.layersNegativeDict,
+                             "layers_tent": self.layersTentDict}
             if template_name != self.current_template:
                 # Template has changed name. Remove the old name.
                 self.templates.pop(self.current_template, None)
@@ -352,5 +371,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_comboBox_frame.Clear()
         self.m_textCtrl_color.ChangeValue("")
         self.m_checkBox_negative.SetValue(False)
+        self.m_checkBox_tent.SetValue(False)
         self.layersSortOrderBox.Clear()
         self.disabledLayersSortOrderBox.Clear()

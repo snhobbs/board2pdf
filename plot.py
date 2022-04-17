@@ -201,6 +201,11 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                                 s.append(True)
                             else:
                                 s.append(False)
+                        if el in templates[t]["layers_tent"]: # Bool specifying if layer tents its vias or not
+                            if templates[t]["layers_tent"][el] == "true":
+                                s.append(True)
+                            else:
+                                s.append(False)
                         else:
                             s.append(False)
                         settings.insert(0, s) # Prepend to settings
@@ -213,8 +218,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     [
         ["Greyscale Top", False,
             [
-             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True),
-             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False),
+             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True, False),
+             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False, True),
             ]
         ],
     ]
@@ -224,7 +229,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_options.SetPlotValue(True)
     plot_options.SetPlotReference(True)
     plot_options.SetPlotInvisibleText(False)
-    plot_options.SetPlotViaOnMaskLayer(False)
+    #plot_options.SetPlotViaOnMaskLayer(False)
     plot_options.SetExcludeEdgeLayer(True);
     # plot_options.SetPlotPadsOnSilkLayer(False);
     plot_options.SetUseAuxOrigin(False)
@@ -247,6 +252,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
             plot_options.SetPlotFrameRef(layer_info[3])
             plot_options.SetNegative(layer_info[4])
+            plot_options.SetPlotViaOnMaskLayer(layer_info[5])
             plot_options.SetMirror(template[1])
             if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
                 plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
