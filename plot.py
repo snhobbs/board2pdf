@@ -166,6 +166,11 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 temp.append(templates[t]["mirrored"]) # Add if the template is mirrored or not
             else:
                 temp.append(False)
+                
+            if "tented" in templates[t]:
+                temp.append(templates[t]["tented"]) # Add if the template is tented or not
+            else:
+                temp.append(False)
 
             frame_layer = "None"
             if "frame" in templates[t]:
@@ -224,7 +229,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_options.SetPlotValue(True)
     plot_options.SetPlotReference(True)
     plot_options.SetPlotInvisibleText(False)
-    plot_options.SetPlotViaOnMaskLayer(False)
+    #plot_options.SetPlotViaOnMaskLayer(False)
     plot_options.SetExcludeEdgeLayer(True);
     # plot_options.SetPlotPadsOnSilkLayer(False);
     plot_options.SetUseAuxOrigin(False)
@@ -240,7 +245,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         template_name = template[0]
         # wx.MessageBox("Now starting with template: " + template_name)
         # Plot layers to pdf files
-        for layer_info in template[2]:
+        for layer_info in template[3]:
             dialog_panel.m_staticText_status.SetLabel("Status: Plotting " + layer_info[0] + " for template " + template_name)
             progress = progress + progress_step
             setProgress(progress)
@@ -248,6 +253,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             plot_options.SetPlotFrameRef(layer_info[3])
             plot_options.SetNegative(layer_info[4])
             plot_options.SetMirror(template[1])
+            plot_options.SetPlotViaOnMaskLayer(template[2])
             if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
                 plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
             else:
@@ -260,7 +266,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
         filelist = []
         # Change color of pdf files
-        for layer_info in template[2]:
+        for layer_info in template[3]:
             ln = layer_info[0].replace('.', '_')
             inputFile = base_filename + "-" + ln + ".pdf"
             if(layer_info[2] != "#000000"):

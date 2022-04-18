@@ -271,6 +271,13 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     mirrored = self.templates[item]["mirrored"]
                     if mirrored:
                         self.m_checkBox_mirror.SetValue(True)
+                        
+            # Set the tent checkbox according to saved setting
+            if item in self.templates:
+                if "tented" in self.templates[item]:
+                    tented = self.templates[item]["tented"]
+                    if tented:
+                        self.m_checkBox_tent.SetValue(True)
 
     def OnLayerEdit(self, event):
         self.OnSaveLayer(self)
@@ -329,6 +336,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
             enabled_layers = ','.join(self.layersSortOrderBox.GetItems())
             this_template = {"mirrored": self.m_checkBox_mirror.IsChecked(),
+                             "tented": self.m_checkBox_tent.IsChecked(),
                              "enabled_layers": enabled_layers,
                              "frame": self.m_comboBox_frame.GetValue(),
                              "layers": self.layersColorDict,
@@ -349,6 +357,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.current_layer = ""
         self.m_textCtrl_template_name.ChangeValue("")
         self.m_checkBox_mirror.SetValue(False)
+        self.m_checkBox_tent.SetValue(False)
         self.m_comboBox_frame.Clear()
         self.m_textCtrl_color.ChangeValue("")
         self.m_checkBox_negative.SetValue(False)
