@@ -213,8 +213,8 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_checkBox_mirror = wx.CheckBox( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Mirror all layers (used for bottom)", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
         gSizer1.Add( self.m_checkBox_mirror, 0, wx.ALL, 5 )
 
-
-        gSizer1.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+        self.m_checkBox_tent = wx.CheckBox( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Do not tent vias", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
+        gSizer1.Add( self.m_checkBox_tent, 0, wx.ALL, 5 )
 
 
         sbSizer61.Add( gSizer1, 1, wx.EXPAND, 5 )
@@ -239,9 +239,6 @@ class SettingsDialogPanel ( wx.Panel ):
 
         self.m_checkBox_negative = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Negative plot", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
         gSizer2.Add( self.m_checkBox_negative, 0, wx.ALL, 5 )
-
-        self.m_checkBox_tent = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Do not tent vias", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
-        gSizer2.Add( self.m_checkBox_tent, 0, wx.ALL, 5 )
 
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )

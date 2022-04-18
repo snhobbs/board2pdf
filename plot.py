@@ -166,6 +166,11 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 temp.append(templates[t]["mirrored"]) # Add if the template is mirrored or not
             else:
                 temp.append(False)
+                
+            if "tented" in templates[t]:
+                temp.append(templates[t]["tented"]) # Add if the template is tented or not
+            else:
+                temp.append(False)
 
             frame_layer = "None"
             if "frame" in templates[t]:
@@ -201,11 +206,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                                 s.append(True)
                             else:
                                 s.append(False)
-                        if el in templates[t]["layers_tent"]: # Bool specifying if layer tents its vias or not
-                            if templates[t]["layers_tent"][el] == "true":
-                                s.append(True)
-                            else:
-                                s.append(False)
                         else:
                             s.append(False)
                         settings.insert(0, s) # Prepend to settings
@@ -218,8 +218,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     [
         ["Greyscale Top", False,
             [
-             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True, False),
-             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False, True),
+             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True),
+             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False),
             ]
         ],
     ]
@@ -245,15 +245,15 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         template_name = template[0]
         # wx.MessageBox("Now starting with template: " + template_name)
         # Plot layers to pdf files
-        for layer_info in template[2]:
+        for layer_info in template[3]:
             dialog_panel.m_staticText_status.SetLabel("Status: Plotting " + layer_info[0] + " for template " + template_name)
             progress = progress + progress_step
             setProgress(progress)
 
             plot_options.SetPlotFrameRef(layer_info[3])
             plot_options.SetNegative(layer_info[4])
-            plot_options.SetPlotViaOnMaskLayer(layer_info[5])
             plot_options.SetMirror(template[1])
+            plot_options.SetPlotViaOnMaskLayer(template[2])
             if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
                 plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
             else:
@@ -266,7 +266,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
         filelist = []
         # Change color of pdf files
-        for layer_info in template[2]:
+        for layer_info in template[3]:
             ln = layer_info[0].replace('.', '_')
             inputFile = base_filename + "-" + ln + ".pdf"
             if(layer_info[2] != "#000000"):
