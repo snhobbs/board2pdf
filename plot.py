@@ -122,8 +122,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         dialog_panel.m_progress.SetValue(value)
         dialog_panel.Refresh()
         dialog_panel.Update()
-
-    output_dir = os.path.abspath(output_path)
+        
+    os.chdir(os.path.dirname(board.GetFileName()))
+    output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
 
     temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 

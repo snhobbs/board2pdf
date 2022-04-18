@@ -49,7 +49,7 @@
             <property name="name">SettingsDialogBase</property>
             <property name="pos"></property>
             <property name="size">463,497</property>
-            <property name="style">wxDEFAULT_DIALOG_STYLE|wxSTAY_ON_TOP</property>
+            <property name="style">wxDEFAULT_DIALOG_STYLE</property>
             <property name="subclass">; ; forward_declare</property>
             <property name="title">Board2Pdf</property>
             <property name="tooltip"></property>
@@ -1001,7 +1001,7 @@
                                                                 <property name="validator_style">wxFILTER_NONE</property>
                                                                 <property name="validator_type">wxDefaultValidator</property>
                                                                 <property name="validator_variable"></property>
-                                                                <property name="value">.\KiPcb2Pdf</property>
+                                                                <property name="value">./KiPcb2Pdf</property>
                                                                 <property name="window_extra_style"></property>
                                                                 <property name="window_name"></property>
                                                                 <property name="window_style">wxBORDER_SIMPLE</property>
