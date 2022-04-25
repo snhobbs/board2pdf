@@ -99,7 +99,7 @@ def run_with_dialog():
                 config_del_temp_files = True
 
     finally:
-        dlg = dialog.SettingsDialog(save_config, perform_export, 'v0.5', templates)
+        dlg = dialog.SettingsDialog(save_config, perform_export, 'v0.6', templates)
 
         # Update dialog with data from saved config.
         dlg.panel.outputDirPicker.Path = config_output_dest_dir

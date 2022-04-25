@@ -4,10 +4,11 @@ Representation and utils for ranges of PDF file pages.
 
 Copyright (c) 2014, Steve Witham <switham_github@mac-guyver.com>.
 All rights reserved. This software is available under a BSD license;
-see https://github.com/mstamy2/PyPDF2/blob/master/LICENSE
+see https://github.com/claird/PyPDF4/blob/master/LICENSE.md
 """
 
 import re
+
 from .utils import isString
 
 _INT_RE = r"(0|-?[1-9]\d*)"  # A decimal int, don't allow "-0".
@@ -40,11 +41,12 @@ class PageRange(object):
     The syntax is like what you would put between brackets [ ].
     The slice is one of the few Python types that can't be subclassed,
     but this class converts to and from slices, and allows similar use.
-      o  PageRange(str) parses a string representing a page range.
-      o  PageRange(slice) directly "imports" a slice.
-      o  to_slice() gives the equivalent slice.
-      o  str() and repr() allow printing.
-      o  indices(n) is like slice.indices(n).
+
+    *  PageRange(str) parses a string representing a page range.
+    *  PageRange(slice) directly "imports" a slice.
+    *  _to_slice() gives the equivalent slice.
+    *  str() and repr() allow printing.
+    *  indices(n) is like slice.indices(n).
     """
 
     def __init__(self, arg):
@@ -65,88 +67,90 @@ class PageRange(object):
             return
 
         if isinstance(arg, PageRange):
-            self._slice = arg.to_slice()
+            self._slice = arg._to_slice()
             return
 
-        m = isString(arg) and re.match(PAGE_RANGE_RE, arg)
-        if not m:
+        match = isString(arg) and re.match(PAGE_RANGE_RE, arg)
+
+        if not match:
             raise ParseError(arg)
-        elif m.group(2):
+        if match.group(2):
             # Special case: just an int means a range of one page.
-            start = int(m.group(2))
+            start = int(match.group(2))
             stop = start + 1 if start != -1 else None
             self._slice = slice(start, stop)
         else:
-            self._slice = slice(*[int(g) if g else None
-                                  for g in m.group(4, 6, 8)])
+            self._slice = slice(*[int(g) if g else None for g in match.group(4, 6, 8)])
 
     # Just formatting this when there is __doc__ for __init__
     if __init__.__doc__:
         __init__.__doc__ = __init__.__doc__.format(page_range_help=PAGE_RANGE_HELP)
 
     @staticmethod
-    def valid(input):
+    def valid(this_input):
         """ True if input is a valid initializer for a PageRange. """
-        return isinstance(input, slice)  or \
-               isinstance(input, PageRange) or \
-               (isString(input)
-                and bool(re.match(PAGE_RANGE_RE, input)))
+        return isinstance(this_input, (slice, PageRange)) or (
+            isString(this_input) and bool(re.match(PAGE_RANGE_RE, this_input))
+        )
 
-    def to_slice(self):
+    def _to_slice(self):
         """ Return the slice equivalent of this page range. """
         return self._slice
 
     def __str__(self):
-        """ A string like "1:2:3". """
-        s = self._slice
-        if s.step == None:
-            if s.start != None  and  s.stop == s.start + 1:
-                return str(s.start)
+        """A string like "1:2:3"."""
+        s__ = self._slice
+        if s__.step is None:
+            if s__.start is not None and s__.stop == s__.start + 1:
+                return str(s__.start)
 
-            indices = s.start, s.stop
+            indices = s__.start, s__.stop
         else:
-            indices = s.start, s.stop, s.step
-        return ':'.join("" if i == None else str(i) for i in indices)
+            indices = s__.start, s__.stop, s__.step
+        return ":".join("" if i is None else str(i) for i in indices)
 
     def __repr__(self):
-        """ A string like "PageRange('1:2:3')". """
+        """A string like "PageRange('1:2:3')"."""
         return "PageRange(" + repr(str(self)) + ")"
 
-    def indices(self, n):
+    def indices(self, this_n):
         """
-        n is the length of the list of pages to choose from.
-        Returns arguments for range().  See help(slice.indices).
+        ``this_n`` is the length of the list of pages to choose from.
+        Returns arguments for ``range()``.  See ``help(slice.indices)``.
         """
-        return self._slice.indices(n)
+        return self._slice.indices(this_n)
 
 
 PAGE_RANGE_ALL = PageRange(":")  # The range of all pages.
 
 
-def parse_filename_page_ranges(args):
+def parseFilenamePageRanges(args):
     """
     Given a list of filenames and page ranges, return a list of
     (filename, page_range) pairs.
-    First arg must be a filename; other ags are filenames, page-range
+    First arg must be a filename; other args are filenames, page-range
     expressions, slice objects, or PageRange objects.
     A filename not followed by a page range indicates all pages of the file.
     """
     pairs = []
-    pdf_filename = None
-    did_page_range = False
+    pdfFilename = None
+    didPageRange = False
+
     for arg in args + [None]:
         if PageRange.valid(arg):
-            if not pdf_filename:
-                raise ValueError("The first argument must be a filename, " \
-                                 "not a page range.")
+            if not pdfFilename:
+                raise ValueError(
+                    "The first argument must be a filename, not a page range."
+                )
 
-            pairs.append( (pdf_filename, PageRange(arg)) )
-            did_page_range = True
+            pairs.append((pdfFilename, PageRange(arg)))
+            didPageRange = True
         else:
             # New filename or end of list--do all of the previous file?
-            if pdf_filename and not did_page_range:
-                pairs.append( (pdf_filename, PAGE_RANGE_ALL) )
+            if pdfFilename and not didPageRange:
+                pairs.append((pdfFilename, PAGE_RANGE_ALL))
 
-            pdf_filename = arg
-            did_page_range = False
+            pdfFilename = arg
+            didPageRange = False
+
     return pairs

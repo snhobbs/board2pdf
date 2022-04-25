@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version Oct 26 2018)
+## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -17,7 +17,7 @@ import wx.xrc
 class SettingsDialogBase ( wx.Dialog ):
 
     def __init__( self, parent ):
-        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"Board2Pdf", pos = wx.DefaultPosition, size = wx.Size( 463,497 ), style = wx.DEFAULT_DIALOG_STYLE|wx.STAY_ON_TOP|wx.BORDER_DEFAULT )
+        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"Board2Pdf", pos = wx.DefaultPosition, size = wx.Size( 463,497 ), style = wx.DEFAULT_DIALOG_STYLE|wx.BORDER_DEFAULT )
 
         self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
 
@@ -128,7 +128,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         fgSizer1.Add( self.m_staticText8, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
-        self.outputDirPicker = wx.DirPickerCtrl( sbSizer6.GetStaticBox(), wx.ID_ANY, u".\\KiPcb2Pdf", u"Select bom folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_SMALL|wx.DIRP_USE_TEXTCTRL|wx.BORDER_SIMPLE )
+        self.outputDirPicker = wx.DirPickerCtrl( sbSizer6.GetStaticBox(), wx.ID_ANY, wx.EmptyString, u"Select bom folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_SMALL|wx.DIRP_USE_TEXTCTRL|wx.BORDER_SIMPLE )
         fgSizer1.Add( self.outputDirPicker, 1, wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, 5 )
 
 
@@ -139,8 +139,8 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer201.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
-        self.m_checkBox_delete_temp_files = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Delete temporary files when done", wx.DefaultPosition, wx.DefaultSize, 0 )
-        bSizer201.Add( self.m_checkBox_delete_temp_files, 0, wx.ALL, 5 )
+        self.m_checkBox_delete_temp_files = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Delete temporary files when done", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
+        bSizer201.Add( self.m_checkBox_delete_temp_files, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
 
         sbSizer6.Add( bSizer201, 1, wx.EXPAND, 5 )
@@ -198,16 +198,8 @@ class SettingsDialogPanel ( wx.Panel ):
 
         gSizer1.Add( self.m_staticText10, 0, wx.ALL, 5 )
 
-        self.m_textCtrl_template_name = wx.TextCtrl( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 200,-1 ), 0 )
+        self.m_textCtrl_template_name = wx.TextCtrl( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), 0 )
         gSizer1.Add( self.m_textCtrl_template_name, 0, wx.ALL, 5 )
-
-        self.m_staticText12 = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Mirror all layers (used for bottom)", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText12.Wrap( -1 )
-
-        gSizer1.Add( self.m_staticText12, 0, wx.ALL, 5 )
-
-        self.m_checkBox_mirror = wx.CheckBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
-        gSizer1.Add( self.m_checkBox_mirror, 0, wx.ALL, 5 )
 
         self.m_staticText13 = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Draw frame on layer", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText13.Wrap( -1 )
@@ -215,8 +207,14 @@ class SettingsDialogPanel ( wx.Panel ):
         gSizer1.Add( self.m_staticText13, 0, wx.ALL, 5 )
 
         m_comboBox_frameChoices = []
-        self.m_comboBox_frame = wx.ComboBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 200,-1 ), m_comboBox_frameChoices, 0 )
+        self.m_comboBox_frame = wx.ComboBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), m_comboBox_frameChoices, 0 )
         gSizer1.Add( self.m_comboBox_frame, 0, wx.ALL, 5 )
+
+        self.m_checkBox_mirror = wx.CheckBox( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Mirror all layers (bottom view)", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
+        gSizer1.Add( self.m_checkBox_mirror, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
+
+        self.m_checkBox_tent = wx.CheckBox( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Do not tent vias on solder mask", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
+        gSizer1.Add( self.m_checkBox_tent, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
 
         sbSizer61.Add( gSizer1, 1, wx.EXPAND, 5 )
@@ -226,7 +224,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer611 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Layer Properties" ), wx.VERTICAL )
 
-        gSizer2 = wx.GridSizer( 1, 3, 0, 0 )
+        gSizer2 = wx.GridSizer( 2, 3, 0, 0 )
 
         self.m_staticText14 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Layer color", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText14.Wrap( -1 )
@@ -238,6 +236,9 @@ class SettingsDialogPanel ( wx.Panel ):
 
         self.m_button14 = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer2.Add( self.m_button14, 0, wx.ALL, 5 )
+
+        self.m_checkBox_negative = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Negative plot", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
+        gSizer2.Add( self.m_checkBox_negative, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
@@ -352,7 +353,7 @@ class SettingsDialogPanel ( wx.Panel ):
         pass
 
 
-    # Virtual event handlers, overide them in your derived class
+    # Virtual event handlers, override them in your derived class
     def OnTemplateEdit( self, event ):
         event.Skip()
 
