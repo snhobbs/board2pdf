@@ -152,6 +152,21 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_options = plot_controller.GetPlotOptions()
 
     base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
+    final_assembly_file = base_filename + "-Assembly.pdf"
+    final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
+
+    # Check if we're able to write to the output file.
+    try:
+        output = PyPDF4.PdfFileWriter(os.path.join(output_dir, final_assembly_file))
+        #output.write()
+        output.close()
+    except:
+        wx.MessageBox("The output file already exists and is not writeable. Perhaps it's open in another " +
+                      "application?\n\n" + final_assembly_file_with_path, 'Error', wx.OK | wx.ICON_ERROR)
+        progress = 100
+        setProgress(progress)
+        dialog_panel.m_staticText_status.SetLabel("Status: Failed to write to output file.")
+        return
 
     plot_options.SetOutputDirectory(temp_dir)
 
@@ -294,7 +309,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     dialog_panel.m_staticText_status.SetLabel("Status: Adding all templates to a single file")
     setProgress(progress)
 
-    final_assembly_file = base_filename + "-Assembly.pdf"
     create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)
 
     # Delete temp files if setting says so
