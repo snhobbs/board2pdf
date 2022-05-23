@@ -3,8 +3,8 @@
 Board2Pdf is a KiCad Action Plugin to create good looking pdf files from the board. The outputted pdf is vector based and searchable.
 
 Two examples of what the plugin can output can be found here:<br>
-[armory-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/-Assembly.pdf "USB armory from WithSecure Foundry") (1 982 KB) Project is found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from WithSecure Foundry")<br>
-[hackrf-one-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/hackrf-one-Assembly.pdf "HackRF by Great Scott Gadgets") (1 579 KB) Project is found [here](https://github.com/greatscottgadgets/hackrf "HackRF by Great Scott Gadgets")
+[armory-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/armory-Assembly.pdf "USB armory from WithSecure Foundry") (1 982 kB) Project is found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from WithSecure Foundry")<br>
+[hackrf-one-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/hackrf-one-Assembly.pdf "HackRF by Great Scott Gadgets") (1 579 kB) Project is found [here](https://github.com/greatscottgadgets/hackrf "HackRF by Great Scott Gadgets")
 
 When loaded the plugin looks like this. Here the user can configure how the pdf shall look.
 ![Screenshot](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/screenshot.png "Screenshot")
