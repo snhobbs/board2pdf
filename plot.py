@@ -155,13 +155,16 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     final_assembly_file = base_filename + "-Assembly.pdf"
     final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
 
+    # Create the directory if it doesn't exist already
+    os.makedirs(output_dir, exist_ok=True)
+
     # Check if we're able to write to the output file.
     try:
         output = PyPDF4.PdfFileWriter(os.path.join(output_dir, final_assembly_file))
         #output.write()
         output.close()
     except:
-        wx.MessageBox("The output file already exists and is not writeable. Perhaps it's open in another " +
+        wx.MessageBox("The output file is not writeable. Perhaps it's open in another " +
                       "application?\n\n" + final_assembly_file_with_path, 'Error', wx.OK | wx.ICON_ERROR)
         progress = 100
         setProgress(progress)
