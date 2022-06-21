@@ -278,7 +278,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             else:
                 plot_options.SetDrillMarksType(0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
             plot_controller.SetLayer(layer_info[1])
-            plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, "Assembly")
+            plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, template_name)
             plot_controller.PlotLayer()
 
         plot_controller.ClosePlot()
