@@ -186,13 +186,17 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         selection = self.layersSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
             item = self.layersSortOrderBox.GetString(selection)
-            self.layersSortOrderBox.Delete(selection)
-            self.disabledLayersSortOrderBox.Append(item)
-            if self.layersSortOrderBox.Count > 0:
-                if self.layersSortOrderBox.Count <= max(selection, 0):
-                    self.layersSortOrderBox.SetSelection(max(selection - 1, 0))
-                else:
-                    self.layersSortOrderBox.SetSelection(max(selection, 0))
+            if item == self.m_comboBox_frame.GetValue():
+                wx.MessageBox("You cannot disable " + item + " if it's selected in the 'Draw frame on layer' setting. First change this setting.")
+            else:
+                self.layersSortOrderBox.Delete(selection)
+                self.disabledLayersSortOrderBox.Append(item)
+                if self.layersSortOrderBox.Count > 0:
+                    if self.layersSortOrderBox.Count <= max(selection, 0):
+                        self.layersSortOrderBox.SetSelection(max(selection - 1, 0))
+                    else:
+                        self.layersSortOrderBox.SetSelection(max(selection, 0))
+                self.SaveTemplate()
 
     def OnLayerEnable(self, event):
         selection = self.disabledLayersSortOrderBox.Selection
@@ -205,6 +209,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     self.disabledLayersSortOrderBox.SetSelection(max(selection - 1, 0))
                 else:
                     self.disabledLayersSortOrderBox.SetSelection(max(selection, 0))
+            self.SaveTemplate()
 
     def OnTemplateEdit(self, event):
         self.OnSaveLayer(self)
