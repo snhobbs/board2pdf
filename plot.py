@@ -5,6 +5,7 @@ import pcbnew
 import wx
 
 from . import PyPDF4
+import fitz
 
 import traceback
 
@@ -54,63 +55,49 @@ def colorize_pdf(folder, inputFile, outputFile, color):
 
 def merge_pdf(input_folder, input_files, output_folder, output_file):
     try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
-        i = 0
-        open_files = []
+        output = fitz.open()
+        i=0
         for filename in input_files:
             try:
-                file = open(os.path.join(input_folder, filename), 'rb')
-                open_files.append(file)
-                pdfReader = PyPDF4.PdfFileReader(file)
-                pageObj = pdfReader.getPage(0)
-                if(i == 0):
-                    merged_page = pageObj
-                else:
-                    merged_page.mergePage(pageObj)
-                i = i + 1
-                #pdfReader.stream.close()
+                # using "with" to force RAII and avoid another "for" closing files
+                with fitz.open(os.path.join(input_folder, filename)) as file:
+
+                    if i == 0:
+                        output.insert_pdf(file)
+                    else:
+                        output[0].show_pdf_page(file[0].rect,  # select output rect
+                                            file,  # input document
+                                            0,  # input page number
+                                            overlay=False) 
+                i=i+1
             except:
+                # this section needs to be changed if the bitmap issue happens to be solved
                 error_bitmap = ""
                 error_msg = traceback.format_exc()
                 if 'KeyError: 0' in error_msg:
                     error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
                 wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
-        output.addPage(merged_page)
-
-        output.write()
-        output.close()
+                    
+        output.save(os.path.join(output_folder, output_file))
+        
 
     except:
         wx.MessageBox("merge_pdf failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
-    # Close the input files
-    for f in open_files:
-        f.close()
 
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
-    try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
-        open_files = []
-        for filename in input_files:
-            try:
-                file = open(os.path.join(input_folder, filename), 'rb')
-                open_files.append(file)
-                pdfReader = PyPDF4.PdfFileReader(file)
-                pageObj = pdfReader.getPage(0)
-                pageObj.compressContentStreams()
-                output.addPage(pageObj)
-                #pdfReader.stream.close()
-            except:
-                wx.MessageBox("create_pdf_from_pages failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
-        output.write()
-        output.close()
+    try:
+
+        output = fitz.open()
+        for filename in input_files:
+            with fitz.open(os.path.join(input_folder, filename)) as file:
+                output.insert_pdf(file)
+        output.save(os.path.join(output_folder, output_file))
+
     except:
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
-    # Close the files
-    for f in open_files:
-        f.close()
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, dialog_panel):
     wx.MessageBox("The process of creating a pdf from this board will now begin.\n\n" +
@@ -160,9 +147,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     # Check if we're able to write to the output file.
     try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_dir, final_assembly_file))
-        #output.write()
-        output.close()
+        #os.access(os.path.join(output_dir, final_assembly_file), os.W_OK)
+        open(os.path.join(output_dir, final_assembly_file), "w")
+
     except:
         wx.MessageBox("The output file is not writeable. Perhaps it's open in another " +
                       "application?\n\n" + final_assembly_file_with_path, 'Error', wx.OK | wx.ICON_ERROR)
@@ -220,6 +207,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                             s.append(True)
                         else:
                             s.append(False)
+                        #dialog_panel.m_staticText_status.SetLabel("test1")
+                        # I'm having a bug where code can hang from here...
                         if el in templates[t]["layers_negative"]: # Bool specifying if layer is negative
                             if templates[t]["layers_negative"][el] == "true":
                                 s.append(True)
@@ -227,6 +216,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                                 s.append(False)
                         else:
                             s.append(False)
+                        # dialog_panel.m_staticText_status.SetLabel("test2")
+                        # to here...
                         settings.insert(0, s) # Prepend to settings
 
             temp.append(settings)
