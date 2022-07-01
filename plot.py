@@ -57,7 +57,7 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
     try:
         output = fitz.open()
         i=0
-        for filename in input_files:
+        for filename in reversed(input_files):
             try:
                 # using "with" to force RAII and avoid another "for" closing files
                 with fitz.open(os.path.join(input_folder, filename)) as file:
