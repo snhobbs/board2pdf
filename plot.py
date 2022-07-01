@@ -71,12 +71,7 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
                                             overlay=False) 
                 i=i+1
             except:
-                # this section needs to be changed if the bitmap issue happens to be solved
-                error_bitmap = ""
-                error_msg = traceback.format_exc()
-                if 'KeyError: 0' in error_msg:
-                    error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
-                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
+                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
                     
         output.save(os.path.join(output_folder, output_file))
         
@@ -99,7 +94,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
 
-def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, dialog_panel):
+def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, dialog_panel):
     wx.MessageBox("The process of creating a pdf from this board will now begin.\n\n" +
                   "If you have a very small board, this will take less then a minute. But if you have " +
                   "a large board you may just as well go grab a cup of coffee because this will take "
@@ -305,13 +300,33 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)
 
+
+    # Create SVG(s) if settings says so
+    if (create_svg):
+        final_pdf = fitz.open(os.path.join(output_dir, final_assembly_file))
+        try:
+            for spage in final_pdf:
+                svg_image = spage.get_svg_image()
+                svg_filename = os.path.splitext(final_assembly_file)[0]+str(spage.number)+".svg"
+                file=open(os.path.join(output_dir, svg_filename), "w")
+                file.write(svg_image)
+                file.close()
+            dialog_panel.m_staticText_status.SetLabel("Status: SVG(s) created successfully.")
+        except:
+            wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+            progress = 100
+            setProgress(progress)
+            dialog_panel.m_staticText_status.SetLabel("Status: Failed to create SVG(s)")
+        final_pdf.close()
+
+
     # Delete temp files if setting says so
     if (del_temp_files):
         try:
             shutil.rmtree(temp_dir)
+            dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
         except:
             wx.MessageBox("del_temp_files failed\n\nOn dir " + temp_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-        dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
