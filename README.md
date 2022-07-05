@@ -15,7 +15,7 @@ This plugin ONLY works with the KiCad 6.0.x. It does NOT work with KiCad 5.1.x. 
 
 ## Dependencies
 
-Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. You can install it with 
+Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. You can install it with ``python -m pip install --upgrade pymupdf``
 ## Installation
 The easiest way to install is to open KiCad -> Plugin And Content Manager. Select Board2Pdf in the Plugins tab, press Install and then Apply Changes.
 
