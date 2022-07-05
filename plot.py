@@ -3,11 +3,10 @@ import os
 import shutil
 import pcbnew
 import wx
-
-from . import PyPDF4
-import fitz
-
+import re
 import traceback
+
+import fitz #pymupdf
 
 def print_exception():
     etype, value, tb = exc_info()
@@ -24,31 +23,18 @@ def hex_to_rgb(value):
 
 def colorize_pdf(folder, inputFile, outputFile, color):
     try:
-        with open(os.path.join(folder, inputFile), "rb") as f:
-            source = PyPDF4.PdfFileReader(f, "rb")
-            output = PyPDF4.PdfFileWriter(os.path.join(folder, outputFile))
+        with fitz.open(os.path.join(folder, inputFile)) as doc:
+            xref_number = doc[0].get_contents()
+            stream_bytes =doc.xref_stream(xref_number[0])
+            new_color = str(color[0]) + ' ' + str(color[1]) + ' ' + str(color[2]) + ' '  
+            new_color_RG = bytes(new_color + 'RG', 'ascii')
+            new_color_rg = bytes(new_color + 'rg', 'ascii')
 
-            page = source.getPage(0)
-
-            content_object = page["/Contents"].getObject()
-            content = PyPDF4.pdf.ContentStream(content_object, source)
-
-            i = 0
-            for operands, operator in content.operations:
-                if operator == PyPDF4.b_("rg") or operator == PyPDF4.b_("RG"):
-                    if operands == [0, 0, 0]:
-                        rgb = content.operations[i][0]
-                        content.operations[i] = (
-                            [PyPDF4.generic.FloatObject(color[0]), PyPDF4.generic.FloatObject(color[1]), PyPDF4.generic.FloatObject(color[2])], content.operations[i][1])
-                    #else:
-                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
-                    #          type(rgb[1]), type(rgb[2]))
-                i = i + 1
-
-            page.__setitem__(PyPDF4.generic.NameObject('/Contents'), content)
-            output.addPage(page)
-            output.write()
-            output.close()
+            stream_bytes = re.sub(b'0.0.0.RG', new_color_RG, stream_bytes)
+            stream_bytes = re.sub(b'0.0.0.rg', new_color_rg, stream_bytes)
+            
+            doc.update_stream(xref_number[0], stream_bytes)
+            doc.save(os.path.join(folder, outputFile), clean=True)
 
     except:
         wx.MessageBox("colorize_pdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
@@ -71,12 +57,7 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
                                             overlay=False) 
                 i=i+1
             except:
-                # this section needs to be changed if the bitmap issue happens to be solved
-                error_bitmap = ""
-                error_msg = traceback.format_exc()
-                if 'KeyError: 0' in error_msg:
-                    error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
-                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
+                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
                     
         output.save(os.path.join(output_folder, output_file))
         
@@ -99,7 +80,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
 
-def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, dialog_panel):
+def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, dialog_panel):
     wx.MessageBox("The process of creating a pdf from this board will now begin.\n\n" +
                   "If you have a very small board, this will take less then a minute. But if you have " +
                   "a large board you may just as well go grab a cup of coffee because this will take "
@@ -305,13 +286,33 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)
 
+
+    # Create SVG(s) if settings says so
+    if (create_svg):
+        final_pdf = fitz.open(os.path.join(output_dir, final_assembly_file))
+        try:
+            for spage in final_pdf:
+                svg_image = spage.get_svg_image()
+                svg_filename = os.path.splitext(final_assembly_file)[0]+str(spage.number)+".svg"
+                file=open(os.path.join(output_dir, svg_filename), "w")
+                file.write(svg_image)
+                file.close()
+            dialog_panel.m_staticText_status.SetLabel("Status: SVG(s) created successfully.")
+        except:
+            wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+            progress = 100
+            setProgress(progress)
+            dialog_panel.m_staticText_status.SetLabel("Status: Failed to create SVG(s)")
+        final_pdf.close()
+
+
     # Delete temp files if setting says so
     if (del_temp_files):
         try:
             shutil.rmtree(temp_dir)
+            dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
         except:
             wx.MessageBox("del_temp_files failed\n\nOn dir " + temp_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-        dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
