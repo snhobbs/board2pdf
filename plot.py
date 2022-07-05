@@ -6,7 +6,12 @@ import wx
 import re
 import traceback
 
-import fitz #pymupdf
+
+try:
+    import fitz #pymupdf
+except ImportError or ModuleNotFoundError:
+    wx.MessageBox("PyMuPdf import failed. Use 'python -m pip install --upgrade pymupdf' to install it." + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+
 
 def print_exception():
     etype, value, tb = exc_info()
