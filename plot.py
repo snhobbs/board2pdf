@@ -311,6 +311,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 file=open(os.path.join(output_dir, svg_filename), "w")
                 file.write(svg_image)
                 file.close()
+                # maybe we should delete the pdf
             dialog_panel.m_staticText_status.SetLabel("Status: SVG(s) created successfully.")
         except:
             wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
