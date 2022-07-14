@@ -13,6 +13,9 @@ This plugin ONLY works with the KiCad 6.0.x. It does NOT work with KiCad 5.1.x. 
 
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
+## Dependencies
+
+Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. You can install it with ``python -m pip install --upgrade pymupdf``
 ## Installation
 The easiest way to install is to open KiCad -> Plugin And Content Manager. Select Board2Pdf in the Plugins tab, press Install and then Apply Changes.
 
@@ -41,10 +44,8 @@ This script is written by Albin Dennevi. If you need to come in contact with me 
 
 Credit goes to qu1ck, the author of the [InteractiveHtmlBom](https://github.com/openscopeproject/InteractiveHtmlBom) plugin. I used the GUI of this project as a starting point when making the GUI for this project.
 
-## Unlicense
-For more information, please refer to <http://unlicense.org/>
-
-However, it should be noted that Board2Pdf relies upon PyPDF4 which is a fork of PyPDF2. What this means and how that impacts you is up to you to find out. The license file of PyPDF4 is included in the PyPDF4 folder.
+## License
+This plugin is licensed under the open-source GNU AGPL V3 license. A copy of the license is included in this software, and it can also be viewed [here](https://www.gnu.org/licenses/agpl-3.0.en.html)
 
 ## Project status
 This project is considered to be finished. When serious bugs are reported I will try my best to fix them, but don\'t expect to much progress in adding features from my side.

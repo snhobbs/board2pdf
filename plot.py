@@ -3,10 +3,15 @@ import os
 import shutil
 import pcbnew
 import wx
-
-from . import PyPDF4
-
+import re
 import traceback
+
+
+try:
+    import fitz #pymupdf
+except ImportError or ModuleNotFoundError:
+    wx.MessageBox("PyMuPdf import failed. Use 'python -m pip install --upgrade pymupdf' to install it." + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+
 
 def print_exception():
     etype, value, tb = exc_info()
@@ -23,94 +28,62 @@ def hex_to_rgb(value):
 
 def colorize_pdf(folder, inputFile, outputFile, color):
     try:
-        with open(os.path.join(folder, inputFile), "rb") as f:
-            source = PyPDF4.PdfFileReader(f, "rb")
-            output = PyPDF4.PdfFileWriter(os.path.join(folder, outputFile))
+        with fitz.open(os.path.join(folder, inputFile)) as doc:
+            xref_number = doc[0].get_contents()
+            stream_bytes =doc.xref_stream(xref_number[0])
+            new_color = str(color[0]) + ' ' + str(color[1]) + ' ' + str(color[2]) + ' '  
+            new_color_RG = bytes(new_color + 'RG', 'ascii')
+            new_color_rg = bytes(new_color + 'rg', 'ascii')
 
-            page = source.getPage(0)
-
-            content_object = page["/Contents"].getObject()
-            content = PyPDF4.pdf.ContentStream(content_object, source)
-
-            i = 0
-            for operands, operator in content.operations:
-                if operator == PyPDF4.b_("rg") or operator == PyPDF4.b_("RG"):
-                    if operands == [0, 0, 0]:
-                        rgb = content.operations[i][0]
-                        content.operations[i] = (
-                            [PyPDF4.generic.FloatObject(color[0]), PyPDF4.generic.FloatObject(color[1]), PyPDF4.generic.FloatObject(color[2])], content.operations[i][1])
-                    #else:
-                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
-                    #          type(rgb[1]), type(rgb[2]))
-                i = i + 1
-
-            page.__setitem__(PyPDF4.generic.NameObject('/Contents'), content)
-            output.addPage(page)
-            output.write()
-            output.close()
+            stream_bytes = re.sub(b'0.0.0.RG', new_color_RG, stream_bytes)
+            stream_bytes = re.sub(b'0.0.0.rg', new_color_rg, stream_bytes)
+            
+            doc.update_stream(xref_number[0], stream_bytes)
+            doc.save(os.path.join(folder, outputFile), clean=True)
 
     except:
         wx.MessageBox("colorize_pdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
 def merge_pdf(input_folder, input_files, output_folder, output_file):
     try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
-        i = 0
-        open_files = []
-        for filename in input_files:
+        output = fitz.open()
+        i=0
+        for filename in reversed(input_files):
             try:
-                file = open(os.path.join(input_folder, filename), 'rb')
-                open_files.append(file)
-                pdfReader = PyPDF4.PdfFileReader(file)
-                pageObj = pdfReader.getPage(0)
-                if(i == 0):
-                    merged_page = pageObj
-                else:
-                    merged_page.mergePage(pageObj)
-                i = i + 1
-                #pdfReader.stream.close()
-            except:
-                error_bitmap = ""
-                error_msg = traceback.format_exc()
-                if 'KeyError: 0' in error_msg:
-                    error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
-                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
-        output.addPage(merged_page)
+                # using "with" to force RAII and avoid another "for" closing files
+                with fitz.open(os.path.join(input_folder, filename)) as file:
 
-        output.write()
-        output.close()
+                    if i == 0:
+                        output.insert_pdf(file)
+                    else:
+                        output[0].show_pdf_page(file[0].rect,  # select output rect
+                                            file,  # input document
+                                            0,  # input page number
+                                            overlay=False) 
+                i=i+1
+            except:
+                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                    
+        output.save(os.path.join(output_folder, output_file))
+        
 
     except:
         wx.MessageBox("merge_pdf failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
-    # Close the input files
-    for f in open_files:
-        f.close()
 
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
-    try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
-        open_files = []
-        for filename in input_files:
-            try:
-                file = open(os.path.join(input_folder, filename), 'rb')
-                open_files.append(file)
-                pdfReader = PyPDF4.PdfFileReader(file)
-                pageObj = pdfReader.getPage(0)
-                pageObj.compressContentStreams()
-                output.addPage(pageObj)
-                #pdfReader.stream.close()
-            except:
-                wx.MessageBox("create_pdf_from_pages failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
-        output.write()
-        output.close()
+    try:
+
+        output = fitz.open()
+        for filename in input_files:
+            with fitz.open(os.path.join(input_folder, filename)) as file:
+                output.insert_pdf(file)
+        output.save(os.path.join(output_folder, output_file))
+
     except:
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
-    # Close the files
-    for f in open_files:
-        f.close()
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, dialog_panel):
     wx.MessageBox("The process of creating a pdf from this board will now begin.\n\n" +
@@ -160,9 +133,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     # Check if we're able to write to the output file.
     try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_dir, final_assembly_file))
-        #output.write()
-        output.close()
+        #os.access(os.path.join(output_dir, final_assembly_file), os.W_OK)
+        open(os.path.join(output_dir, final_assembly_file), "w")
+
     except:
         wx.MessageBox("The output file is not writeable. Perhaps it's open in another " +
                       "application?\n\n" + final_assembly_file_with_path, 'Error', wx.OK | wx.ICON_ERROR)
@@ -220,6 +193,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                             s.append(True)
                         else:
                             s.append(False)
+                        #dialog_panel.m_staticText_status.SetLabel("test1")
+                        # I'm having a bug where code can hang from here...
                         if el in templates[t]["layers_negative"]: # Bool specifying if layer is negative
                             if templates[t]["layers_negative"][el] == "true":
                                 s.append(True)
@@ -227,6 +202,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                                 s.append(False)
                         else:
                             s.append(False)
+                        # dialog_panel.m_staticText_status.SetLabel("test2")
+                        # to here...
                         settings.insert(0, s) # Prepend to settings
 
             temp.append(settings)
@@ -318,9 +295,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     if (del_temp_files):
         try:
             shutil.rmtree(temp_dir)
+            dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
         except:
             wx.MessageBox("del_temp_files failed\n\nOn dir " + temp_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-        dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
     else:
         dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
