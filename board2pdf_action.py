@@ -57,10 +57,17 @@ def run_with_dialog():
         items_string = ','.join(dialog_panel.disabledTemplatesSortOrderBox.GetItems())
         config.set('main', 'disabled_templates', items_string)
 
-        del_temp_files_setting = "False"
         if dialog_panel.m_checkBox_delete_temp_files.IsChecked():
             del_temp_files_setting = "True"
+        else:
+            del_temp_files_setting = "False"
         config.set('main', 'del_temp_files', del_temp_files_setting)
+
+        if dialog_panel.m_checkBox_create_svg.IsChecked():
+            create_svg_setting = "True"
+        else:
+            create_svg_setting = "False"
+        config.set('main', 'create_svg', create_svg_setting)
 
         #config.set('main', 'settings', str(templates))
         config.set('main', 'settings', json.dumps(templates))
@@ -72,11 +79,13 @@ def run_with_dialog():
 
     def perform_export(dialog_panel):
         plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates, dlg.panel.templatesSortOrderBox.GetItems(),
-                     dlg.panel.m_checkBox_delete_temp_files.IsChecked(), dialog_panel)
+                     dlg.panel.m_checkBox_delete_temp_files.IsChecked(), dlg.panel.m_checkBox_create_svg.IsChecked(),
+                     dialog_panel)
 
     config_output_dest_dir = ""
     config_enabled_templates = []
     config_disabled_templates = []
+    config_create_svg = False
     config_del_temp_files = False
 
     try:
@@ -98,6 +107,11 @@ def run_with_dialog():
             if config.get('main', 'del_temp_files') == "True":
                 config_del_temp_files = True
 
+        if config.has_option('main', 'create_svg'):
+            if config.get('main', 'create_svg') == "True":
+                config_create_svg = True
+
+
     finally:
         dlg = dialog.SettingsDialog(save_config, perform_export, 'v0.7', templates)
 
@@ -107,6 +121,8 @@ def run_with_dialog():
         dlg.panel.disabledTemplatesSortOrderBox.SetItems(config_disabled_templates)
         if config_del_temp_files:
             dlg.panel.m_checkBox_delete_temp_files.SetValue(True)
+        if config_create_svg:
+            dlg.panel.m_checkBox_create_svg.SetValue(True)
 
         dlg.ShowModal()
         #response = dlg.ShowModal()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+## Python code generated with wxFormBuilder (version 3.10.1-201-g58007bba)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -136,14 +136,14 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer201 = wx.BoxSizer( wx.HORIZONTAL )
 
-
-        bSizer201.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+        self.m_checkBox_create_svg = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Also export to SVGs", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
+        bSizer201.Add( self.m_checkBox_create_svg, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_checkBox_delete_temp_files = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Delete temporary files when done", wx.DefaultPosition, wx.DefaultSize, wx.ALIGN_RIGHT )
         bSizer201.Add( self.m_checkBox_delete_temp_files, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
 
-        sbSizer6.Add( bSizer201, 1, wx.EXPAND, 5 )
+        sbSizer6.Add( bSizer201, 1, wx.ALIGN_RIGHT, 5 )
 
         bSizer39 = wx.BoxSizer( wx.HORIZONTAL )
 
@@ -407,5 +407,4 @@ class SettingsDialogPanel ( wx.Panel ):
 
     def OnLayerEnable( self, event ):
         event.Skip()
-
 
