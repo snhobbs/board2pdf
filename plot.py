@@ -86,10 +86,6 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
 
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, dialog_panel):
-    wx.MessageBox("The process of creating a pdf from this board will now begin.\n\n" +
-                  "If you have a very small board, this will take less then a minute. But if you have " +
-                  "a large board you may just as well go grab a cup of coffee because this will take "
-                  "longer than you would expect!")
 
     def setProgress(value):
         dialog_panel.m_progress.SetValue(value)
@@ -294,22 +290,20 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     # Create SVG(s) if settings says so
     if (create_svg):
-        final_pdf = fitz.open(os.path.join(output_dir, final_assembly_file))
-        try:
-            for spage in final_pdf:
-                svg_image = spage.get_svg_image()
-                svg_filename = os.path.splitext(final_assembly_file)[0]+str(spage.number)+".svg"
+        for template_file in template_filelist:
+            template_pdf = fitz.open(os.path.join(temp_dir, template_file))
+            try:
+                svg_image = template_pdf[0].get_svg_image()
+                svg_filename = os.path.splitext(template_file)[0]+".svg"
                 file=open(os.path.join(output_dir, svg_filename), "w")
                 file.write(svg_image)
                 file.close()
-                # maybe we should delete the pdf
-            dialog_panel.m_staticText_status.SetLabel("Status: SVG(s) created successfully.")
-        except:
-            wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-            progress = 100
-            setProgress(progress)
-            dialog_panel.m_staticText_status.SetLabel("Status: Failed to create SVG(s)")
-        final_pdf.close()
+            except:
+                wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                progress = 100
+                setProgress(progress)
+                dialog_panel.m_staticText_status.SetLabel("Status: Failed to create SVG(s)")
+            template_pdf.close()
 
 
     # Delete temp files if setting says so
@@ -325,4 +319,10 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     progress = 100
     setProgress(progress)
 
-    wx.MessageBox("All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file)))
+    endmsg = "All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file))
+    if (create_svg):
+        endmsg = endmsg + "\n\nSVG files created:"
+        for template_file in template_filelist:
+            endmsg = endmsg + "\n" + os.path.abspath(os.path.join(output_dir, os.path.splitext(template_file)[0]+".svg"))
+
+    wx.MessageBox(endmsg, 'All done!', wx.OK)
