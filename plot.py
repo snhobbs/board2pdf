@@ -8,9 +8,9 @@ import traceback
 
 
 try:
-    import fitz #pymupdf
+    import fitz # This imports PyMuPDF
 except ImportError or ModuleNotFoundError:
-    wx.MessageBox("PyMuPdf import failed. Use 'python -m pip install --upgrade pymupdf' to install it." + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+    wx.MessageBox("PyMuPdf import failed.\n\nRun 'python -m pip install --upgrade pymupdf' from the KiCad 6.0 Command Prompt to install it. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf\n\n" + traceback.format_exc(), 'Board2Pdf Error', wx.OK | wx.ICON_ERROR)
 
 
 def print_exception():
@@ -74,7 +74,6 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
 
     try:
-
         output = fitz.open()
         for filename in input_files:
             with fitz.open(os.path.join(input_folder, filename)) as file:
@@ -131,7 +130,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     try:
         #os.access(os.path.join(output_dir, final_assembly_file), os.W_OK)
         open(os.path.join(output_dir, final_assembly_file), "w")
-
     except:
         wx.MessageBox("The output file is not writeable. Perhaps it's open in another " +
                       "application?\n\n" + final_assembly_file_with_path, 'Error', wx.OK | wx.ICON_ERROR)
@@ -139,6 +137,18 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         setProgress(progress)
         dialog_panel.m_staticText_status.SetLabel("Status: Failed to write to output file.")
         return
+
+    try:
+        fitz.open()
+    except:
+        wx.MessageBox(
+            "PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pymupdf' from the KiCad 6.0 Command Prompt to install it. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf\n\n" + traceback.format_exc(),
+            'Error', wx.OK | wx.ICON_ERROR)
+        progress = 100
+        setProgress(progress)
+        dialog_panel.m_staticText_status.SetLabel("Status: Failed to find PyMuPDF.")
+        return
+
 
     plot_options.SetOutputDirectory(temp_dir)
 
