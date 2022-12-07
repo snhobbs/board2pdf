@@ -6,12 +6,10 @@ import wx
 import re
 import traceback
 
-
 try:
-    import fitz # This imports PyMuPDF
-except ImportError or ModuleNotFoundError:
-    wx.MessageBox("PyMuPdf import failed.\n\nRun 'python -m pip install --upgrade pymupdf' from the KiCad 6.0 Command Prompt to install it. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf\n\n" + traceback.format_exc(), 'Board2Pdf Error', wx.OK | wx.ICON_ERROR)
-
+    import fitz  # This imports PyMuPDF
+except:
+    pass
 
 def print_exception():
     etype, value, tb = exc_info()
@@ -72,7 +70,6 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
 
 
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
-
     try:
         output = fitz.open()
         for filename in input_files:
@@ -85,12 +82,20 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
 
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, dialog_panel):
-
     def setProgress(value):
         dialog_panel.m_progress.SetValue(value)
         dialog_panel.Refresh()
         dialog_panel.Update()
-        
+
+    try:
+        fitz.open()
+    except:
+        wx.MessageBox("PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pymupdf' from the KiCad 6.0 Command Prompt to install PyMuPdf. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf\n\nYou can also install Board2Pdf v0.7 instead. It doesn't require PyMuPdf, but it's much slower.", 'Error', wx.OK | wx.ICON_ERROR)
+        progress = 100
+        setProgress(progress)
+        dialog_panel.m_staticText_status.SetLabel("Status: Failed to load PyMuPDF.")
+        return
+
     os.chdir(os.path.dirname(board.GetFileName()))
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
 
@@ -137,18 +142,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         setProgress(progress)
         dialog_panel.m_staticText_status.SetLabel("Status: Failed to write to output file.")
         return
-
-    try:
-        fitz.open()
-    except:
-        wx.MessageBox(
-            "PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pymupdf' from the KiCad 6.0 Command Prompt to install it. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf\n\n" + traceback.format_exc(),
-            'Error', wx.OK | wx.ICON_ERROR)
-        progress = 100
-        setProgress(progress)
-        dialog_panel.m_staticText_status.SetLabel("Status: Failed to find PyMuPDF.")
-        return
-
 
     plot_options.SetOutputDirectory(temp_dir)
 
