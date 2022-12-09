@@ -209,6 +209,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             templates_list.append(temp)
     #wx.MessageBox("Newly created template_list:\n" + str(templates_list))
 
+
     """
     [
         ["Greyscale Top", False,
@@ -219,19 +220,22 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         ],
     ]
     """
-
-    # Set General Options:
-    plot_options.SetPlotValue(True)
-    plot_options.SetPlotReference(True)
-    plot_options.SetPlotInvisibleText(False)
-    #plot_options.SetPlotViaOnMaskLayer(False)
-    plot_options.SetExcludeEdgeLayer(True);
-    # plot_options.SetPlotPadsOnSilkLayer(False);
-    plot_options.SetUseAuxOrigin(False)
-    plot_options.SetScale(1.0)
-    plot_options.SetAutoScale(False)
-    # plot_options.SetPlotMode(PLOT_MODE)
-    # plot_options.SetLineWidth(2000)
+    try:
+        # Set General Options:
+        plot_options.SetPlotValue(True)
+        plot_options.SetPlotReference(True)
+        plot_options.SetPlotInvisibleText(False)
+        # plot_options.SetPlotPadsOnSilkLayer(False);
+        plot_options.SetUseAuxOrigin(False)
+        plot_options.SetScale(1.0)
+        plot_options.SetAutoScale(False)
+        # plot_options.SetPlotMode(PLOT_MODE)
+        # plot_options.SetLineWidth(2000)
+        if (pcbnew.Version()[0:3] == "6.0"):
+            # This method is only available on V6, not V6.99/V7
+            plot_options.SetExcludeEdgeLayer(True);
+    except:
+        wx.MessageBox(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
     template_filelist = []
 
@@ -245,17 +249,32 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             progress = progress + progress_step
             setProgress(progress)
 
-            plot_options.SetPlotFrameRef(layer_info[3])
-            plot_options.SetNegative(layer_info[4])
-            plot_options.SetMirror(template[1])
-            plot_options.SetPlotViaOnMaskLayer(template[2])
-            if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
-                plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
-            else:
-                plot_options.SetDrillMarksType(0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
-            plot_controller.SetLayer(layer_info[1])
-            plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, template_name)
-            plot_controller.PlotLayer()
+            if (pcbnew.Version()[0:3] == "6.0"):
+                if pcbnew.IsCopperLayer(layer_info[1]): # Should probably do this on mask layers as well
+                    plot_options.SetDrillMarksType(2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
+                else:
+                    plot_options.SetDrillMarksType(0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
+            else: # API changed in V6.99/V7
+                try:
+                    if pcbnew.IsCopperLayer(layer_info[1]):  # Should probably do this on mask layers as well
+                        plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_FULL_DRILL_SHAPE)
+                    else:
+                        plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
+                except:
+                    wx.MessageBox("Unable to set Drill Marks type.\n\nIf you're using a V6.99 build from before Dec 07 2022 then update to a newer build.\n\n"+traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                    return
+
+            try:
+                plot_options.SetPlotFrameRef(layer_info[3])
+                plot_options.SetNegative(layer_info[4])
+                plot_options.SetMirror(template[1])
+                plot_options.SetPlotViaOnMaskLayer(template[2])
+                plot_controller.SetLayer(layer_info[1])
+                plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, template_name)
+                plot_controller.PlotLayer()
+            except:
+                wx.MessageBox(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                return
 
         plot_controller.ClosePlot()
 
@@ -307,7 +326,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 setProgress(progress)
                 dialog_panel.m_staticText_status.SetLabel("Status: Failed to create SVG(s)")
             template_pdf.close()
-
 
     # Delete temp files if setting says so
     if (del_temp_files):
