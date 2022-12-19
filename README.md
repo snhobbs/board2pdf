@@ -40,7 +40,7 @@ Some more information can be found in the [Wiki](https://gitlab.com/dennevi/Boar
 If you want to revert your locally saved settings and go back to the default configuration, just delete the config.ini file in the plugin directory. If config.ini is not found, default_config.ini will be used instead.
 
 ## Support
-First search the [KiCad forum](https://forum.kicad.info/) to see if someone else has asked the same thing. If not, post your question in [this thread](https://forum.kicad.info/t/32269) in the forum. That way I will see your post and answer as soon as I can.
+First search the [KiCad forum](https://forum.kicad.info/) to see if someone else has asked the same thing. If not, post your question in the forum and tag me by writing @albin. That way I will see your post and answer as soon as I can.
 
 ## Contributing
 If you find a bug, please add an issue in the GitLab project.
