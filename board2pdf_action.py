@@ -113,7 +113,7 @@ def run_with_dialog():
 
 
     finally:
-        dlg = dialog.SettingsDialog(save_config, perform_export, 'v0.8-development', templates)
+        dlg = dialog.SettingsDialog(save_config, perform_export, 'v1.0', templates)
 
         # Update dialog with data from saved config.
         dlg.panel.outputDirPicker.Path = config_output_dest_dir
