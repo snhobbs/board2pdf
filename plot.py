@@ -125,7 +125,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_options = plot_controller.GetPlotOptions()
 
     base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
-    final_assembly_file = base_filename + "-Assembly.pdf"
+    final_assembly_file = base_filename + "__Assembly.pdf"
     final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
 
     # Create the directory if it doesn't exist already
@@ -299,21 +299,21 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         progress = progress + progress_step
         setProgress(progress)
 
-        assembly_file = base_filename + "-" + template[0] + ".pdf"
-        merge_pdf(temp_dir, filelist, temp_dir, assembly_file)
+        assembly_file = base_filename + "_" + template[0] + ".pdf"
+        merge_pdf(temp_dir, filelist, output_dir, assembly_file)
         template_filelist.append(assembly_file)
 
     # Add all generated pdfs to one file
     dialog_panel.m_staticText_status.SetLabel("Status: Adding all templates to a single file")
     setProgress(progress)
 
-    create_pdf_from_pages(temp_dir, template_filelist, output_dir, final_assembly_file)
+    create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file)
 
 
     # Create SVG(s) if settings says so
     if (create_svg):
         for template_file in template_filelist:
-            template_pdf = fitz.open(os.path.join(temp_dir, template_file))
+            template_pdf = fitz.open(os.path.join(output_dir, template_file))
             try:
                 svg_image = template_pdf[0].get_svg_image()
                 svg_filename = os.path.splitext(template_file)[0]+".svg"

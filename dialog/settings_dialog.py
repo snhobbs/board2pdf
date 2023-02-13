@@ -59,7 +59,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
 
     # Handlers for events.
-    def OnTemplatesSortOrderUp(self, event):
+    def OnTemplateSortOrderUp(self, event):
         selection = self.templatesSortOrderBox.Selection
         if selection != wx.NOT_FOUND and selection > 0:
             item = self.templatesSortOrderBox.GetString(selection)
@@ -67,7 +67,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.templatesSortOrderBox.Insert(item, selection - 1)
             self.templatesSortOrderBox.SetSelection(selection - 1)
 
-    def OnTemplatesSortOrderDown(self, event):
+    def OnTemplateSortOrderDown(self, event):
         selection = self.templatesSortOrderBox.Selection
         size = self.templatesSortOrderBox.Count
         if selection != wx.NOT_FOUND and selection < size - 1:
@@ -76,23 +76,47 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.templatesSortOrderBox.Insert(item, selection + 1)
             self.templatesSortOrderBox.SetSelection(selection + 1)
 
-    def OnTemplatesNew(self, event):
+    def OnTemplateNew(self, event):
         self.SaveTemplate()
         item = wx.GetTextFromUser(
-                "Characters except for A-Z, a-z, 0-9, *, - and + will be ignored.",
-                "Add sort order item")
-        item = re.sub('[^A-Za-z0-9\*\-\+]', '', item)
+                "Characters except for A-Z, a-z, 0-9, -, +, _ and ' ' will be ignored.",
+                "Add new template")
+        item = re.sub('[^A-Za-z0-9\-\+ _]', '', item)
         if item == '':
             return
-        found = self.templatesSortOrderBox.FindString(item)
-        if found != wx.NOT_FOUND:
-            self.templatesSortOrderBox.SetSelection(found)
+
+        found_en = self.templatesSortOrderBox.FindString(item)
+        found_dis = self.disabledTemplatesSortOrderBox.FindString(item)
+        if found_en != wx.NOT_FOUND or found_dis != wx.NOT_FOUND:
+            wx.MessageBox("Name already exists", "Error", wx.ICON_ERROR)
             return
+
         self.templatesSortOrderBox.Append(item)
         self.templatesSortOrderBox.SetSelection(
                 self.templatesSortOrderBox.Count - 1)
         self.ClearTemplateSettings()
         self.OnTemplateEdit(event)
+
+    def OnTemplateClone(self, event):
+        self.SaveTemplate()
+
+        selection = self.templatesSortOrderBox.Selection
+        if selection != wx.NOT_FOUND:
+            item = self.templatesSortOrderBox.GetString(selection)
+
+            item = item + "-Copy"
+            found_en = self.templatesSortOrderBox.FindString(item)
+            found_dis = self.disabledTemplatesSortOrderBox.FindString(item)
+            if found_en != wx.NOT_FOUND or found_dis != wx.NOT_FOUND:
+                return
+
+            if self.current_template == '':
+                return
+            self.templates[item] = self.templates[self.current_template]
+            self.templatesSortOrderBox.Append(item)
+            self.templatesSortOrderBox.SetSelection(
+                self.templatesSortOrderBox.Count - 1)
+            self.OnTemplateEdit(event)
 
     def OnTemplateDisable(self, event):
         self.SaveTemplate()
@@ -121,7 +145,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 else:
                     self.disabledTemplatesSortOrderBox.SetSelection(max(selection, 0))
 
-    def OnTemplatesDelete(self, event):
+    def OnTemplateDelete(self, event):
         selection = self.disabledTemplatesSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
             item = self.disabledTemplatesSortOrderBox.GetString(selection)
@@ -306,6 +330,17 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 self.m_checkBox_negative.SetValue(False)
 
     def OnTemplateNameChange(self, event):
+        template_name = self.m_textCtrl_template_name.GetValue()
+        item = re.sub('[^A-Za-z0-9\-\+ _]', '', template_name)
+        if item != template_name:
+            self.m_textCtrl_template_name.SetValue(item)
+            return
+
+        found_en = self.templatesSortOrderBox.FindString(item)
+        found_dis = self.disabledTemplatesSortOrderBox.FindString(item)
+        if found_en != wx.NOT_FOUND or found_dis != wx.NOT_FOUND:
+            return
+
         self.SaveTemplate()
 
     def OnSaveLayer(self, event):
