@@ -3,20 +3,20 @@
 Board2Pdf is a KiCad Action Plugin to create good looking pdf files from the board. The outputted pdf is vector based and searchable.
 
 Two examples of what the plugin can output can be found here:<br>
-[armory-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/armory-Assembly.pdf "USB armory from WithSecure Foundry") (1 982 kB) Project is found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from WithSecure Foundry")<br>
-[hackrf-one-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/hackrf-one-Assembly.pdf "HackRF by Great Scott Gadgets") (1 579 kB) Project is found [here](https://github.com/greatscottgadgets/hackrf "HackRF by Great Scott Gadgets")<br>
+[armory-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/armory-Assembly.pdf "USB armory from WithSecure Foundry") (1 982 kB) Project is found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from WithSecure Foundry")<br>
+[hackrf-one-Assembly.pdf](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/hackrf-one-Assembly.pdf "HackRF by Great Scott Gadgets") (1 579 kB) Project is found [here](https://github.com/greatscottgadgets/hackrf "HackRF by Great Scott Gadgets")<br>
 
 When loaded the plugin looks like this. Here the user can configure how the pdf shall look.
 ![Screenshot](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/screenshot.png "Screenshot")
 
-This plugin ONLY works with the KiCad 6.0.x. It does NOT work with KiCad 5.1.x. Take the leap! You won\'t regret it.
+This plugin ONLY works with the KiCad 6.0 and 7.0. It does NOT work with KiCad 5.1.x or earlier versions. Take the leap! You won\'t regret it.
 
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
 ## Dependencies
-**Note!** The information below is only valid from version v0.8. For information on earlier versions, please see [tag v0.7](https://gitlab.com/dennevi/Board2Pdf/-/tree/v0.7).
+**Note!** The information below is only valid from version v1.0. For information on earlier versions, please see [tag v0.7](https://gitlab.com/dennevi/Board2Pdf/-/tree/v0.7).
 
-Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. You can install it with ``python -m pip install --upgrade pymupdf`` This command must be run from the **KiCad 6.0 Command Prompt**. Not from your default terminal or from the Scripting Console within the PCB Editor.
+Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. It\'s recommended to install pdfCropMargins which includes PyMuPDF as well as some other useful pdf tools. You can install it with ``python -m pip install --upgrade pdfCropMargins`` This command must be run from the **KiCad Command Prompt**. Not from your default terminal or from the Scripting Console within the PCB Editor.
 
 For more detailed instructions, see the [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 

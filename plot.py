@@ -90,7 +90,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     try:
         fitz.open()
     except:
-        wx.MessageBox("PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pymupdf' from the KiCad 6.0 Command Prompt to install PyMuPdf. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf\n\nYou can also install Board2Pdf v0.7 instead. It doesn't require PyMuPdf, but it's much slower.", 'Error', wx.OK | wx.ICON_ERROR)
+        wx.MessageBox("PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pdfCropMargins' from the KiCad Command Prompt to install pdfCropMargins which includes PyMuPdf. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf", 'Error', wx.OK | wx.ICON_ERROR)
         progress = 100
         setProgress(progress)
         dialog_panel.m_staticText_status.SetLabel("Status: Failed to load PyMuPDF.")
