@@ -72,6 +72,12 @@ def run_with_dialog():
             create_svg_setting = "False"
         config.set('main', 'create_svg', create_svg_setting)
 
+        if dialog_panel.m_checkBox_delete_single_page_files.IsChecked():
+            delete_single_page_files_setting = "True"
+        else:
+            delete_single_page_files_setting = "False"
+        config.set('main', 'delete_single_page_files', delete_single_page_files_setting)
+
         #config.set('main', 'settings', str(templates))
         config.set('main', 'settings', json.dumps(templates))
 
@@ -83,13 +89,14 @@ def run_with_dialog():
     def perform_export(dialog_panel):
         plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates, dlg.panel.templatesSortOrderBox.GetItems(),
                      dlg.panel.m_checkBox_delete_temp_files.IsChecked(), dlg.panel.m_checkBox_create_svg.IsChecked(),
-                     dialog_panel)
+                     dlg.panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel)
 
     config_output_dest_dir = ""
     config_enabled_templates = []
     config_disabled_templates = []
     config_create_svg = False
     config_del_temp_files = False
+    delete_single_page_files_setting = False
 
     try:
         config.read(configfile)
@@ -109,10 +116,12 @@ def run_with_dialog():
         if config.has_option('main', 'del_temp_files'):
             if config.get('main', 'del_temp_files') == "True":
                 config_del_temp_files = True
-
         if config.has_option('main', 'create_svg'):
             if config.get('main', 'create_svg') == "True":
                 config_create_svg = True
+        if config.has_option('main', 'delete_single_page_files'):
+            if config.get('main', 'delete_single_page_files') == "True":
+                delete_single_page_files_setting = True
 
         icon = wx.Icon(os.path.join(os.path.dirname(__file__), 'icon.png'))
 
@@ -129,6 +138,8 @@ def run_with_dialog():
             dlg.panel.m_checkBox_delete_temp_files.SetValue(True)
         if config_create_svg:
             dlg.panel.m_checkBox_create_svg.SetValue(True)
+        if delete_single_page_files_setting:
+            dlg.panel.m_checkBox_delete_single_page_files.SetValue(True)
 
         dlg.ShowModal()
         #response = dlg.ShowModal()

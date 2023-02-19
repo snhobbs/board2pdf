@@ -81,7 +81,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
 
 
-def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, dialog_panel):
+def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files, dialog_panel):
     def setProgress(value):
         dialog_panel.m_progress.SetValue(value)
         dialog_panel.Refresh()
@@ -331,16 +331,30 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     if (del_temp_files):
         try:
             shutil.rmtree(temp_dir)
-            dialog_panel.m_staticText_status.SetLabel("Status: All done! Temporary files deleted.")
         except:
             wx.MessageBox("del_temp_files failed\n\nOn dir " + temp_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-    else:
-        dialog_panel.m_staticText_status.SetLabel("Status: All done!")
+
+    # Delete single page files if setting says so
+    if (del_single_page_files):
+        for template_file in template_filelist:
+            delete_file = os.path.join(output_dir, os.path.splitext(template_file)[0] + ".pdf")
+            try:
+                os.remove(delete_file)
+            except:
+                wx.MessageBox("del_single_page_files failed\n\nOn file " + delete_file + "\n\n" + traceback.format_exc(),
+                              'Error', wx.OK | wx.ICON_ERROR)
+
+    dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
     progress = 100
     setProgress(progress)
 
     endmsg = "All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file))
+    if (not del_single_page_files):
+        endmsg = endmsg + "\n\nSingle page files created:"
+        for template_file in template_filelist:
+            endmsg = endmsg + "\n" + os.path.abspath(os.path.join(output_dir, os.path.splitext(template_file)[0]+".pdf"))
+
     if (create_svg):
         endmsg = endmsg + "\n\nSVG files created:"
         for template_file in template_filelist:

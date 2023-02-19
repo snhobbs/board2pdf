@@ -164,10 +164,13 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer201 = wx.BoxSizer( wx.HORIZONTAL )
 
-        self.m_checkBox_create_svg = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Also export to SVGs", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_checkBox_create_svg = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Create SVGs", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer201.Add( self.m_checkBox_create_svg, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
-        self.m_checkBox_delete_temp_files = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Delete temporary files when done", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_checkBox_delete_single_page_files = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Delete single page files", wx.DefaultPosition, wx.DefaultSize, 0 )
+        bSizer201.Add( self.m_checkBox_delete_single_page_files, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+
+        self.m_checkBox_delete_temp_files = wx.CheckBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Delete temporary files", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer201.Add( self.m_checkBox_delete_temp_files, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
