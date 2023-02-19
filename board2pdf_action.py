@@ -8,6 +8,8 @@ import wx
 #import ast
 import json
 
+version = "1.1"
+
 try:
     # python 3.x
     from configparser import ConfigParser
@@ -30,7 +32,8 @@ def run_with_dialog():
     board = pcbnew.GetBoard()
     pcb_file_name = board.GetFileName()
     board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
-    configfile = os.path.join(board2pdf_dir, "config.ini")
+    pcb_file_dir = os.path.dirname(os.path.abspath(pcb_file_name))
+    configfile = os.path.join(pcb_file_dir, "board2pdf.config.ini")
 
     # If config.ini file doesn't exist, copy the default file to this file.
     if not os.path.exists(configfile):
@@ -111,9 +114,12 @@ def run_with_dialog():
             if config.get('main', 'create_svg') == "True":
                 config_create_svg = True
 
+        icon = wx.Icon(os.path.join(os.path.dirname(__file__), 'icon.png'))
+
 
     finally:
-        dlg = dialog.SettingsDialog(save_config, perform_export, 'v1.0', templates)
+        dlg = dialog.SettingsDialog(save_config, perform_export, version, templates)
+        dlg.SetIcon(icon)
 
         # Update dialog with data from saved config.
         dlg.panel.outputDirPicker.Path = config_output_dest_dir
@@ -132,8 +138,8 @@ def run_with_dialog():
 
 class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):
-        self.name = "Board2Pdf"
-        self.category = "Tool"
+        self.name = "Board2Pdf\nversion " + version
+        self.category = "Plot"
         self.description = "Plot pcb to pdf."
         self.show_toolbar_button = True  # Optional, defaults to False
         self.icon_file_name = os.path.join(os.path.dirname(__file__), 'icon.png')  # Optional
