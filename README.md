@@ -16,7 +16,7 @@ This plugin ONLY works with the KiCad 6.0 and 7.0. It does NOT work with KiCad 5
 ## Dependencies
 **Note!** The information below is only valid from version v1.0. For information on earlier versions, please see [tag v0.7](https://gitlab.com/dennevi/Board2Pdf/-/tree/v0.7).
 
-Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. It\'s recommended to install pdfCropMargins which includes PyMuPDF as well as some other useful pdf tools. You can install it with ``python -m pip install --upgrade pdfCropMargins`` This command must be run from the **KiCad Command Prompt**. Not from your default terminal or from the Scripting Console within the PCB Editor.
+Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. It\'s recommended to install [pdfCropMargins](https://github.com/abarker/pdfCropMargins) which includes PyMuPDF as well as some other useful pdf tools. You can install it with ``python -m pip install --upgrade pdfCropMargins`` This command must be run from the **KiCad Command Prompt**. Not from your default terminal or from the Scripting Console within the PCB Editor.
 
 For more detailed instructions, see the [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 
@@ -26,7 +26,7 @@ The easiest way to install is to open KiCad -> Plugin And Content Manager. Selec
 You also have to install the dependencies mentioned above.
 
 ### Manual Installation
-Clone or download and unpack this plugin to the correct path on your system. The path varies depending on your operating system. The plugin shall be placed in a new directory in this path. Under Windows the recommended path is %USERPROFILE%\Documents\KiCad\6.0\scripting\plugins\. More information can be found [here](https://dev-docs.kicad.org/en/python/pcbnew/)
+Clone or download and unpack this plugin to the correct path on your system. The path varies depending on your operating system. The plugin shall be placed in a new directory in this path. Under Windows the recommended path is %USERPROFILE%\Documents\KiCad\7.0\scripting\plugins\. More information can be found [here](https://dev-docs.kicad.org/en/python/pcbnew/)
 
 You can also find this directory from inside the PCB Editor (Pcbnew) by pressing the Folder icon (\"Open Plugin Directory\") under Preferences -> Preferences -> PCB Editor -> Action Plugins. Here you can also see all your installed plugins, and if one of them doesn\'t load correctly you can get information from the button with the yellow warning triangle.
 
@@ -53,7 +53,7 @@ This script is written by Albin Dennevi. If you need to come in contact with me 
 Credit goes to qu1ck, the author of the [InteractiveHtmlBom](https://github.com/openscopeproject/InteractiveHtmlBom) plugin. I used the GUI of this project as a starting point when making the GUI for this project.
 
 ## License
-This plugin is licensed under the open-source GNU AGPL V3 license. A copy of the license is included in this software, and it can also be viewed [here](https://www.gnu.org/licenses/agpl-3.0.en.html)
+This plugin is licensed under the open-source GNU GPL license, version 3.0 or later. A copy of the license is included in this software, and it can also be viewed [here](https://www.gnu.org/licenses/gpl-3.0.en.html). This is the same license as pdfCropMargins is licensed under, personally I would've choosen a more open license.
 
 ## Project status
 This project is considered to be finished. When serious bugs are reported I will try my best to fix them, but don\'t expect to much progress in adding features from my side.
