@@ -349,9 +349,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     progress = 100
     setProgress(progress)
 
-    endmsg = "All done!\n\nPdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file))
+    endmsg = "All done!\n\nAssembly pdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file))
     if (not del_single_page_files):
-        endmsg = endmsg + "\n\nSingle page files created:"
+        endmsg = endmsg + "\n\nSingle page pdf files created:"
         for template_file in template_filelist:
             endmsg = endmsg + "\n" + os.path.abspath(os.path.join(output_dir, os.path.splitext(template_file)[0]+".pdf"))
 
