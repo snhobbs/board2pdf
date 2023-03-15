@@ -354,6 +354,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             #self.m_textCtrl_color.ChangeValue("")
             #self.current_layer = ""
 
+    def OnFitzSelected(self, event):
+        self.m_radio_pypdf.SetValue(False)
+
+    def OnPypdfSelected(self, event):
+        self.m_radio_fitz.SetValue(False)
 
     # Helper functions
     def OnSize(self, event):

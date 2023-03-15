@@ -8,7 +8,7 @@ import wx
 #import ast
 import json
 
-version = "1.1"
+version = "1.2-dev"
 
 try:
     # python 3.x
@@ -35,15 +35,16 @@ def run_with_dialog():
     pcb_file_dir = os.path.dirname(os.path.abspath(pcb_file_name))
     configfile = os.path.join(pcb_file_dir, "board2pdf.config.ini")
 
-    # If config.ini file doesn't exist, copy the default file to this file.
-    if not os.path.exists(configfile):
-        default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
-        shutil.copyfile(default_configfile, configfile)
 
     # Not sure it this is needed any more.
     if not pcb_file_name:
         wx.MessageBox('Please save the board file before plotting the pdf.')
         return
+
+    # If config.ini file doesn't exist, copy the default file to this file.
+    if not os.path.exists(configfile):
+        default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
+        shutil.copyfile(default_configfile, configfile)
 
     config = ConfigParser()
     templates = {}
