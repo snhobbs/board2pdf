@@ -41,12 +41,31 @@ def colorize_pdf_fitz(folder, inputFile, outputFile, color):
             doc.update_stream(xref_number[0], stream_bytes)
             doc.save(os.path.join(folder, outputFile), clean=True)
 
+    except RuntimeError as e:
+        if "invalid key in dict" in str(e):
+            wx.MessageBox("colorize_pdf_fitz failed\nOn input file " + inputFile + " in " + folder + "\n\nThis error can be due to PyMuPdf not being able to handle pdfs created by KiCad 7.0.1 due to a bug in KiCad 7.0.1. Upgrade KiCad or switch to pypdf instead.\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+
     except:
         wx.MessageBox("colorize_pdf_fitz failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+
+    return True
 
 def colorize_pdf_pypdf(folder, inputFile, outputFile, color):
     try:
         with open(os.path.join(folder, inputFile), "rb") as f:
+            import sys
+            class error_handler(object):
+                def write(self, data):
+                    if not "UserWarning" in data:
+                        wx.MessageBox("colorize_pdf_pypdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + data, 'Error', wx.OK | wx.ICON_ERROR)
+                        return False
+
+            if (sys.stderr == None):
+                handler = error_handler()
+                sys.stderr = handler
+
             source = PyPDF4.PdfFileReader(f, "rb")
             output = PyPDF4.PdfFileWriter(os.path.join(folder, outputFile))
 
@@ -74,9 +93,40 @@ def colorize_pdf_pypdf(folder, inputFile, outputFile, color):
 
     except:
         wx.MessageBox("colorize_pdf_pypdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        return False
 
+    return True
 
-def merge_pdf(input_folder, input_files, output_folder, output_file):
+def merge_pdf_fitz(input_folder, input_files, output_folder, output_file):
+    try:
+        output = fitz.open()
+        i = 0
+        for filename in reversed(input_files):
+            try:
+                # using "with" to force RAII and avoid another "for" closing files
+                with fitz.open(os.path.join(input_folder, filename)) as file:
+
+                    if i == 0:
+                        output.insert_pdf(file)
+                    else:
+                        output[0].show_pdf_page(file[0].rect,  # select output rect
+                                                file,  # input document
+                                                0,  # input page number
+                                                overlay=False)
+                i = i + 1
+            except:
+                wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                return False
+
+        output.save(os.path.join(output_folder, output_file))
+
+    except:
+        wx.MessageBox("merge_pdf failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+
+    return True
+
+def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
     try:
         output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
         i = 0
@@ -99,6 +149,7 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
                 if 'KeyError: 0' in error_msg:
                     error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
                 wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
+                return False
         output.addPage(merged_page)
 
         output.write()
@@ -106,10 +157,13 @@ def merge_pdf(input_folder, input_files, output_folder, output_file):
 
     except:
         wx.MessageBox("merge_pdf failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        return False
 
     # Close the input files
     for f in open_files:
         f.close()
+
+    return True
 
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
     try:
@@ -126,21 +180,35 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
                 #pdfReader.stream.close()
             except:
                 wx.MessageBox("create_pdf_from_pages failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                return False
 
         output.write()
         output.close()
     except:
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        return False
 
     # Close the files
     for f in open_files:
         f.close()
+
+    return True
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files, dialog_panel):
     def setProgress(value):
         dialog_panel.m_progress.SetValue(value)
         dialog_panel.Refresh()
         dialog_panel.Update()
+
+    if dialog_panel.m_radio_fitz.GetValue() or dialog_panel.m_radio_merge_fitz.GetValue() or create_svg:
+        try:
+            fitz.open()
+        except:
+            wx.MessageBox("PyMuPdf (fitz) wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com", 'Error', wx.OK | wx.ICON_ERROR)
+            progress = 100
+            setProgress(progress)
+            dialog_panel.m_staticText_status.SetLabel("Status: Failed to load PyMuPDF.")
+            return False
 
     os.chdir(os.path.dirname(board.GetFileName()))
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
@@ -184,10 +252,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     except:
         wx.MessageBox("The output file is not writeable. Perhaps it's open in another " +
                       "application?\n\n" + final_assembly_file_with_path, 'Error', wx.OK | wx.ICON_ERROR)
-        progress = 100
-        setProgress(progress)
         dialog_panel.m_staticText_status.SetLabel("Status: Failed to write to output file.")
-        return
+        return False
 
     plot_options.SetOutputDirectory(temp_dir)
 
@@ -282,6 +348,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             plot_options.SetExcludeEdgeLayer(True);
     except:
         wx.MessageBox(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+        dialog_panel.m_staticText_status.SetLabel("Status: Failed to set plot_options")
+        return False
 
     template_filelist = []
 
@@ -308,7 +376,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                         plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
                 except:
                     wx.MessageBox("Unable to set Drill Marks type.\n\nIf you're using a V6.99 build from before Dec 07 2022 then update to a newer build.\n\n"+traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-                    return
+                    dialog_panel.m_staticText_status.SetLabel("Status: Failed to set Drill Marks type")
+                    return False
 
             try:
                 plot_options.SetPlotFrameRef(layer_info[3])
@@ -320,7 +389,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 plot_controller.PlotLayer()
             except:
                 wx.MessageBox(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-                return
+                dialog_panel.m_staticText_status.SetLabel("Status: Failed to set plot_options or plot_controller")
+                return False
 
         plot_controller.ClosePlot()
 
@@ -337,19 +407,13 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 outputFile = base_filename + "-" + ln + "-colored.pdf"
 
                 if(dialog_panel.m_radio_fitz.GetValue()):
-                    try:
-                        fitz.open()
-                    except:
-                        wx.MessageBox(
-                            "PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pdfCropMargins' from the KiCad Command Prompt to install pdfCropMargins which includes PyMuPdf. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf",
-                            'Error', wx.OK | wx.ICON_ERROR)
-                        progress = 100
-                        setProgress(progress)
-                        dialog_panel.m_staticText_status.SetLabel("Status: Failed to load PyMuPDF.")
-                        return
-                    colorize_pdf_fitz(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2]))
+                    if not colorize_pdf_fitz(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2])):
+                        dialog_panel.m_staticText_status.SetLabel("Status: Failed when coloring " + layer_info[0] + " for template " + template_name + " using PyMuPdf")
+                        return False
                 else:
-                    colorize_pdf_pypdf(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2]))
+                    if not colorize_pdf_pypdf(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2])):
+                        dialog_panel.m_staticText_status.SetLabel("Status: Failed when coloring " + layer_info[0] + " for template " + template_name + " using pypdf")
+                        return False
 
                 filelist.append(outputFile)
             else:
@@ -361,29 +425,28 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         setProgress(progress)
 
         assembly_file = base_filename + "_" + template[0] + ".pdf"
-        merge_pdf(temp_dir, filelist, output_dir, assembly_file)
+
+        if (dialog_panel.m_radio_fitz.GetValue()):
+            if not merge_pdf_fitz(temp_dir, filelist, output_dir, assembly_file):
+                dialog_panel.m_staticText_status.SetLabel("Status: Failed when merging all layers of template " + template_name + " using PyMuPdf")
+                return False
+        else:
+            if not merge_pdf_pypdf(temp_dir, filelist, output_dir, assembly_file):
+                dialog_panel.m_staticText_status.SetLabel("Status: Failed when merging all layers of template " + template_name + " using pypdf")
+                return False
+
         template_filelist.append(assembly_file)
 
     # Add all generated pdfs to one file
     dialog_panel.m_staticText_status.SetLabel("Status: Adding all templates to a single file")
     setProgress(progress)
 
-    create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file)
-
+    if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file):
+        dialog_panel.m_staticText_status.SetLabel("Status: Failed when adding all templates to a single file")
+        return False
 
     # Create SVG(s) if settings says so
-    if (create_svg):
-        try:
-            fitz.open()
-        except:
-            wx.MessageBox(
-                "PyMuPdf wasn't loaded.\n\nRun 'python -m pip install --upgrade pdfCropMargins' from the KiCad Command Prompt to install pdfCropMargins which includes PyMuPdf. Then restart the PCB Editor.\n\nMore information in the Readme under Dependencies at https://gitlab.com/dennevi/Board2Pdf",
-                'Error', wx.OK | wx.ICON_ERROR)
-            progress = 100
-            setProgress(progress)
-            dialog_panel.m_staticText_status.SetLabel("Status: Failed to load PyMuPDF.")
-            return
-
+    if create_svg:
         for template_file in template_filelist:
             template_pdf = fitz.open(os.path.join(output_dir, template_file))
             try:
@@ -394,9 +457,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 file.close()
             except:
                 wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-                progress = 100
-                setProgress(progress)
                 dialog_panel.m_staticText_status.SetLabel("Status: Failed to create SVG(s)")
+                return False
             template_pdf.close()
 
     # Delete temp files if setting says so
@@ -405,6 +467,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             shutil.rmtree(temp_dir)
         except:
             wx.MessageBox("del_temp_files failed\n\nOn dir " + temp_dir + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+            dialog_panel.m_staticText_status.SetLabel("Status: Failed to delete temp files")
+            return False
 
     # Delete single page files if setting says so
     if (del_single_page_files):
@@ -413,8 +477,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             try:
                 os.remove(delete_file)
             except:
-                wx.MessageBox("del_single_page_files failed\n\nOn file " + delete_file + "\n\n" + traceback.format_exc(),
-                              'Error', wx.OK | wx.ICON_ERROR)
+                wx.MessageBox("del_single_page_files failed\n\nOn file " + delete_file + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
+                dialog_panel.m_staticText_status.SetLabel("Status: Failed to delete single files")
+                return False
 
     dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 

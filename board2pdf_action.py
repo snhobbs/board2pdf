@@ -88,9 +88,12 @@ def run_with_dialog():
         print("save_config!")
 
     def perform_export(dialog_panel):
-        plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates, dlg.panel.templatesSortOrderBox.GetItems(),
+        if not plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates, dlg.panel.templatesSortOrderBox.GetItems(),
                      dlg.panel.m_checkBox_delete_temp_files.IsChecked(), dlg.panel.m_checkBox_create_svg.IsChecked(),
-                     dlg.panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel)
+                     dlg.panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel):
+            dialog_panel.m_progress.SetValue(100)
+            dialog_panel.Refresh()
+            dialog_panel.Update()
 
     config_output_dest_dir = ""
     config_enabled_templates = []
@@ -141,6 +144,20 @@ def run_with_dialog():
             dlg.panel.m_checkBox_create_svg.SetValue(True)
         if delete_single_page_files_setting:
             dlg.panel.m_checkBox_delete_single_page_files.SetValue(True)
+
+        # Check if able to import fitz. If it's possible then select fitz, otherwise select pypdf.
+        try:
+            import fitz  # This imports PyMuPDF
+            dlg.panel.m_radio_fitz.SetValue(True)
+            dlg.panel.m_radio_pypdf.SetValue(False)
+            dlg.panel.m_radio_merge_fitz.SetValue(True)
+            dlg.panel.m_radio_merge_pypdf.SetValue(False)
+        except:
+            pass
+            dlg.panel.m_radio_fitz.SetValue(False)
+            dlg.panel.m_radio_pypdf.SetValue(True)
+            dlg.panel.m_radio_merge_fitz.SetValue(False)
+            dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
         dlg.ShowModal()
         #response = dlg.ShowModal()
