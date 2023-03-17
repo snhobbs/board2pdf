@@ -8,7 +8,7 @@ import wx
 #import ast
 import json
 
-version = "1.2-dev"
+version = "1.2"
 
 try:
     # python 3.x
