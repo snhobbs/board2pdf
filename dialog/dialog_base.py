@@ -186,7 +186,7 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_radio_fitz = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyMuPdf/fitz (fast)", wx.DefaultPosition, wx.DefaultSize, wx.RB_GROUP )
         bSizer21.Add( self.m_radio_fitz, 0, wx.ALL, 5 )
 
-        self.m_radio_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyPDF4 (slow)", wx.DefaultPosition, wx.DefaultSize, wx.RB_SINGLE )
+        self.m_radio_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyPDF4 (slow)", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer21.Add( self.m_radio_pypdf, 0, wx.ALL, 5 )
 
 
@@ -202,7 +202,7 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_radio_merge_fitz = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyMuPdf/fitz (fast)", wx.DefaultPosition, wx.DefaultSize, wx.RB_GROUP )
         bSizer22.Add( self.m_radio_merge_fitz, 0, wx.ALL, 5 )
 
-        self.m_radio_merge_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyPDF4 (slow)", wx.DefaultPosition, wx.DefaultSize, wx.RB_SINGLE )
+        self.m_radio_merge_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyPDF4 (slow)", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer22.Add( self.m_radio_merge_pypdf, 0, wx.ALL, 5 )
 
 
@@ -432,10 +432,6 @@ class SettingsDialogPanel ( wx.Panel ):
         self.disabledTemplatesSortOrderBox.Bind( wx.EVT_LISTBOX_DCLICK, self.OnTemplateEnable )
         self.m_button_template_enable.Bind( wx.EVT_BUTTON, self.OnTemplateEnable )
         self.m_button4.Bind( wx.EVT_BUTTON, self.OnTemplateDelete )
-        self.m_radio_fitz.Bind( wx.EVT_RADIOBUTTON, self.OnFitzSelected )
-        self.m_radio_pypdf.Bind( wx.EVT_RADIOBUTTON, self.OnPypdfSelected )
-        self.m_radio_merge_fitz.Bind( wx.EVT_RADIOBUTTON, self.OnFitzMergeSelected )
-        self.m_radio_merge_pypdf.Bind( wx.EVT_RADIOBUTTON, self.OnPypdfMergeSelected )
         self.m_button41.Bind( wx.EVT_BUTTON, self.OnSaveSettings )
         self.m_button42.Bind( wx.EVT_BUTTON, self.OnPerform )
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
@@ -479,18 +475,6 @@ class SettingsDialogPanel ( wx.Panel ):
 
 
     def OnTemplateDelete( self, event ):
-        event.Skip()
-
-    def OnFitzSelected( self, event ):
-        event.Skip()
-
-    def OnPypdfSelected( self, event ):
-        event.Skip()
-
-    def OnFitzMergeSelected( self, event ):
-        event.Skip()
-
-    def OnPypdfMergeSelected( self, event ):
         event.Skip()
 
     def OnSaveSettings( self, event ):
