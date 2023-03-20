@@ -13,31 +13,26 @@ This plugin ONLY works with the KiCad 6.0 and 7.0. It does NOT work with KiCad 5
 
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
-## Dependencies
-**Note!** The information below is only valid from version v1.0. For information on earlier versions, please see [tag v0.7](https://gitlab.com/dennevi/Board2Pdf/-/tree/v0.7).
-
-Board2Pdf requires [PyMuPDF](https://github.com/pymupdf/PyMuPDF) as a dependency. It\'s recommended to install [pdfCropMargins](https://github.com/abarker/pdfCropMargins) which includes PyMuPDF as well as some other useful pdf tools. You can install it with ``python -m pip install --upgrade pdfCropMargins`` This command must be run from the **KiCad Command Prompt**. Not from your default terminal or from the Scripting Console within the PCB Editor.
-
-For more detailed instructions, see the [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
-
 ## Installation
 The easiest way to install is to open KiCad -> Plugin And Content Manager. Select Board2Pdf in the Plugins tab, press Install and then Apply Changes.
 
-You also have to install the dependencies mentioned above.
+For instructions on manual installation, see [Wiki - Installation](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Installation)
 
-### Manual Installation
-Clone or download and unpack this plugin to the correct path on your system. The path varies depending on your operating system. The plugin shall be placed in a new directory in this path. Under Windows the recommended path is %USERPROFILE%\Documents\KiCad\7.0\scripting\plugins\. More information can be found [here](https://dev-docs.kicad.org/en/python/pcbnew/)
+Also, see Dependencies below.
 
-You can also find this directory from inside the PCB Editor (Pcbnew) by pressing the Folder icon (\"Open Plugin Directory\") under Preferences -> Preferences -> PCB Editor -> Action Plugins. Here you can also see all your installed plugins, and if one of them doesn\'t load correctly you can get information from the button with the yellow warning triangle.
+## Dependencies
+For basic functionality Board2Pdf uses [PyPDF4](https://github.com/claird/PyPDF4) which is included when installing Board2Pdf. You don’t need to install any dependencies if this functionality is enough for you.
 
-You also have to install the dependencies mentioned above.
+If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the pdf files about ten times faster.
+
+More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 
 ## Usage
 The plugin includes a default configuration which should make it more or less self explanatory if you test it out. The basic idea is that each template will result in a page in the pdf file that\'s created by this plugin. You can enable any number of templates to get different views and color modes of the pcb. Each template can be individually configured to give the desired output. It\'s completely up to you which layers to show, and which colors the layers shall have.
 
 Some more information can be found in the [Wiki](https://gitlab.com/dennevi/Board2Pdf/-/wikis/home).
 
-If you want to revert your locally saved settings and go back to the default configuration, just delete the config.ini file in the plugin directory. If config.ini is not found, default_config.ini will be used instead.
+When you open Board2Pdf a board2pdf.config.ini file will be created in the same place as your project. To save your settings to this file, you just press "Save current settings". If you want to revert your locally saved settings and go back to the default configuration, just delete the board2pdf.config.ini file.
 
 ## Support
 First search the [KiCad forum](https://forum.kicad.info/) to see if someone else has asked the same thing. If not, post your question in the forum and tag me by writing @albin. That way I will see your post and answer as soon as I can.
