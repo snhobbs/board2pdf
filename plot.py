@@ -304,17 +304,40 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                             s.append(True)
                         else:
                             s.append(False)
-                        #dialog_panel.m_staticText_status.SetLabel("test1")
-                        # I'm having a bug where code can hang from here...
-                        if el in templates[t]["layers_negative"]: # Bool specifying if layer is negative
-                            if templates[t]["layers_negative"][el] == "true":
-                                s.append(True)
+
+                        if "layers_negative" in templates[t]:
+                            if el in templates[t]["layers_negative"]: # Bool specifying if layer is negative
+                                if templates[t]["layers_negative"][el] == "true":
+                                    s.append(True)
+                                else:
+                                    s.append(False)
                             else:
                                 s.append(False)
                         else:
                             s.append(False)
-                        # dialog_panel.m_staticText_status.SetLabel("test2")
-                        # to here...
+
+                        if "layers_footprint_values" in templates[t]:
+                            if el in templates[t]["layers_footprint_values"]: # Bool specifying if footprint values shall be plotted
+                                if templates[t]["layers_footprint_values"][el] == "false":
+                                    s.append(False)
+                                else:
+                                    s.append(True)
+                            else:
+                                s.append(True)
+                        else:
+                            s.append(True)
+
+                        if "layers_reference_designators" in templates[t]:
+                            if el in templates[t]["layers_reference_designators"]: # Bool specifying if reference designators shall be plotted
+                                if templates[t]["layers_reference_designators"][el] == "false":
+                                    s.append(False)
+                                else:
+                                    s.append(True)
+                            else:
+                                s.append(True)
+                        else:
+                            s.append(True)
+
                         settings.insert(0, s) # Prepend to settings
 
             temp.append(settings)
@@ -326,16 +349,14 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     [
         ["Greyscale Top", False,
             [
-             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True),
-             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False),
+             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True, True, True),
+             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False, True, True),
             ]
         ],
     ]
     """
     try:
         # Set General Options:
-        plot_options.SetPlotValue(True)
-        plot_options.SetPlotReference(True)
         plot_options.SetPlotInvisibleText(False)
         # plot_options.SetPlotPadsOnSilkLayer(False);
         plot_options.SetUseAuxOrigin(False)
@@ -382,6 +403,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             try:
                 plot_options.SetPlotFrameRef(layer_info[3])
                 plot_options.SetNegative(layer_info[4])
+                plot_options.SetPlotValue(layer_info[5])
+                plot_options.SetPlotReference(layer_info[6])
                 plot_options.SetMirror(template[1])
                 plot_options.SetPlotViaOnMaskLayer(template[2])
                 plot_controller.SetLayer(layer_info[1])

@@ -267,7 +267,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 if self.layersSortOrderBox.FindString(l) == wx.NOT_FOUND:
                     self.disabledLayersSortOrderBox.Append(l)
 
-            # Create dictionary with all layers and their color, and one with layer being negative or not
+            # Create dictionary with all layers and their settings
             if item in self.templates:
                 if "layers" in self.templates[item]:
                     self.layersColorDict = self.templates[item]["layers"]
@@ -277,9 +277,19 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     self.layersNegativeDict = self.templates[item]["layers_negative"]
                 else:
                     self.layersNegativeDict = {}
+                if "layers_footprint_values" in self.templates[item]:
+                    self.layersFootprintValuesDict = self.templates[item]["layers_footprint_values"]
+                else:
+                    self.layersFootprintValuesDict = {}
+                if "layers_reference_designators" in self.templates[item]:
+                    self.layersReferenceDesignatorsDict = self.templates[item]["layers_reference_designators"]
+                else:
+                    self.layersReferenceDesignatorsDict = {}
             else:
                 self.layersColorDict = {}
                 self.layersNegativeDict = {}
+                self.layersFootprintValuesDict = {}
+                self.layersReferenceDesignatorsDict = {}
 
             # Update the comboBox where user can select one layer to plot the "frame"
             layers.insert(0, "None")
@@ -329,6 +339,22 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             else:
                 self.m_checkBox_negative.SetValue(False)
 
+            if item in self.layersFootprintValuesDict:
+                if self.layersFootprintValuesDict[item] == "false":
+                    self.m_checkBox_footprint_values.SetValue(False)
+                else:
+                    self.m_checkBox_footprint_values.SetValue(True)
+            else:
+                self.m_checkBox_footprint_values.SetValue(True)
+
+            if item in self.layersReferenceDesignatorsDict:
+                if self.layersReferenceDesignatorsDict[item] == "false":
+                    self.m_checkBox_reference_designators.SetValue(False)
+                else:
+                    self.m_checkBox_reference_designators.SetValue(True)
+            else:
+                self.m_checkBox_reference_designators.SetValue(True)
+
     def OnTemplateNameChange(self, event):
         template_name = self.m_textCtrl_template_name.GetValue()
         item = re.sub('[^A-Za-z0-9\-\+ _]', '', template_name)
@@ -350,9 +376,18 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 self.layersNegativeDict[self.current_layer] = "true"
             else:
                 self.layersNegativeDict[self.current_layer] = "false"
-            #self.layersNegativeDict[self.current_layer] = self.m_checkBox_negative.IsChecked()
-            #self.m_textCtrl_color.ChangeValue("")
-            #self.current_layer = ""
+
+            self.layersFootprintValuesDict[self.current_layer] = self.m_checkBox_footprint_values.GetValue()
+            if self.m_checkBox_footprint_values.IsChecked():
+                self.layersFootprintValuesDict[self.current_layer] = "true"
+            else:
+                self.layersFootprintValuesDict[self.current_layer] = "false"
+
+            self.layersReferenceDesignatorsDict[self.current_layer] = self.m_checkBox_reference_designators.GetValue()
+            if self.m_checkBox_reference_designators.IsChecked():
+                self.layersReferenceDesignatorsDict[self.current_layer] = "true"
+            else:
+                self.layersReferenceDesignatorsDict[self.current_layer] = "false"
 
     # Helper functions
     def OnSize(self, event):
@@ -379,7 +414,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                              "enabled_layers": enabled_layers,
                              "frame": self.m_comboBox_frame.GetValue(),
                              "layers": self.layersColorDict,
-                             "layers_negative": self.layersNegativeDict}
+                             "layers_negative": self.layersNegativeDict,
+                             "layers_footprint_values": self.layersFootprintValuesDict,
+                             "layers_reference_designators": self.layersReferenceDesignatorsDict}
             if template_name != self.current_template:
                 # Template has changed name. Remove the old name.
                 self.templates.pop(self.current_template, None)
@@ -400,5 +437,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_comboBox_frame.Clear()
         self.m_textCtrl_color.ChangeValue("")
         self.m_checkBox_negative.SetValue(False)
+        self.m_checkBox_footprint_values.SetValue(True)
+        self.m_checkBox_reference_designators.SetValue(True)
         self.layersSortOrderBox.Clear()
         self.disabledLayersSortOrderBox.Clear()
