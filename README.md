@@ -30,9 +30,7 @@ More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Boa
 ## Usage
 The plugin includes a default configuration which should make it more or less self explanatory if you test it out. The basic idea is that each template will result in a page in the pdf file that\'s created by this plugin. You can enable any number of templates to get different views and color modes of the pcb. Each template can be individually configured to give the desired output. It\'s completely up to you which layers to show, and which colors the layers shall have.
 
-Some more information can be found in the [Wiki](https://gitlab.com/dennevi/Board2Pdf/-/wikis/home).
-
-When you open Board2Pdf a board2pdf.config.ini file will be created in the same place as your project. To save your settings to this file, you just press "Save current settings". If you want to revert your locally saved settings and go back to the default configuration, just delete the board2pdf.config.ini file.
+More information can be found in the [Wiki](https://gitlab.com/dennevi/Board2Pdf/-/wikis/home).
 
 ## Support
 First search the [KiCad forum](https://forum.kicad.info/) to see if someone else has asked the same thing. If not, post your question in the forum and tag me by writing @albin. That way I will see your post and answer as soon as I can.
