@@ -184,7 +184,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             #cd.GetColourData().SetChooseFull(True)
 
             if cd.ShowModal() == wx.ID_OK:
-                self.m_textCtrl_color.ChangeValue(str('#%02X%02X%02X' % cd.GetColourData().Colour[:3]))
+                rgb_color = cd.GetColourData().Colour[:3]
+                self.m_textCtrl_color.ChangeValue(str('#%02X%02X%02X' % rgb_color))
+                self.m_color_shower.SetBackgroundColour(rgb_color)
+                self.m_color_shower.SetForegroundColour(rgb_color)
+                self.m_color_shower.SetLabel(str(rgb_color))
 
             cd.Destroy()
             self.OnSaveLayer(event)
@@ -331,6 +335,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 color = self.layersColorDict[item]
             self.m_textCtrl_color.ChangeValue(color)
 
+            rgb_color = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+            self.m_color_shower.SetBackgroundColour(rgb_color)
+            self.m_color_shower.SetForegroundColour(rgb_color)
+            self.m_color_shower.SetLabel(str(rgb_color))
+
             if item in self.layersNegativeDict:
                 if self.layersNegativeDict[item] == "true":
                     self.m_checkBox_negative.SetValue(True)
@@ -436,6 +445,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_tent.SetValue(False)
         self.m_comboBox_frame.Clear()
         self.m_textCtrl_color.ChangeValue("")
+        self.m_color_shower.SetBackgroundColour(wx.NullColour)
+        self.m_color_shower.SetForegroundColour(wx.NullColour)
+        self.m_color_shower.SetLabel("")
         self.m_checkBox_negative.SetValue(False)
         self.m_checkBox_footprint_values.SetValue(True)
         self.m_checkBox_reference_designators.SetValue(True)

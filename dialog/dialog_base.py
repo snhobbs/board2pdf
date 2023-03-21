@@ -298,7 +298,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer611 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Layer Properties" ), wx.VERTICAL )
 
-        gSizer2 = wx.GridSizer( 2, 3, 0, 0 )
+        gSizer2 = wx.GridSizer( 0, 4, 0, 0 )
 
         self.m_staticText14 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Layer color", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText14.Wrap( -1 )
@@ -308,22 +308,34 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_textCtrl_color = wx.TextCtrl( sbSizer611.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer2.Add( self.m_textCtrl_color, 0, wx.ALL|wx.EXPAND, 5 )
 
+        self.m_color_shower = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"test", wx.DefaultPosition, wx.Size( 80,20 ), 0 )
+        self.m_color_shower.Wrap( -1 )
+
+        self.m_color_shower.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
+
+        gSizer2.Add( self.m_color_shower, 0, wx.ALL, 5 )
+
         self.m_button14 = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.Size( 70,-1 ), 0 )
 
         self.m_button14.SetBitmapMargins( wx.Size( 2,-1 ) )
         gSizer2.Add( self.m_button14, 0, wx.ALIGN_RIGHT|wx.ALL, 5 )
 
-        self.m_checkBox_negative = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Negative plot", wx.DefaultPosition, wx.DefaultSize, 0 )
-        gSizer2.Add( self.m_checkBox_negative, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
-
-        self.m_checkBox_footprint_values = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot footprint values", wx.DefaultPosition, wx.DefaultSize, 0 )
-        gSizer2.Add( self.m_checkBox_footprint_values, 0, wx.ALL, 5 )
-
-        self.m_checkBox_reference_designators = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot ref. designators", wx.DefaultPosition, wx.DefaultSize, 0 )
-        gSizer2.Add( self.m_checkBox_reference_designators, 0, wx.ALL, 5 )
-
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
+
+        gSizer3 = wx.GridSizer( 0, 3, 0, 0 )
+
+        self.m_checkBox_negative = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Negative plot", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer3.Add( self.m_checkBox_negative, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+
+        self.m_checkBox_reference_designators = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot ref. designators", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer3.Add( self.m_checkBox_reference_designators, 0, wx.ALL, 5 )
+
+        self.m_checkBox_footprint_values = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot footprint values", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer3.Add( self.m_checkBox_footprint_values, 0, wx.ALL, 5 )
+
+
+        sbSizer611.Add( gSizer3, 1, wx.EXPAND, 5 )
 
 
         bSizer321.Add( sbSizer611, 0, wx.ALL|wx.EXPAND, 5 )
@@ -445,8 +457,8 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_textCtrl_color.Bind( wx.EVT_TEXT, self.OnSaveLayer )
         self.m_button14.Bind( wx.EVT_BUTTON, self.OnPickColor )
         self.m_checkBox_negative.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
-        self.m_checkBox_footprint_values.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.m_checkBox_reference_designators.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
+        self.m_checkBox_footprint_values.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.layersSortOrderBox.Bind( wx.EVT_LISTBOX, self.OnLayerEdit )
         self.layersSortOrderBox.Bind( wx.EVT_LISTBOX_DCLICK, self.OnLayerDisable )
         self.m_button11.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderUp )
