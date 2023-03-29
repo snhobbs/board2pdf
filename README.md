@@ -21,7 +21,7 @@ For instructions on manual installation, see [Wiki - Installation](https://gitla
 Also, see Dependencies below.
 
 ## Dependencies
-For basic functionality Board2Pdf uses [PyPDF4](https://github.com/claird/PyPDF4) which is included when installing Board2Pdf. You don’t need to install any dependencies if this functionality is enough for you.
+For basic functionality Board2Pdf uses [pypdf](https://github.com/py-pdf/pypdf) which is included when installing Board2Pdf. You don’t need to install any dependencies if this functionality is enough for you.
 
 If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the pdf files about ten times faster.
 

@@ -6,7 +6,7 @@ import wx
 import re
 import traceback
 
-from . import PyPDF4
+from .pypdf import PdfReader, PdfWriter, generic, _utils
 
 try:
     import fitz  # This imports PyMuPDF
@@ -66,30 +66,31 @@ def colorize_pdf_pypdf(folder, inputFile, outputFile, color):
                 handler = error_handler()
                 sys.stderr = handler
 
-            source = PyPDF4.PdfFileReader(f, "rb")
-            output = PyPDF4.PdfFileWriter(os.path.join(folder, outputFile))
+            source = PdfReader(f, "rb")
+            output = PdfWriter()
 
-            page = source.getPage(0)
-
-            content_object = page["/Contents"].getObject()
-            content = PyPDF4.pdf.ContentStream(content_object, source)
+            page = source.pages[0]
+            content_object = page["/Contents"].get_object()
+            content = generic.ContentStream(content_object, source)
 
             i = 0
             for operands, operator in content.operations:
-                if operator == PyPDF4.b_("rg") or operator == PyPDF4.b_("RG"):
+                if operator == _utils.b_("rg") or operator == _utils.b_("RG"):
                     if operands == [0, 0, 0]:
-                        #rgb = content.operations[i][0]
+                        rgb = content.operations[i][0]
                         content.operations[i] = (
-                            [PyPDF4.generic.FloatObject(color[0]), PyPDF4.generic.FloatObject(color[1]), PyPDF4.generic.FloatObject(color[2])], content.operations[i][1])
+                            [generic.FloatObject(color[0]), generic.FloatObject(color[1]),
+                             generic.FloatObject(color[2])], content.operations[i][1])
                     #else:
                     #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
                     #          type(rgb[1]), type(rgb[2]))
                 i = i + 1
 
-            page.__setitem__(PyPDF4.generic.NameObject('/Contents'), content)
-            output.addPage(page)
-            output.write()
-            output.close()
+            page.__setitem__(generic.NameObject('/Contents'), content)
+            output.add_page(page)
+
+            with open(os.path.join(folder, outputFile), "wb") as outputStream:
+                output.write(outputStream)
 
     except:
         wx.MessageBox("colorize_pdf_pypdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
@@ -128,21 +129,18 @@ def merge_pdf_fitz(input_folder, input_files, output_folder, output_file):
 
 def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
     try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
-        i = 0
         open_files = []
+        #merged_page = _page.PageObject()
         for filename in input_files:
             try:
                 file = open(os.path.join(input_folder, filename), 'rb')
                 open_files.append(file)
-                pdfReader = PyPDF4.PdfFileReader(file)
-                pageObj = pdfReader.getPage(0)
-                if(i == 0):
-                    merged_page = pageObj
+                pdfReader = PdfReader(file, "rb")
+                pageObj = pdfReader.pages[0]
+                if 'merged_page' in locals():
+                    merged_page.merge_page(pageObj)
                 else:
-                    merged_page.mergePage(pageObj)
-                i = i + 1
-                #pdfReader.stream.close()
+                    merged_page = pageObj
             except:
                 error_bitmap = ""
                 error_msg = traceback.format_exc()
@@ -150,16 +148,17 @@ def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
                     error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
                 wx.MessageBox("merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + error_bitmap + error_msg, 'Error', wx.OK | wx.ICON_ERROR)
                 return False
-        output.addPage(merged_page)
 
-        output.write()
-        output.close()
+        output = PdfWriter()
+        output.add_page(merged_page)
+        with open(os.path.join(output_folder, output_file), "wb") as outputStream:
+            output.write(outputStream)
 
     except:
         wx.MessageBox("merge_pdf failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
         return False
 
-    # Close the input files
+    # Close the input files. I don't know why, but merged_page.merge_page(pageObj) doesn't work if I close the files in the merge-loop.
     for f in open_files:
         f.close()
 
@@ -167,30 +166,29 @@ def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
 
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
     try:
-        output = PyPDF4.PdfFileWriter(os.path.join(output_folder, output_file))
-        open_files = []
+        output = PdfWriter()
         for filename in input_files:
             try:
-                file = open(os.path.join(input_folder, filename), 'rb')
-                open_files.append(file)
-                pdfReader = PyPDF4.PdfFileReader(file)
-                pageObj = pdfReader.getPage(0)
-                pageObj.compressContentStreams()
-                output.addPage(pageObj)
-                #pdfReader.stream.close()
+                with open(os.path.join(input_folder, filename), "rb") as file:
+                    #file = open(os.path.join(input_folder, filename), 'rb')
+                    pdfReader = PdfReader(file, "rb")
+                    pageObj = pdfReader.pages[0]
+                    output.add_page(pageObj)
+                    #pdfReader.stream.close()
             except:
                 wx.MessageBox("create_pdf_from_pages failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
                 return False
 
-        output.write()
-        output.close()
+        for page in output.pages:
+            # This has to be done on the writer, not the reader!
+            page.compress_content_streams()  # This is CPU intensive!
+
+        with open(os.path.join(output_folder, output_file), "wb") as outputStream:
+            output.write(outputStream)
+
     except:
         wx.MessageBox("create_pdf_from_pages failed\n\nOn output file " + output_file + " in " + output_folder + "\n\n" + traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
         return False
-
-    # Close the files
-    for f in open_files:
-        f.close()
 
     return True
 
@@ -449,7 +447,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
         assembly_file = base_filename + "_" + template[0] + ".pdf"
 
-        if (dialog_panel.m_radio_fitz.GetValue()):
+        if (dialog_panel.m_radio_merge_fitz.GetValue()):
             if not merge_pdf_fitz(temp_dir, filelist, output_dir, assembly_file):
                 dialog_panel.m_staticText_status.SetLabel("Status: Failed when merging all layers of template " + template_name + " using PyMuPdf")
                 return False
