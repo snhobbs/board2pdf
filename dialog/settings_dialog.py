@@ -32,7 +32,6 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
             # wxPython 3
             self.SetSizeHintsSz(sz1, sz2)
 
-
 # Implementing settings_dialog
 class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
     def __init__(self, parent, config_save_func, perform_export_func, templates):
@@ -42,6 +41,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.current_template = ""
         self.current_layer = ""
         dialog_base.SettingsDialogPanel.__init__(self, parent)
+        self.m_color_shower.SetBackgroundColour(wx.NullColour)
+        self.m_color_shower.SetForegroundColour(wx.NullColour)
+        self.m_color_shower.SetLabel("")
 
     def OnExit(self, event):
         self.GetParent().EndModal(wx.ID_CANCEL)
