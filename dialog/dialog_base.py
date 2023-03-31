@@ -261,24 +261,24 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer23 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"Template Settings" ), wx.VERTICAL )
 
-        bSizer321 = wx.BoxSizer( wx.VERTICAL )
+        m_sizer_template = wx.BoxSizer( wx.VERTICAL )
 
         sbSizer61 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Template Properties" ), wx.VERTICAL )
 
         gSizer1 = wx.GridSizer( 3, 2, 0, 0 )
 
-        self.m_staticText10 = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Template name", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText10.Wrap( -1 )
+        self.m_staticText_template_name = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Template name", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_template_name.Wrap( -1 )
 
-        gSizer1.Add( self.m_staticText10, 0, wx.ALL, 5 )
+        gSizer1.Add( self.m_staticText_template_name, 0, wx.ALL, 5 )
 
         self.m_textCtrl_template_name = wx.TextCtrl( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), 0 )
         gSizer1.Add( self.m_textCtrl_template_name, 0, wx.ALL|wx.EXPAND, 5 )
 
-        self.m_staticText13 = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Draw frame on layer", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText13.Wrap( -1 )
+        self.m_staticText_frame_layer = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Draw frame on layer", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_frame_layer.Wrap( -1 )
 
-        gSizer1.Add( self.m_staticText13, 0, wx.ALL, 5 )
+        gSizer1.Add( self.m_staticText_frame_layer, 0, wx.ALL, 5 )
 
         m_comboBox_frameChoices = []
         self.m_comboBox_frame = wx.ComboBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), m_comboBox_frameChoices, 0 )
@@ -294,16 +294,16 @@ class SettingsDialogPanel ( wx.Panel ):
         sbSizer61.Add( gSizer1, 1, wx.EXPAND, 5 )
 
 
-        bSizer321.Add( sbSizer61, 0, wx.ALL|wx.EXPAND, 5 )
+        m_sizer_template.Add( sbSizer61, 0, wx.ALL|wx.EXPAND, 5 )
 
         sbSizer611 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Layer Properties" ), wx.VERTICAL )
 
         gSizer2 = wx.GridSizer( 0, 4, 0, 0 )
 
-        self.m_staticText14 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Layer color", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText14.Wrap( -1 )
+        self.m_staticText_layer_color = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Layer color", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_layer_color.Wrap( -1 )
 
-        gSizer2.Add( self.m_staticText14, 0, wx.ALL, 5 )
+        gSizer2.Add( self.m_staticText_layer_color, 0, wx.ALL, 5 )
 
         self.m_textCtrl_color = wx.TextCtrl( sbSizer611.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer2.Add( self.m_textCtrl_color, 0, wx.ALL|wx.EXPAND, 5 )
@@ -315,10 +315,10 @@ class SettingsDialogPanel ( wx.Panel ):
 
         gSizer2.Add( self.m_color_shower, 0, wx.ALL, 5 )
 
-        self.m_button14 = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.Size( 70,-1 ), 0 )
+        self.m_button_pick_color = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.Size( 70,-1 ), 0 )
 
-        self.m_button14.SetBitmapMargins( wx.Size( 2,-1 ) )
-        gSizer2.Add( self.m_button14, 0, wx.ALIGN_RIGHT|wx.ALL, 5 )
+        self.m_button_pick_color.SetBitmapMargins( wx.Size( 2,-1 ) )
+        gSizer2.Add( self.m_button_pick_color, 0, wx.ALIGN_RIGHT|wx.ALL, 5 )
 
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
@@ -338,7 +338,7 @@ class SettingsDialogPanel ( wx.Panel ):
         sbSizer611.Add( gSizer3, 1, wx.EXPAND, 5 )
 
 
-        bSizer321.Add( sbSizer611, 0, wx.ALL|wx.EXPAND, 5 )
+        m_sizer_template.Add( sbSizer611, 0, wx.ALL|wx.EXPAND, 5 )
 
         sortingSizer1 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Enabled Layers" ), wx.VERTICAL )
 
@@ -359,23 +359,23 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer52 = wx.BoxSizer( wx.VERTICAL )
 
-        self.m_button11 = wx.Button( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Up", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
+        self.m_button_layer_up = wx.Button( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Up", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
 
-        self.m_button11.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_GO_UP, wx.ART_BUTTON ) )
-        self.m_button11.SetBitmapMargins( wx.Size( 2,-1 ) )
-        bSizer52.Add( self.m_button11, 0, wx.ALL, 5 )
+        self.m_button_layer_up.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_GO_UP, wx.ART_BUTTON ) )
+        self.m_button_layer_up.SetBitmapMargins( wx.Size( 2,-1 ) )
+        bSizer52.Add( self.m_button_layer_up, 0, wx.ALL, 5 )
 
-        self.m_button21 = wx.Button( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Down", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
+        self.m_button_layer_down = wx.Button( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Down", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
 
-        self.m_button21.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_GO_DOWN, wx.ART_BUTTON ) )
-        self.m_button21.SetBitmapMargins( wx.Size( 2,-1 ) )
-        bSizer52.Add( self.m_button21, 0, wx.ALL, 5 )
+        self.m_button_layer_down.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_GO_DOWN, wx.ART_BUTTON ) )
+        self.m_button_layer_down.SetBitmapMargins( wx.Size( 2,-1 ) )
+        bSizer52.Add( self.m_button_layer_down, 0, wx.ALL, 5 )
 
-        self.m_button_disable1 = wx.Button( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Disable", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
+        self.m_button_layer_disable = wx.Button( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Disable", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
 
-        self.m_button_disable1.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_MINUS, wx.ART_BUTTON ) )
-        self.m_button_disable1.SetBitmapMargins( wx.Size( 2,-1 ) )
-        bSizer52.Add( self.m_button_disable1, 0, wx.ALL, 5 )
+        self.m_button_layer_disable.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_MINUS, wx.ART_BUTTON ) )
+        self.m_button_layer_disable.SetBitmapMargins( wx.Size( 2,-1 ) )
+        bSizer52.Add( self.m_button_layer_disable, 0, wx.ALL, 5 )
 
 
         bSizer42.Add( bSizer52, 0, wx.ALIGN_RIGHT, 5 )
@@ -383,16 +383,16 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer512.Add( bSizer42, 1, wx.EXPAND, 5 )
 
-        self.m_staticText16 = wx.StaticText( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Note! Layers at the top of the list will be drawn on top of layers further down.", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText16.Wrap( -1 )
+        self.m_staticText_layer_info = wx.StaticText( sortingSizer1.GetStaticBox(), wx.ID_ANY, u"Note! Layers at the top of the list will be drawn on top of layers further down.", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_layer_info.Wrap( -1 )
 
-        bSizer512.Add( self.m_staticText16, 0, wx.ALL, 5 )
+        bSizer512.Add( self.m_staticText_layer_info, 0, wx.ALL, 5 )
 
 
         sortingSizer1.Add( bSizer512, 1, wx.EXPAND, 5 )
 
 
-        bSizer321.Add( sortingSizer1, 1, wx.ALL|wx.EXPAND, 5 )
+        m_sizer_template.Add( sortingSizer1, 1, wx.ALL|wx.EXPAND, 5 )
 
         layersSizer1 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Disabled Layers" ), wx.VERTICAL )
 
@@ -411,11 +411,11 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer511 = wx.BoxSizer( wx.VERTICAL )
 
-        self.m_button_layer_enable1 = wx.Button( layersSizer1.GetStaticBox(), wx.ID_ANY, u"Enable", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
+        self.m_button_layer_enable = wx.Button( layersSizer1.GetStaticBox(), wx.ID_ANY, u"Enable", wx.DefaultPosition, wx.Size( 70,30 ), 0|wx.BORDER_DEFAULT )
 
-        self.m_button_layer_enable1.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_PLUS, wx.ART_BUTTON ) )
-        self.m_button_layer_enable1.SetBitmapMargins( wx.Size( 2,-1 ) )
-        bSizer511.Add( self.m_button_layer_enable1, 0, wx.ALL, 5 )
+        self.m_button_layer_enable.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_PLUS, wx.ART_BUTTON ) )
+        self.m_button_layer_enable.SetBitmapMargins( wx.Size( 2,-1 ) )
+        bSizer511.Add( self.m_button_layer_enable, 0, wx.ALL, 5 )
 
 
         bSizer411.Add( bSizer511, 0, wx.ALIGN_RIGHT, 5 )
@@ -424,10 +424,10 @@ class SettingsDialogPanel ( wx.Panel ):
         layersSizer1.Add( bSizer411, 1, wx.EXPAND, 5 )
 
 
-        bSizer321.Add( layersSizer1, 1, wx.ALL|wx.EXPAND, 5 )
+        m_sizer_template.Add( layersSizer1, 1, wx.ALL|wx.EXPAND, 5 )
 
 
-        sbSizer23.Add( bSizer321, 1, wx.EXPAND, 5 )
+        sbSizer23.Add( m_sizer_template, 1, wx.EXPAND, 5 )
 
 
         bSizer301.Add( sbSizer23, 1, wx.EXPAND, 5 )
@@ -455,17 +455,17 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
         self.m_textCtrl_color.Bind( wx.EVT_TEXT, self.OnSaveLayer )
-        self.m_button14.Bind( wx.EVT_BUTTON, self.OnPickColor )
+        self.m_button_pick_color.Bind( wx.EVT_BUTTON, self.OnPickColor )
         self.m_checkBox_negative.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.m_checkBox_reference_designators.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.m_checkBox_footprint_values.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.layersSortOrderBox.Bind( wx.EVT_LISTBOX, self.OnLayerEdit )
         self.layersSortOrderBox.Bind( wx.EVT_LISTBOX_DCLICK, self.OnLayerDisable )
-        self.m_button11.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderUp )
-        self.m_button21.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderDown )
-        self.m_button_disable1.Bind( wx.EVT_BUTTON, self.OnLayerDisable )
+        self.m_button_layer_up.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderUp )
+        self.m_button_layer_down.Bind( wx.EVT_BUTTON, self.OnLayerSortOrderDown )
+        self.m_button_layer_disable.Bind( wx.EVT_BUTTON, self.OnLayerDisable )
         self.disabledLayersSortOrderBox.Bind( wx.EVT_LISTBOX_DCLICK, self.OnLayerEnable )
-        self.m_button_layer_enable1.Bind( wx.EVT_BUTTON, self.OnLayerEnable )
+        self.m_button_layer_enable.Bind( wx.EVT_BUTTON, self.OnLayerEnable )
 
     def __del__( self ):
         pass

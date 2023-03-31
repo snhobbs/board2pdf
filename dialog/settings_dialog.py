@@ -44,6 +44,64 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_color_shower.SetBackgroundColour(wx.NullColour)
         self.m_color_shower.SetForegroundColour(wx.NullColour)
         self.m_color_shower.SetLabel("")
+        self.hide_template_settings()
+        self.hide_layer_settings()
+
+    def hide_template_settings(self):
+        self.m_textCtrl_template_name.Disable()
+        self.m_comboBox_frame.Disable()
+        self.m_checkBox_mirror.Disable()
+        self.m_checkBox_tent.Disable()
+        self.m_staticText_template_name.Disable()
+        self.m_staticText_frame_layer.Disable()
+
+        self.layersSortOrderBox.Disable()
+        self.m_button_layer_up.Disable()
+        self.m_button_layer_down.Disable()
+        self.m_button_layer_disable.Disable()
+        self.disabledLayersSortOrderBox.Disable()
+        self.m_button_layer_enable.Disable()
+        self.m_staticText_layer_info.Disable()
+
+
+    def hide_layer_settings(self):
+        self.m_textCtrl_color.Disable()
+        self.m_button_pick_color.Disable()
+        self.m_checkBox_negative.Disable()
+        self.m_checkBox_reference_designators.Disable()
+        self.m_checkBox_footprint_values.Disable()
+        self.m_staticText_layer_color.Disable()
+        self.m_textCtrl_color.ChangeValue("")
+        self.m_color_shower.SetBackgroundColour(wx.NullColour)
+        self.m_color_shower.SetForegroundColour(wx.NullColour)
+        self.m_color_shower.SetLabel("")
+        self.m_checkBox_negative.SetValue(False)
+        self.m_checkBox_footprint_values.SetValue(True)
+        self.m_checkBox_reference_designators.SetValue(True)
+
+    def show_template_settings(self):
+        self.m_textCtrl_template_name.Enable()
+        self.m_comboBox_frame.Enable()
+        self.m_checkBox_mirror.Enable()
+        self.m_checkBox_tent.Enable()
+        self.m_staticText_template_name.Enable()
+        self.m_staticText_frame_layer.Enable()
+
+        self.layersSortOrderBox.Enable()
+        self.m_button_layer_up.Enable()
+        self.m_button_layer_down.Enable()
+        self.m_button_layer_disable.Enable()
+        self.disabledLayersSortOrderBox.Enable()
+        self.m_button_layer_enable.Enable()
+        self.m_staticText_layer_info.Enable()
+
+    def show_layer_settings(self):
+        self.m_textCtrl_color.Enable()
+        self.m_button_pick_color.Enable()
+        self.m_checkBox_negative.Enable()
+        self.m_checkBox_reference_designators.Enable()
+        self.m_checkBox_footprint_values.Enable()
+        self.m_staticText_layer_color.Enable()
 
     def OnExit(self, event):
         self.GetParent().EndModal(wx.ID_CANCEL)
@@ -133,6 +191,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 else:
                     self.templatesSortOrderBox.SetSelection(max(selection, 0))
             self.ClearTemplateSettings()
+            self.hide_template_settings()
             self.OnTemplateEdit(event)
 
     def OnTemplateEnable(self, event):
@@ -226,6 +285,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                         self.layersSortOrderBox.SetSelection(max(selection - 1, 0))
                     else:
                         self.layersSortOrderBox.SetSelection(max(selection, 0))
+                    self.OnLayerEdit(self)
+                else:
+                    self.hide_layer_settings()
                 self.SaveTemplate()
 
     def OnLayerEnable(self, event):
@@ -248,6 +310,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         selection = self.templatesSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
             self.ClearTemplateSettings()
+            self.show_template_settings()
 
             item = self.templatesSortOrderBox.GetString(selection)
             self.m_textCtrl_template_name.ChangeValue(item)
@@ -331,6 +394,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.disabledLayersSortOrderBox.SetSelection(-1)
             item = self.layersSortOrderBox.GetString(selection)
             self.current_layer = item
+            self.show_layer_settings()
+
             if item not in self.layersColorDict:
                 color = "#000000"
             else:
@@ -455,3 +520,4 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_reference_designators.SetValue(True)
         self.layersSortOrderBox.Clear()
         self.disabledLayersSortOrderBox.Clear()
+        self.hide_layer_settings()
