@@ -316,10 +316,18 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.m_textCtrl_template_name.ChangeValue(item)
             self.current_template = item
 
+            board = pcbnew.GetBoard()
             layers = []
+            layers_dict = dict()
             i = pcbnew.PCBNEW_LAYER_ID_START
             while i < pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT:
-                layers.append(pcbnew.BOARD_GetStandardLayerName(i))
+                layer_std_name = pcbnew.BOARD_GetStandardLayerName(i)
+                layer_name = pcbnew.BOARD.GetLayerName(board, i)
+                layers_dict[layer_std_name] = layer_name
+                if layer_std_name == layer_name:
+                    layers.append(layer_name)
+                else:
+                    layers.append(layer_std_name+" ("+layer_name+")")
                 i += 1
 
             # Set enabled layers, if there are any in this template already
@@ -327,13 +335,20 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 if "enabled_layers" in self.templates[item]:
                     enabled_layers = self.templates[item]["enabled_layers"].split(',')
                     enabled_layers[:] = [l for l in enabled_layers if l != ''] # removes empty entries
+                    # Add the layer name within parenthesis if the layer name is not the standard layer name
+                    for i, layer_name in enumerate(enabled_layers):
+                        if layers_dict[layer_name] != layer_name:
+                            enabled_layers[i] = layer_name+" ("+layers_dict[layer_name]+")"
+                    # Add all enabled layers to the enabled layers sort box.
                     if enabled_layers:
                         self.layersSortOrderBox.SetItems(enabled_layers)
 
             # Update the listbox with disabled layers
             # Add all layers not in the enabled list
             for l in layers:
-                if self.layersSortOrderBox.FindString(l) == wx.NOT_FOUND:
+                # Remove the name within the parenthesis if there is one, before searching for the name
+                layer_name = l.split(' (')[0]
+                if self.layersSortOrderBox.FindString(layer_name) == wx.NOT_FOUND:
                     self.disabledLayersSortOrderBox.Append(l)
 
             # Create dictionary with all layers and their settings
@@ -369,9 +384,12 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 if "frame" in self.templates[item]:
                     saved_frame = self.templates[item]["frame"]
                     if saved_frame:
-                        saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
-                        if saved_frame_pos != wx.NOT_FOUND:
-                            self.m_comboBox_frame.SetSelection(saved_frame_pos)
+                        if saved_frame != "None":
+                            if layers_dict[saved_frame] != saved_frame:
+                                saved_frame = saved_frame+" ("+layers_dict[saved_frame]+")"
+                            saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
+                            if saved_frame_pos != wx.NOT_FOUND:
+                                self.m_comboBox_frame.SetSelection(saved_frame_pos)
 
             # Set the mirror checkbox according to saved setting
             if item in self.templates:
@@ -392,7 +410,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         selection = self.layersSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
             self.disabledLayersSortOrderBox.SetSelection(-1)
-            item = self.layersSortOrderBox.GetString(selection)
+            selected_item = self.layersSortOrderBox.GetString(selection)
+            item = selected_item.split(' (')[0]  # Remove parenthesis if there is one
             self.current_layer = item
             self.show_layer_settings()
 
@@ -481,14 +500,20 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             if frame_layer != "None":
                 if self.layersSortOrderBox.FindString(frame_layer) == wx.NOT_FOUND:
                     self.layersSortOrderBox.Append(frame_layer)
-                    if self.disabledLayersSortOrderBox.FindString(frame_layer) != wx.NOT_FOUND:
-                        self.disabledLayersSortOrderBox.Delete(frame_layer)
+                    frame_layer_pos = self.disabledLayersSortOrderBox.FindString(frame_layer)
+                    if frame_layer_pos != wx.NOT_FOUND:
+                        self.disabledLayersSortOrderBox.Delete(frame_layer_pos)
 
-            enabled_layers = ','.join(self.layersSortOrderBox.GetItems())
+            enabled_layers_list = self.layersSortOrderBox.GetItems()
+            # Remove the name within the parenthesis if there is one
+            for i, layer_name in enumerate(enabled_layers_list):
+                enabled_layers_list[i] = layer_name.split(' (')[0]
+
+            enabled_layers = ','.join(enabled_layers_list)
             this_template = {"mirrored": self.m_checkBox_mirror.IsChecked(),
                              "tented": self.m_checkBox_tent.IsChecked(),
                              "enabled_layers": enabled_layers,
-                             "frame": self.m_comboBox_frame.GetValue(),
+                             "frame": frame_layer.split(' (')[0],   # Remove parenthesis if there is one
                              "layers": self.layersColorDict,
                              "layers_negative": self.layersNegativeDict,
                              "layers_footprint_values": self.layersFootprintValuesDict,
