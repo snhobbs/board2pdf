@@ -325,7 +325,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             layers_dict = dict()
             i = pcbnew.PCBNEW_LAYER_ID_START
             while i < pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT:
-                layer_std_name = pcbnew.BOARD_GetStandardLayerName(i)
+                layer_std_name = pcbnew.BOARD.GetStandardLayerName(i)
                 layer_name = pcbnew.BOARD.GetLayerName(board, i)
                 layers_dict[layer_std_name] = layer_name
                 if layer_std_name == layer_name:

@@ -281,7 +281,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             layer_names = {}
             i = pcbnew.PCBNEW_LAYER_ID_START
             while i < pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT:
-                layer_names[pcbnew.BOARD_GetStandardLayerName(i)] = i
+                layer_names[board.GetStandardLayerName(i)] = i
                 i += 1
 
             settings = []
