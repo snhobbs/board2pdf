@@ -148,7 +148,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         found_en = self.templatesSortOrderBox.FindString(item)
         found_dis = self.disabledTemplatesSortOrderBox.FindString(item)
         if found_en != wx.NOT_FOUND or found_dis != wx.NOT_FOUND:
-            wx.MessageBox("Name already exists", "Error", wx.ICON_ERROR)
+            wx.MessageBox("The template name '" + item + "' already exists", "Error", wx.ICON_ERROR)
             return
 
         self.templatesSortOrderBox.Append(item)
@@ -164,19 +164,23 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         if selection != wx.NOT_FOUND:
             item = self.templatesSortOrderBox.GetString(selection)
 
-            item = item + "-Copy"
-            found_en = self.templatesSortOrderBox.FindString(item)
-            found_dis = self.disabledTemplatesSortOrderBox.FindString(item)
+            new_item = item + "-Copy"
+            found_en = self.templatesSortOrderBox.FindString(new_item)
+            found_dis = self.disabledTemplatesSortOrderBox.FindString(new_item)
             if found_en != wx.NOT_FOUND or found_dis != wx.NOT_FOUND:
+                wx.MessageBox("The template name '" + new_item + "' already exists", "Error", wx.ICON_ERROR)
                 return
 
             if self.current_template == '':
                 return
-            self.templates[item] = self.templates[self.current_template]
-            self.templatesSortOrderBox.Append(item)
+            self.templates[new_item] = self.templates[self.current_template]
+            self.templatesSortOrderBox.Append(new_item)
             self.templatesSortOrderBox.SetSelection(
                 self.templatesSortOrderBox.Count - 1)
+            # wx.MessageBox("Created " + new_item + " as a clone of " + item)
             self.OnTemplateEdit(event)
+            self.current_template = new_item
+            self.SaveTemplate()
 
     def OnTemplateDisable(self, event):
         self.SaveTemplate()
@@ -483,6 +487,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 self.layersReferenceDesignatorsDict[self.current_layer] = "true"
             else:
                 self.layersReferenceDesignatorsDict[self.current_layer] = "false"
+        self.SaveTemplate()
 
     # Helper functions
     def OnSize(self, event):
