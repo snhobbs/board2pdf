@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 import pcbnew
 import wx
 import re
@@ -14,9 +15,9 @@ except:
 
 
 def print_exception():
-    etype, value, tb = exc_info()
-    info, error = format_exception(etype, value, tb)[-2:]
-    print(f'Exception in:\n{info}\n{error}')
+    etype, value, tb = sys.exc_info()
+    info, error = traceback.format_exception(etype, value, tb)[-2:]
+    print(f'Exception in:\n{info}\n{error}', file=sys.stderr)
 
 
 def hex_to_rgb(value):
@@ -28,9 +29,9 @@ def hex_to_rgb(value):
     return rgb
 
 
-def colorize_pdf_fitz(folder, inputFile, outputFile, color):
+def colorize_pdf_fitz(folder, input_file, output_file, color):
     try:
-        with fitz.open(os.path.join(folder, inputFile)) as doc:
+        with fitz.open(os.path.join(folder, input_file)) as doc:
             xref_number = doc[0].get_contents()
             stream_bytes = doc.xref_stream(xref_number[0])
             new_color = str(color[0]) + ' ' + str(color[1]) + ' ' + str(color[2]) + ' '
@@ -41,49 +42,47 @@ def colorize_pdf_fitz(folder, inputFile, outputFile, color):
             stream_bytes = re.sub(b'0.0.0.rg', new_color_rg, stream_bytes)
 
             doc.update_stream(xref_number[0], stream_bytes)
-            doc.save(os.path.join(folder, outputFile), clean=True)
+            doc.save(os.path.join(folder, output_file), clean=True)
 
     except RuntimeError as e:
         if "invalid key in dict" in str(e):
             wx.MessageBox(
-                "colorize_pdf_fitz failed\nOn input file " + inputFile + " in " + folder + "\n\nThis error can be due to PyMuPdf not being able to handle pdfs created by KiCad 7.0.1 due to a bug in KiCad 7.0.1. Upgrade KiCad or switch to pypdf instead.\n\n" + traceback.format_exc(),
+                "colorize_pdf_fitz failed\nOn input file " + input_file + " in " + folder + "\n\nThis error can be due to PyMuPdf not being able to handle pdfs created by KiCad 7.0.1 due to a bug in KiCad 7.0.1. Upgrade KiCad or switch to pypdf instead.\n\n" + traceback.format_exc(),
                 'Error', wx.OK | wx.ICON_ERROR)
         return False
 
     except:
         wx.MessageBox(
-            "colorize_pdf_fitz failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(),
+            "colorize_pdf_fitz failed\nOn input file " + input_file + " in " + folder + "\n\n" + traceback.format_exc(),
             'Error', wx.OK | wx.ICON_ERROR)
         return False
 
     return True
 
 
-def colorize_pdf_pypdf(folder, inputFile, outputFile, color):
+def colorize_pdf_pypdf(folder, input_file, output_file, color):
     try:
-        with open(os.path.join(folder, inputFile), "rb") as f:
-            import sys
-            class error_handler(object):
+        with open(os.path.join(folder, input_file), "rb") as f:
+            class ErrorHandler(object):
                 def write(self, data):
-                    if not "UserWarning" in data:
+                    if "UserWarning" not in data:
                         wx.MessageBox(
-                            "colorize_pdf_pypdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + data,
+                            "colorize_pdf_pypdf failed\nOn input file " + input_file + " in " + folder + "\n\n" + data,
                             'Error', wx.OK | wx.ICON_ERROR)
                         return False
 
-            if (sys.stderr == None):
-                handler = error_handler()
+            if sys.stderr is None:
+                handler = ErrorHandler()
                 sys.stderr = handler
 
-            source = PdfReader(f, "rb")
+            source = PdfReader(f, True)
             output = PdfWriter()
 
             page = source.pages[0]
             content_object = page["/Contents"].get_object()
             content = generic.ContentStream(content_object, source)
 
-            i = 0
-            for operands, operator in content.operations:
+            for i, (operands, operator) in enumerate(content.operations):
                 if operator == _utils.b_("rg") or operator == _utils.b_("RG"):
                     if operands == [0, 0, 0]:
                         rgb = content.operations[i][0]
@@ -93,17 +92,16 @@ def colorize_pdf_pypdf(folder, inputFile, outputFile, color):
                     # else:
                     #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
                     #          type(rgb[1]), type(rgb[2]))
-                i = i + 1
 
             page.__setitem__(generic.NameObject('/Contents'), content)
             output.add_page(page)
 
-            with open(os.path.join(folder, outputFile), "wb") as outputStream:
-                output.write(outputStream)
+            with open(os.path.join(folder, output_file), "wb") as output_stream:
+                output.write(output_stream)
 
     except:
         wx.MessageBox(
-            "colorize_pdf_pypdf failed\nOn input file " + inputFile + " in " + folder + "\n\n" + traceback.format_exc(),
+            "colorize_pdf_pypdf failed\nOn input file " + input_file + " in " + folder + "\n\n" + traceback.format_exc(),
             'Error', wx.OK | wx.ICON_ERROR)
         return False
 
@@ -113,20 +111,17 @@ def colorize_pdf_pypdf(folder, inputFile, outputFile, color):
 def merge_pdf_fitz(input_folder, input_files, output_folder, output_file):
     try:
         output = fitz.open()
-        i = 0
+        page: fitz.Page = None
         for filename in reversed(input_files):
             try:
                 # using "with" to force RAII and avoid another "for" closing files
-                with fitz.open(os.path.join(input_folder, filename)) as file:
+                with fitz.open(os.path.join(input_folder, filename)) as src:
+                    if page is None:
+                        page = output.new_page(width=src[0].rect.width, height=src[0].rect.height)
 
-                    if i == 0:
-                        output.insert_pdf(file)
-                    else:
-                        output[0].show_pdf_page(file[0].rect,  # select output rect
-                                                file,  # input document
-                                                0,  # input page number
+                    page.show_pdf_page(src[0].rect,  # select output rect
+                                                src,  # input document                                                
                                                 overlay=False)
-                i = i + 1
             except:
                 wx.MessageBox(
                     "merge_pdf failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(),
@@ -147,17 +142,18 @@ def merge_pdf_fitz(input_folder, input_files, output_folder, output_file):
 def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
     try:
         open_files = []
-        # merged_page = _page.PageObject()
+        merged_page = None
         for filename in input_files:
             try:
                 file = open(os.path.join(input_folder, filename), 'rb')
                 open_files.append(file)
-                pdfReader = PdfReader(file, "rb")
-                pageObj = pdfReader.pages[0]
-                if 'merged_page' in locals():
-                    merged_page.merge_page(pageObj)
+                pdf_reader = PdfReader(file, "rb")
+                page_obj = pdf_reader.pages[0]
+                if merged_page is None:
+                    merged_page = page_obj
                 else:
-                    merged_page = pageObj
+                    merged_page.merge_page(page_obj)
+
             except:
                 error_bitmap = ""
                 error_msg = traceback.format_exc()
@@ -180,8 +176,9 @@ def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
         return False
 
     # Close the input files. I don't know why, but merged_page.merge_page(pageObj) doesn't work if I close the files in the merge-loop.
-    for f in open_files:
-        f.close()
+    finally:
+        for f in open_files:
+            f.close()
 
     return True
 
@@ -193,10 +190,10 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
             try:
                 with open(os.path.join(input_folder, filename), "rb") as file:
                     # file = open(os.path.join(input_folder, filename), 'rb')
-                    pdfReader = PdfReader(file, "rb")
-                    pageObj = pdfReader.pages[0]
-                    output.add_page(pageObj)
-                    # pdfReader.stream.close()
+                    pdf_reader = PdfReader(file, "rb")
+                    page_obj = pdf_reader.pages[0]
+                    output.add_page(page_obj)
+                    # pdf_reader.stream.close()
             except:
                 wx.MessageBox(
                     "create_pdf_from_pages failed\n\nOn input file " + filename + " in " + input_folder + "\n\n" + traceback.format_exc(),
@@ -221,8 +218,8 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
                  dialog_panel):
-    def setProgress(value):
-        dialog_panel.m_progress.SetValue(value)
+    def set_progress(value):
+        dialog_panel.m_progress.SetValue(int(value))
         dialog_panel.Refresh()
         dialog_panel.Update()
 
@@ -234,7 +231,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 "PyMuPdf (fitz) wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com",
                 'Error', wx.OK | wx.ICON_ERROR)
             progress = 100
-            setProgress(progress)
+            set_progress(progress)
             dialog_panel.m_staticText_status.SetLabel("Status: Failed to load PyMuPDF.")
             return False
 
@@ -245,23 +242,23 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     dialog_panel.m_staticText_status.SetLabel("Status: Started plotting...")
     progress = 5
-    setProgress(progress)
+    set_progress(progress)
 
     steps = 1
     # Count number of process steps
     for t in enabled_templates:
-        steps = steps + 1
+        steps += 1
         if "enabled_layers" in templates[t]:
             enabled_layers = templates[t]["enabled_layers"].split(',')
-            enabled_layers[:] = [l for l in enabled_layers if l != '']  # removes empty entries
-            if enabled_layers:
-                for el in enabled_layers:
-                    steps = steps + 1
-                    if "layers" in templates[t]:
-                        if el in templates[t]["layers"]:
-                            if templates[t]["layers"][el] != "#000000":
-                                steps = steps + 1
-    progress_step = 95 // steps
+            enabled_layers = [l for l in enabled_layers if l != '']  # removes empty entries
+
+            for el in enabled_layers:
+                steps += 1
+                if "layers" in templates[t]:
+                    if el in templates[t]["layers"]:
+                        if templates[t]["layers"][el] != "#000000":
+                            steps += 1
+    progress_step: float = 95 / steps
 
     plot_controller = pcbnew.PLOT_CONTROLLER(board)
     plot_options = plot_controller.GetPlotOptions()
@@ -292,20 +289,10 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         #          "layers": {"B.Fab": "#000012", "B.Mask": "#000045"}}  }
         if t in templates:
             temp.append(t)  # Add the template name
+            temp.append(templates[t].get("mirrored", False))  # Add if the template is mirrored or not
+            temp.append(templates[t].get("tented", False))  # Add if the template is tented or not
 
-            if "mirrored" in templates[t]:
-                temp.append(templates[t]["mirrored"])  # Add if the template is mirrored or not
-            else:
-                temp.append(False)
-
-            if "tented" in templates[t]:
-                temp.append(templates[t]["tented"])  # Add if the template is tented or not
-            else:
-                temp.append(False)
-
-            frame_layer = "None"
-            if "frame" in templates[t]:
-                frame_layer = templates[t]["frame"]  # Layer with frame
+            frame_layer = templates[t].get("frame", "None")  # Layer with frame
 
             # Build a dict to translate layer names to layerID
             layer_names = {}
@@ -318,57 +305,34 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
             if "enabled_layers" in templates[t]:
                 enabled_layers = templates[t]["enabled_layers"].split(',')
-                enabled_layers[:] = [l for l in enabled_layers if l != '']  # removes empty entries
-                if enabled_layers:
-                    for el in enabled_layers:
-                        s = []
-                        s.append(el)  # Layer name string
-                        s.append(layer_names[el])  # Layer ID
-                        if el in templates[t]["layers"]:
-                            s.append(templates[t]["layers"][el])  # Layer color
-                        else:
-                            s.append("#000000")  # Layer color black
-                        if el == frame_layer:
-                            s.append(True)
-                        else:
-                            s.append(False)
+                enabled_layers = [l for l in enabled_layers if l != '']  # removes empty entries
+                for el in enabled_layers:
+                    s = [
+                        el,  # Layer name string
+                        layer_names[el],  # Layer ID
+                        templates[t]["layers"].get(el, "#000000"),  # Layer color, black as default
+                        el == frame_layer,
+                    ]
 
-                        if "layers_negative" in templates[t]:
-                            if el in templates[t]["layers_negative"]:  # Bool specifying if layer is negative
-                                if templates[t]["layers_negative"][el] == "true":
-                                    s.append(True)
-                                else:
-                                    s.append(False)
-                            else:
-                                s.append(False)
-                        else:
-                            s.append(False)
+                    try:
+                        # Bool specifying if layer is negative
+                        s.append(templates[t]["layers_negative"][el] == "true")
+                    except KeyError:
+                        s.append(False)
 
-                        if "layers_footprint_values" in templates[t]:
-                            if el in templates[t][
-                                "layers_footprint_values"]:  # Bool specifying if footprint values shall be plotted
-                                if templates[t]["layers_footprint_values"][el] == "false":
-                                    s.append(False)
-                                else:
-                                    s.append(True)
-                            else:
-                                s.append(True)
-                        else:
-                            s.append(True)
+                    try:
+                        # Bool specifying if footprint values shall be plotted
+                        s.append(not templates[t]["layers_footprint_values"][el] == "false")
+                    except KeyError:
+                        s.append(True)
 
-                        if "layers_reference_designators" in templates[t]:
-                            if el in templates[t][
-                                "layers_reference_designators"]:  # Bool specifying if reference designators shall be plotted
-                                if templates[t]["layers_reference_designators"][el] == "false":
-                                    s.append(False)
-                                else:
-                                    s.append(True)
-                            else:
-                                s.append(True)
-                        else:
-                            s.append(True)
+                    try:
+                        # Bool specifying if reference designators shall be plotted
+                        s.append(not templates[t]["layers_reference_designators"][el] == "false")
+                    except KeyError:
+                        s.append(True)
 
-                        settings.insert(0, s)  # Prepend to settings
+                    settings.insert(0, s)  # Prepend to settings
 
             temp.append(settings)
             templates_list.append(temp)
@@ -393,9 +357,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         plot_options.SetAutoScale(False)
         # plot_options.SetPlotMode(PLOT_MODE)
         # plot_options.SetLineWidth(2000)
-        if (pcbnew.Version()[0:3] == "6.0"):
+        if pcbnew.Version()[0:3] == "6.0":
             # This method is only available on V6, not V6.99/V7
-            plot_options.SetExcludeEdgeLayer(True);
+            plot_options.SetExcludeEdgeLayer(True)
     except:
         wx.MessageBox(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
         dialog_panel.m_staticText_status.SetLabel("Status: Failed to set plot_options")
@@ -411,10 +375,10 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         for layer_info in template[3]:
             dialog_panel.m_staticText_status.SetLabel(
                 "Status: Plotting " + layer_info[0] + " for template " + template_name)
-            progress = progress + progress_step
-            setProgress(progress)
+            progress += progress_step
+            set_progress(progress)
 
-            if (pcbnew.Version()[0:3] == "6.0"):
+            if pcbnew.Version()[0:3] == "6.0":
                 if pcbnew.IsCopperLayer(layer_info[1]):  # Should probably do this on mask layers as well
                     plot_options.SetDrillMarksType(
                         2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
@@ -455,38 +419,38 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
         # Change color of pdf files
         for layer_info in template[3]:
             ln = layer_info[0].replace('.', '_')
-            inputFile = base_filename + "-" + ln + ".pdf"
-            if (layer_info[2] != "#000000"):
+            input_file = base_filename + "-" + ln + ".pdf"
+            if layer_info[2] != "#000000":
                 dialog_panel.m_staticText_status.SetLabel(
                     "Status: Coloring " + layer_info[0] + " for template " + template_name)
-                progress = progress + progress_step
-                setProgress(progress)
+                progress += progress_step
+                set_progress(progress)
 
-                outputFile = base_filename + "-" + ln + "-colored.pdf"
+                output_file = base_filename + "-" + ln + "-colored.pdf"
 
-                if (dialog_panel.m_radio_fitz.GetValue()):
-                    if not colorize_pdf_fitz(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2])):
-                        dialog_panel.m_staticText_status.SetLabel("Status: Failed when coloring " + layer_info[
-                            0] + " for template " + template_name + " using PyMuPdf")
+                if dialog_panel.m_radio_fitz.GetValue():
+                    if not colorize_pdf_fitz(temp_dir, input_file, output_file, hex_to_rgb(layer_info[2])):
+                        dialog_panel.m_staticText_status.SetLabel("Status: Failed when coloring " + layer_info[0]
+                                                                  + " for template " + template_name + " using PyMuPdf")
                         return False
                 else:
-                    if not colorize_pdf_pypdf(temp_dir, inputFile, outputFile, hex_to_rgb(layer_info[2])):
-                        dialog_panel.m_staticText_status.SetLabel("Status: Failed when coloring " + layer_info[
-                            0] + " for template " + template_name + " using pypdf")
+                    if not colorize_pdf_pypdf(temp_dir, input_file, output_file, hex_to_rgb(layer_info[2])):
+                        dialog_panel.m_staticText_status.SetLabel("Status: Failed when coloring " + layer_info[0]
+                                                                  + " for template " + template_name + " using pypdf")
                         return False
 
-                filelist.append(outputFile)
+                filelist.append(output_file)
             else:
-                filelist.append(inputFile)
+                filelist.append(input_file)
 
         # Merge pdf files
         dialog_panel.m_staticText_status.SetLabel("Status: Merging all layers of template " + template_name)
-        progress = progress + progress_step
-        setProgress(progress)
+        progress += progress_step
+        set_progress(progress)
 
         assembly_file = base_filename + "_" + template[0] + ".pdf"
 
-        if (dialog_panel.m_radio_merge_fitz.GetValue()):
+        if dialog_panel.m_radio_merge_fitz.GetValue():
             if not merge_pdf_fitz(temp_dir, filelist, output_dir, assembly_file):
                 dialog_panel.m_staticText_status.SetLabel(
                     "Status: Failed when merging all layers of template " + template_name + " using PyMuPdf")
@@ -501,7 +465,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     # Add all generated pdfs to one file
     dialog_panel.m_staticText_status.SetLabel("Status: Adding all templates to a single file")
-    setProgress(progress)
+    set_progress(progress)
 
     if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file):
         dialog_panel.m_staticText_status.SetLabel("Status: Failed when adding all templates to a single file")
@@ -514,9 +478,8 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             try:
                 svg_image = template_pdf[0].get_svg_image()
                 svg_filename = os.path.splitext(template_file)[0] + ".svg"
-                file = open(os.path.join(output_dir, svg_filename), "w")
-                file.write(svg_image)
-                file.close()
+                with open(os.path.join(output_dir, svg_filename), "w") as file:
+                    file.write(svg_image)
             except:
                 wx.MessageBox("Failed to create SVG in " + output_dir + "\n\n" + traceback.format_exc(), 'Error',
                               wx.OK | wx.ICON_ERROR)
@@ -525,7 +488,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             template_pdf.close()
 
     # Delete temp files if setting says so
-    if (del_temp_files):
+    if del_temp_files:
         try:
             shutil.rmtree(temp_dir)
         except:
@@ -535,7 +498,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             return False
 
     # Delete single page files if setting says so
-    if (del_single_page_files):
+    if del_single_page_files:
         for template_file in template_filelist:
             delete_file = os.path.join(output_dir, os.path.splitext(template_file)[0] + ".pdf")
             try:
@@ -550,19 +513,17 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     dialog_panel.m_staticText_status.SetLabel("Status: All done!")
 
     progress = 100
-    setProgress(progress)
+    set_progress(progress)
 
     endmsg = "All done!\n\nAssembly pdf created: " + os.path.abspath(os.path.join(output_dir, final_assembly_file))
-    if (not del_single_page_files):
-        endmsg = endmsg + "\n\nSingle page pdf files created:"
+    if not del_single_page_files:
+        endmsg += "\n\nSingle page pdf files created:"
         for template_file in template_filelist:
-            endmsg = endmsg + "\n" + os.path.abspath(
-                os.path.join(output_dir, os.path.splitext(template_file)[0] + ".pdf"))
+            endmsg += "\n" + os.path.abspath(os.path.join(output_dir, os.path.splitext(template_file)[0] + ".pdf"))
 
-    if (create_svg):
-        endmsg = endmsg + "\n\nSVG files created:"
+    if create_svg:
+        endmsg += "\n\nSVG files created:"
         for template_file in template_filelist:
-            endmsg = endmsg + "\n" + os.path.abspath(
-                os.path.join(output_dir, os.path.splitext(template_file)[0] + ".svg"))
+            endmsg += "\n" + os.path.abspath(os.path.join(output_dir, os.path.splitext(template_file)[0] + ".svg"))
 
     wx.MessageBox(endmsg, 'All done!', wx.OK)

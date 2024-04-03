@@ -182,6 +182,16 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.current_template = new_item
             self.SaveTemplate()
 
+    @staticmethod
+    def _listbox_reselect(listbox, selection):
+        if listbox.Count > 0:
+            if listbox.Count <= max(selection, 0):
+                listbox.SetSelection(max(selection - 1, 0))
+            else:
+                listbox.SetSelection(max(selection, 0))
+            return True
+        return False
+
     def OnTemplateDisable(self, event):
         self.SaveTemplate()
         selection = self.templatesSortOrderBox.Selection
@@ -189,11 +199,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             item = self.templatesSortOrderBox.GetString(selection)
             self.templatesSortOrderBox.Delete(selection)
             self.disabledTemplatesSortOrderBox.Append(item)
-            if self.templatesSortOrderBox.Count > 0:
-                if self.templatesSortOrderBox.Count <= max(selection, 0):
-                    self.templatesSortOrderBox.SetSelection(max(selection - 1, 0))
-                else:
-                    self.templatesSortOrderBox.SetSelection(max(selection, 0))
+            self._listbox_reselect(self.templatesSortOrderBox, selection)
+
             self.ClearTemplateSettings()
             self.hide_template_settings()
             self.OnTemplateEdit(event)
@@ -204,23 +211,15 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             item = self.disabledTemplatesSortOrderBox.GetString(selection)
             self.disabledTemplatesSortOrderBox.Delete(selection)
             self.templatesSortOrderBox.Append(item)
-            if self.disabledTemplatesSortOrderBox.Count > 0:
-                if self.disabledTemplatesSortOrderBox.Count <= max(selection, 0):
-                    self.disabledTemplatesSortOrderBox.SetSelection(max(selection - 1, 0))
-                else:
-                    self.disabledTemplatesSortOrderBox.SetSelection(max(selection, 0))
+            self._listbox_reselect(self.disabledTemplatesSortOrderBox, selection)
 
     def OnTemplateDelete(self, event):
         selection = self.disabledTemplatesSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
             item = self.disabledTemplatesSortOrderBox.GetString(selection)
-            self.templates.pop(item, None)
+            del self.templates[item]
             self.disabledTemplatesSortOrderBox.Delete(selection)
-            if self.disabledTemplatesSortOrderBox.Count > 0:
-                if self.disabledTemplatesSortOrderBox.Count <= max(selection, 0):
-                    self.disabledTemplatesSortOrderBox.SetSelection(max(selection - 1, 0))
-                else:
-                    self.disabledTemplatesSortOrderBox.SetSelection(max(selection, 0))
+            self._listbox_reselect(self.disabledTemplatesSortOrderBox, selection)
 
     def OnPickColor(self, event):
         _rgbstring = re.compile(r'#[a-fA-F0-9]{3}(?:[a-fA-F0-9]{3})?$')
@@ -281,15 +280,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             item = self.layersSortOrderBox.GetString(selection)
             if item == self.m_comboBox_frame.GetValue():
                 wx.MessageBox(
-                    "You cannot disable " + item + " if it's selected in the 'Draw frame on layer' setting. First change this setting.")
+                    f"You cannot disable {item} if it's selected in the 'Draw frame on layer' setting. First change this setting.")
             else:
                 self.layersSortOrderBox.Delete(selection)
                 self.disabledLayersSortOrderBox.Append(item)
-                if self.layersSortOrderBox.Count > 0:
-                    if self.layersSortOrderBox.Count <= max(selection, 0):
-                        self.layersSortOrderBox.SetSelection(max(selection - 1, 0))
-                    else:
-                        self.layersSortOrderBox.SetSelection(max(selection, 0))
+                if self._listbox_reselect(self.layersSortOrderBox, selection):
                     self.OnLayerEdit(self)
                 else:
                     self.hide_layer_settings()
@@ -301,11 +296,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             item = self.disabledLayersSortOrderBox.GetString(selection)
             self.disabledLayersSortOrderBox.Delete(selection)
             self.layersSortOrderBox.Append(item)
-            if self.disabledLayersSortOrderBox.Count > 0:
-                if self.disabledLayersSortOrderBox.Count <= max(selection, 0):
-                    self.disabledLayersSortOrderBox.SetSelection(max(selection - 1, 0))
-                else:
-                    self.disabledLayersSortOrderBox.SetSelection(max(selection, 0))
+            self._listbox_reselect(self.disabledLayersSortOrderBox, selection)
             self.SaveTemplate()
 
     def OnTemplateEdit(self, event):
@@ -336,17 +327,16 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 i += 1
 
             # Set enabled layers, if there are any in this template already
-            if item in self.templates:
-                if "enabled_layers" in self.templates[item]:
-                    enabled_layers = self.templates[item]["enabled_layers"].split(',')
-                    enabled_layers[:] = [l for l in enabled_layers if l != '']  # removes empty entries
-                    # Add the layer name within parenthesis if the layer name is not the standard layer name
-                    for i, layer_name in enumerate(enabled_layers):
-                        if layers_dict[layer_name] != layer_name:
-                            enabled_layers[i] = layer_name + " (" + layers_dict[layer_name] + ")"
-                    # Add all enabled layers to the enabled layers sort box.
-                    if enabled_layers:
-                        self.layersSortOrderBox.SetItems(enabled_layers)
+            if item in self.templates and "enabled_layers" in self.templates[item]:
+                enabled_layers = self.templates[item]["enabled_layers"].split(',')
+                enabled_layers = [l for l in enabled_layers if l != '']  # removes empty entries
+                # Add the layer name within parenthesis if the layer name is not the standard layer name
+                for i, layer_name in enumerate(enabled_layers):
+                    if layers_dict[layer_name] != layer_name:
+                        enabled_layers[i] = layer_name + " (" + layers_dict[layer_name] + ")"
+                # Add all enabled layers to the enabled layers sort box.
+                if enabled_layers:
+                    self.layersSortOrderBox.SetItems(enabled_layers)
 
             # Update the listbox with disabled layers
             # Add all layers not in the enabled list
@@ -358,22 +348,10 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
             # Create dictionary with all layers and their settings
             if item in self.templates:
-                if "layers" in self.templates[item]:
-                    self.layersColorDict = self.templates[item]["layers"]
-                else:
-                    self.layersColorDict = {}
-                if "layers_negative" in self.templates[item]:
-                    self.layersNegativeDict = self.templates[item]["layers_negative"]
-                else:
-                    self.layersNegativeDict = {}
-                if "layers_footprint_values" in self.templates[item]:
-                    self.layersFootprintValuesDict = self.templates[item]["layers_footprint_values"]
-                else:
-                    self.layersFootprintValuesDict = {}
-                if "layers_reference_designators" in self.templates[item]:
-                    self.layersReferenceDesignatorsDict = self.templates[item]["layers_reference_designators"]
-                else:
-                    self.layersReferenceDesignatorsDict = {}
+                self.layersColorDict = self.templates[item].get("layers", {})
+                self.layersNegativeDict = self.templates[item].get("layers_negative", {})
+                self.layersFootprintValuesDict = self.templates[item].get("layers_footprint_values", {})
+                self.layersReferenceDesignatorsDict = self.templates[item].get("layers_reference_designators", {})
             else:
                 self.layersColorDict = {}
                 self.layersNegativeDict = {}
@@ -385,30 +363,24 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.m_comboBox_frame.SetItems(layers)
             self.m_comboBox_frame.SetSelection(0)
             # Check the saved template to see if there is a saved choice
-            if item in self.templates:
-                if "frame" in self.templates[item]:
-                    saved_frame = self.templates[item]["frame"]
-                    if saved_frame:
-                        if saved_frame != "None":
-                            if layers_dict[saved_frame] != saved_frame:
-                                saved_frame = saved_frame + " (" + layers_dict[saved_frame] + ")"
-                            saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
-                            if saved_frame_pos != wx.NOT_FOUND:
-                                self.m_comboBox_frame.SetSelection(saved_frame_pos)
+            if item in self.templates and "frame" in self.templates[item]:
+                saved_frame = self.templates[item]["frame"]
+                if saved_frame and saved_frame != "None":
+                    if layers_dict[saved_frame] != saved_frame:
+                        saved_frame += " (" + layers_dict[saved_frame] + ")"
+                    saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
+                    if saved_frame_pos != wx.NOT_FOUND:
+                        self.m_comboBox_frame.SetSelection(saved_frame_pos)
 
             # Set the mirror checkbox according to saved setting
-            if item in self.templates:
-                if "mirrored" in self.templates[item]:
-                    mirrored = self.templates[item]["mirrored"]
-                    if mirrored:
-                        self.m_checkBox_mirror.SetValue(True)
+            if item in self.templates and "mirrored" in self.templates[item]:
+                mirrored = self.templates[item]["mirrored"]
+                self.m_checkBox_mirror.SetValue(bool(mirrored))
 
             # Set the tent checkbox according to saved setting
-            if item in self.templates:
-                if "tented" in self.templates[item]:
-                    tented = self.templates[item]["tented"]
-                    if tented:
-                        self.m_checkBox_tent.SetValue(True)
+            if item in self.templates and "tented" in self.templates[item]:
+                tented = self.templates[item]["tented"]
+                self.m_checkBox_tent.SetValue(bool(tented))
 
     def OnLayerEdit(self, event):
         self.OnSaveLayer(self)
@@ -420,10 +392,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.current_layer = item
             self.show_layer_settings()
 
-            if item not in self.layersColorDict:
-                color = "#000000"
-            else:
-                color = self.layersColorDict[item]
+            color = self.layersColorDict.get(item, "#000000")
             self.m_textCtrl_color.ChangeValue(color)
 
             rgb_color = tuple(int(color.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))
@@ -431,29 +400,10 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.m_color_shower.SetForegroundColour(rgb_color)
             self.m_color_shower.SetLabel(str(rgb_color))
 
-            if item in self.layersNegativeDict:
-                if self.layersNegativeDict[item] == "true":
-                    self.m_checkBox_negative.SetValue(True)
-                else:
-                    self.m_checkBox_negative.SetValue(False)
-            else:
-                self.m_checkBox_negative.SetValue(False)
-
-            if item in self.layersFootprintValuesDict:
-                if self.layersFootprintValuesDict[item] == "false":
-                    self.m_checkBox_footprint_values.SetValue(False)
-                else:
-                    self.m_checkBox_footprint_values.SetValue(True)
-            else:
-                self.m_checkBox_footprint_values.SetValue(True)
-
-            if item in self.layersReferenceDesignatorsDict:
-                if self.layersReferenceDesignatorsDict[item] == "false":
-                    self.m_checkBox_reference_designators.SetValue(False)
-                else:
-                    self.m_checkBox_reference_designators.SetValue(True)
-            else:
-                self.m_checkBox_reference_designators.SetValue(True)
+            self.m_checkBox_negative.SetValue(self.layersNegativeDict.get(item, "false") == "true")
+            self.m_checkBox_footprint_values.SetValue(self.layersFootprintValuesDict.get(item, "true") == "true")
+            self.m_checkBox_reference_designators.SetValue(
+                self.layersReferenceDesignatorsDict.get(item, "true") == "true")
 
     def OnTemplateNameChange(self, event):
         template_name = self.m_textCtrl_template_name.GetValue()
@@ -470,24 +420,17 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.SaveTemplate()
 
     def OnSaveLayer(self, event):
-        if self.current_layer != "":
-            self.layersColorDict[self.current_layer] = self.m_textCtrl_color.GetValue()
-            if self.m_checkBox_negative.IsChecked():
-                self.layersNegativeDict[self.current_layer] = "true"
-            else:
-                self.layersNegativeDict[self.current_layer] = "false"
+        if self.current_layer:
+            def bool_str(value: bool):
+                return "true" if value else "false"
 
-            self.layersFootprintValuesDict[self.current_layer] = self.m_checkBox_footprint_values.GetValue()
-            if self.m_checkBox_footprint_values.IsChecked():
-                self.layersFootprintValuesDict[self.current_layer] = "true"
-            else:
-                self.layersFootprintValuesDict[self.current_layer] = "false"
-
-            self.layersReferenceDesignatorsDict[self.current_layer] = self.m_checkBox_reference_designators.GetValue()
-            if self.m_checkBox_reference_designators.IsChecked():
-                self.layersReferenceDesignatorsDict[self.current_layer] = "true"
-            else:
-                self.layersReferenceDesignatorsDict[self.current_layer] = "false"
+            cl = self.current_layer
+            self.layersColorDict[cl] = self.m_textCtrl_color.GetValue()
+            self.layersNegativeDict[cl] = bool_str(self.m_checkBox_negative.IsChecked())
+            self.layersFootprintValuesDict[cl] = self.m_checkBox_footprint_values.GetValue()
+            self.layersFootprintValuesDict[cl] = bool_str(self.m_checkBox_footprint_values.IsChecked())
+            self.layersReferenceDesignatorsDict[cl] = self.m_checkBox_reference_designators.GetValue()
+            self.layersReferenceDesignatorsDict[cl] = bool_str(self.m_checkBox_reference_designators.IsChecked())
         self.SaveTemplate()
 
     # Helper functions
@@ -500,7 +443,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def SaveTemplate(self):
         template_name = self.m_textCtrl_template_name.GetValue()
-        if template_name != "":
+        if template_name:
             # Check if selected frame layer is enabled. Otherwise, add it to the bottom of the enabled list.
             frame_layer = self.m_comboBox_frame.GetValue()
             if frame_layer != "None":

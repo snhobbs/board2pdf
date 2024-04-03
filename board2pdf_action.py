@@ -89,10 +89,10 @@ def run_with_dialog():
 
     def perform_export(dialog_panel):
         if not plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates,
-                                 dlg.panel.templatesSortOrderBox.GetItems(),
-                                 dlg.panel.m_checkBox_delete_temp_files.IsChecked(),
-                                 dlg.panel.m_checkBox_create_svg.IsChecked(),
-                                 dlg.panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel):
+                                 dialog_panel.templatesSortOrderBox.GetItems(),
+                                 dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
+                                 dialog_panel.m_checkBox_create_svg.IsChecked(),
+                                 dialog_panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel):
             dialog_panel.m_progress.SetValue(100)
             dialog_panel.Refresh()
             dialog_panel.Update()
@@ -150,11 +150,12 @@ def run_with_dialog():
         # Check if able to import fitz. If it's possible then select fitz, otherwise select pypdf.
         try:
             import fitz  # This imports PyMuPDF
+            fitz.open()  # after pip uninstall PyMuPDF the import still works, but not `open()`
             dlg.panel.m_radio_pypdf.SetValue(False)
             dlg.panel.m_radio_merge_pypdf.SetValue(False)
             dlg.panel.m_radio_fitz.SetValue(True)
             dlg.panel.m_radio_merge_fitz.SetValue(True)
-        except:
+        except (ImportError, AttributeError):
             pass
             dlg.panel.m_radio_fitz.SetValue(False)
             dlg.panel.m_radio_merge_fitz.SetValue(False)
@@ -170,7 +171,7 @@ def run_with_dialog():
 
 class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):
-        self.name = "Board2Pdf\nversion " + version
+        self.name = f"Board2Pdf\nversion {version}"
         self.category = "Plot"
         self.description = "Plot pcb to pdf."
         self.show_toolbar_button = True  # Optional, defaults to False
