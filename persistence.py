@@ -15,11 +15,13 @@ class Persistence:
         ('main', 'create_svg'): ('create_svg', lambda x: x == "True"),
         ('main', 'del_temp_files'): ('del_temp_files', lambda x: x == "True"),
         ('main', 'delete_single_page_files'): ('del_single_page_files', lambda x: x == "True"),
+        ('main', 'assembly_file_extension'): ('assembly_file_extension', None),
     }
     _typeconv: dict = {
         bool: lambda x: "True" if x else "False",
         (list, tuple): lambda x: ",".join(x),
         dict: lambda x: json.dumps(x),
+        (int, float): lambda x: str(x),
         str: lambda x: x,
     }
 
@@ -34,6 +36,7 @@ class Persistence:
         self.create_svg: bool = False
         self.del_temp_files: bool = False
         self.del_single_page_files: bool = False
+        self.assembly_file_extension: str = "__Assembly"
 
     def save(self):
         _logger.debug(f"save config")

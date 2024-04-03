@@ -5,8 +5,13 @@ import pcbnew
 import wx
 import re
 import traceback
+import tempfile
+import logging
 
-from .pypdf import PdfReader, PdfWriter, generic, _utils
+try:
+    from .pypdf import PdfReader, PdfWriter, Transformation, generic, _utils
+except ImportError:
+    from pypdf import PdfReader, PdfWriter, Transformation, generic, _utils
 
 try:
     import fitz  # This imports PyMuPDF
@@ -15,6 +20,8 @@ try:
     has_fitz = True
 except (ImportError, AttributeError):
     has_fitz = False
+
+_logger = logging.getLogger(__name__)
 
 
 def print_exception():
@@ -82,7 +89,7 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
                 handler = ErrorHandler()
                 sys.stderr = handler
 
-            source = PdfReader(f, True)
+            source = PdfReader(f)
             output = PdfWriter()
 
             page = source.pages[0]
@@ -148,7 +155,7 @@ def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
             try:
                 file = open(os.path.join(input_folder, filename), 'rb')
                 open_files.append(file)
-                pdf_reader = PdfReader(file, "rb")
+                pdf_reader = PdfReader(file)
                 page_obj = pdf_reader.pages[0]
                 if merged_page is None:
                     merged_page = page_obj
@@ -187,7 +194,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
             try:
                 with open(os.path.join(input_folder, filename), "rb") as file:
                     # file = open(os.path.join(input_folder, filename), 'rb')
-                    pdf_reader = PdfReader(file, "rb")
+                    pdf_reader = PdfReader(file)
                     page_obj = pdf_reader.pages[0]
                     output.add_page(page_obj)
                     # pdf_reader.stream.close()
@@ -210,13 +217,17 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
 
 
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
-                 dlg):
+                 dlg=None, **kwargs) -> bool:
+    asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
+    colorize_lib: str = kwargs.pop('colorize_lib', '')
+    merge_lib: str = kwargs.pop('merge_lib', '')
+
     std_color = "#000000"
 
     if dlg is None:
         use_fitz = has_fitz or create_svg
-        fitz_pdf = has_fitz
-        fitz_merge = has_fitz
+        fitz_pdf = has_fitz and colorize_lib != 'pypdf'
+        fitz_merge = has_fitz and merge_lib != 'pypdf'
 
         def set_progress_status(progress: int, status: str):
             print(f'{int(progress):3d}%: {status}')
@@ -253,8 +264,11 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     os.chdir(os.path.dirname(board.GetFileName()))
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
-
-    temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
+    if del_temp_files:
+        # in case the files are deleted: use the OS temp directory
+        temp_dir = tempfile.mkdtemp()
+    else:
+        temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
     progress = 5
     set_progress_status(progress, "Started plotting...")
@@ -278,7 +292,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     plot_options = plot_controller.GetPlotOptions()
 
     base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
-    final_assembly_file = base_filename + "__Assembly.pdf"
+    final_assembly_file = base_filename + asy_file_extension + ".pdf"
     final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
 
     # Create the directory if it doesn't exist already
@@ -517,3 +531,15 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             endmsg += "\n" + os.path.abspath(os.path.join(output_dir, os.path.splitext(template_file)[0] + ".svg"))
 
     msg_box(endmsg, 'All done!', wx.OK)
+    return True
+
+
+def cli(board_filepath: str, configfile: str, **kwargs) -> bool:
+    import persistence
+
+    board = pcbnew.LoadBoard(board_filepath)
+    config = persistence.Persistence(configfile)
+    config_vars = config.load()
+    # note: cli parameters override config.ini values
+    config_vars.update(kwargs)
+    return plot_gerbers(board, **config_vars)
