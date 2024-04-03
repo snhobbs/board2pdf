@@ -1,11 +1,11 @@
-#from __future__ import absolute_import
+# from __future__ import absolute_import
 
 import os
 import shutil
 import sys
 import pcbnew
 import wx
-#import ast
+# import ast
 import json
 
 version = "1.3"
@@ -28,13 +28,13 @@ if __name__ == "__main__":
 from . import plot
 from . import dialog
 
+
 def run_with_dialog():
     board = pcbnew.GetBoard()
     pcb_file_name = board.GetFileName()
     board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
     pcb_file_dir = os.path.dirname(os.path.abspath(pcb_file_name))
     configfile = os.path.join(pcb_file_dir, "board2pdf.config.ini")
-
 
     # Not sure it this is needed any more.
     if not pcb_file_name:
@@ -79,7 +79,7 @@ def run_with_dialog():
             delete_single_page_files_setting = "False"
         config.set('main', 'delete_single_page_files', delete_single_page_files_setting)
 
-        #config.set('main', 'settings', str(templates))
+        # config.set('main', 'settings', str(templates))
         config.set('main', 'settings', json.dumps(templates))
 
         with open(configfile, 'w') as f:
@@ -88,9 +88,11 @@ def run_with_dialog():
         print("save_config!")
 
     def perform_export(dialog_panel):
-        if not plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates, dlg.panel.templatesSortOrderBox.GetItems(),
-                     dlg.panel.m_checkBox_delete_temp_files.IsChecked(), dlg.panel.m_checkBox_create_svg.IsChecked(),
-                     dlg.panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel):
+        if not plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, templates,
+                                 dlg.panel.templatesSortOrderBox.GetItems(),
+                                 dlg.panel.m_checkBox_delete_temp_files.IsChecked(),
+                                 dlg.panel.m_checkBox_create_svg.IsChecked(),
+                                 dlg.panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel):
             dialog_panel.m_progress.SetValue(100)
             dialog_panel.Refresh()
             dialog_panel.Update()
@@ -106,7 +108,7 @@ def run_with_dialog():
         config.read(configfile)
 
         if config.has_option('main', 'settings'):
-            #templates = ast.literal_eval(config.get('main', 'settings'))
+            # templates = ast.literal_eval(config.get('main', 'settings'))
             templates = json.loads(config.get('main', 'settings'))
 
         if config.has_option('main', 'output_dest_dir'):
@@ -160,10 +162,11 @@ def run_with_dialog():
             dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
         dlg.ShowModal()
-        #response = dlg.ShowModal()
-        #if response == wx.ID_CANCEL:
+        # response = dlg.ShowModal()
+        # if response == wx.ID_CANCEL:
 
         dlg.Destroy()
+
 
 class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):
@@ -175,6 +178,7 @@ class board2pdf(pcbnew.ActionPlugin):
 
     def Run(self):
         run_with_dialog()
+
 
 if __name__ == "__main__":
     run_with_dialog()

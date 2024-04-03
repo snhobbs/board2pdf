@@ -11,11 +11,12 @@ from . import dialog_base
 def pop_error(msg):
     wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
 
+
 class SettingsDialog(dialog_base.SettingsDialogBase):
     def __init__(self, config_save_func, perform_export_func, version, templates):
         dialog_base.SettingsDialogBase.__init__(self, None)
         self.panel = SettingsDialogPanel(
-                self, config_save_func, perform_export_func, templates)
+            self, config_save_func, perform_export_func, templates)
         best_size = self.panel.BestSize
         # hack for some gtk themes that incorrectly calculate best size
         best_size.IncBy(dx=0, dy=30)
@@ -31,6 +32,7 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
         except TypeError:
             # wxPython 3
             self.SetSizeHintsSz(sz1, sz2)
+
 
 # Implementing settings_dialog
 class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
@@ -62,7 +64,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.disabledLayersSortOrderBox.Disable()
         self.m_button_layer_enable.Disable()
         self.m_staticText_layer_info.Disable()
-
 
     def hide_layer_settings(self):
         self.m_textCtrl_color.Disable()
@@ -117,7 +118,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
     def finish_init(self):
         print("finish_init()")
 
-
     # Handlers for events.
     def OnTemplateSortOrderUp(self, event):
         selection = self.templatesSortOrderBox.Selection
@@ -139,8 +139,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
     def OnTemplateNew(self, event):
         self.SaveTemplate()
         item = wx.GetTextFromUser(
-                "Characters except for A-Z, a-z, 0-9, -, +, _ and ' ' will be ignored.",
-                "Add new template")
+            "Characters except for A-Z, a-z, 0-9, -, +, _ and ' ' will be ignored.",
+            "Add new template")
         item = re.sub('[^A-Za-z0-9\-\+ _]', '', item)
         if item == '':
             return
@@ -153,7 +153,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
         self.templatesSortOrderBox.Append(item)
         self.templatesSortOrderBox.SetSelection(
-                self.templatesSortOrderBox.Count - 1)
+            self.templatesSortOrderBox.Count - 1)
         self.ClearTemplateSettings()
         self.OnTemplateEdit(event)
 
@@ -246,7 +246,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             data.SetColour(rgb)
 
             cd = wx.ColourDialog(self, data)
-            #cd.GetColourData().SetChooseFull(True)
+            # cd.GetColourData().SetChooseFull(True)
 
             if cd.ShowModal() == wx.ID_OK:
                 rgb_color = cd.GetColourData().Colour[:3]
@@ -280,7 +280,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         if selection != wx.NOT_FOUND:
             item = self.layersSortOrderBox.GetString(selection)
             if item == self.m_comboBox_frame.GetValue():
-                wx.MessageBox("You cannot disable " + item + " if it's selected in the 'Draw frame on layer' setting. First change this setting.")
+                wx.MessageBox(
+                    "You cannot disable " + item + " if it's selected in the 'Draw frame on layer' setting. First change this setting.")
             else:
                 self.layersSortOrderBox.Delete(selection)
                 self.disabledLayersSortOrderBox.Append(item)
@@ -331,18 +332,18 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 if layer_std_name == layer_name:
                     layers.append(layer_name)
                 else:
-                    layers.append(layer_std_name+" ("+layer_name+")")
+                    layers.append(layer_std_name + " (" + layer_name + ")")
                 i += 1
 
             # Set enabled layers, if there are any in this template already
             if item in self.templates:
                 if "enabled_layers" in self.templates[item]:
                     enabled_layers = self.templates[item]["enabled_layers"].split(',')
-                    enabled_layers[:] = [l for l in enabled_layers if l != ''] # removes empty entries
+                    enabled_layers[:] = [l for l in enabled_layers if l != '']  # removes empty entries
                     # Add the layer name within parenthesis if the layer name is not the standard layer name
                     for i, layer_name in enumerate(enabled_layers):
                         if layers_dict[layer_name] != layer_name:
-                            enabled_layers[i] = layer_name+" ("+layers_dict[layer_name]+")"
+                            enabled_layers[i] = layer_name + " (" + layers_dict[layer_name] + ")"
                     # Add all enabled layers to the enabled layers sort box.
                     if enabled_layers:
                         self.layersSortOrderBox.SetItems(enabled_layers)
@@ -390,7 +391,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     if saved_frame:
                         if saved_frame != "None":
                             if layers_dict[saved_frame] != saved_frame:
-                                saved_frame = saved_frame+" ("+layers_dict[saved_frame]+")"
+                                saved_frame = saved_frame + " (" + layers_dict[saved_frame] + ")"
                             saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
                             if saved_frame_pos != wx.NOT_FOUND:
                                 self.m_comboBox_frame.SetSelection(saved_frame_pos)
@@ -401,7 +402,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     mirrored = self.templates[item]["mirrored"]
                     if mirrored:
                         self.m_checkBox_mirror.SetValue(True)
-                        
+
             # Set the tent checkbox according to saved setting
             if item in self.templates:
                 if "tented" in self.templates[item]:
@@ -425,7 +426,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 color = self.layersColorDict[item]
             self.m_textCtrl_color.ChangeValue(color)
 
-            rgb_color = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+            rgb_color = tuple(int(color.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))
             self.m_color_shower.SetBackgroundColour(rgb_color)
             self.m_color_shower.SetForegroundColour(rgb_color)
             self.m_color_shower.SetLabel(str(rgb_color))
@@ -518,7 +519,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             this_template = {"mirrored": self.m_checkBox_mirror.IsChecked(),
                              "tented": self.m_checkBox_tent.IsChecked(),
                              "enabled_layers": enabled_layers,
-                             "frame": frame_layer.split(' (')[0],   # Remove parenthesis if there is one
+                             "frame": frame_layer.split(' (')[0],  # Remove parenthesis if there is one
                              "layers": self.layersColorDict,
                              "layers_negative": self.layersNegativeDict,
                              "layers_footprint_values": self.layersFootprintValuesDict,
