@@ -46,7 +46,9 @@ def run_with_dialog():
                           dialog_panel.templatesSortOrderBox.GetItems(),
                           dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
                           dialog_panel.m_checkBox_create_svg.IsChecked(),
-                          dialog_panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel)
+                          dialog_panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel,
+                          layer_scale=config.layer_scale,
+                          assembly_file_extension=config.assembly_file_extension)
         dialog_panel.m_progress.SetValue(100)
         dialog_panel.Refresh()
         dialog_panel.Update()

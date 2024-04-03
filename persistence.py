@@ -16,6 +16,7 @@ class Persistence:
         ('main', 'del_temp_files'): ('del_temp_files', lambda x: x == "True"),
         ('main', 'delete_single_page_files'): ('del_single_page_files', lambda x: x == "True"),
         ('main', 'assembly_file_extension'): ('assembly_file_extension', None),
+        ('main', 'layer_scale'): ('layer_scale', lambda x: float(x)),
     }
     _typeconv: dict = {
         bool: lambda x: "True" if x else "False",
@@ -37,6 +38,7 @@ class Persistence:
         self.del_temp_files: bool = False
         self.del_single_page_files: bool = False
         self.assembly_file_extension: str = "__Assembly"
+        self.layer_scale: float = 1.0
 
     def save(self):
         _logger.debug(f"save config")
@@ -69,6 +71,6 @@ class Persistence:
                 val = self._config.get(section, option)
                 values[varname] = post_action(val) if post_action else val
                 setattr(self, varname, values[varname])
-                _logger.info(f"{values[varname]=}")
+                _logger.info(f"{varname}={values[varname]}")
 
         return values

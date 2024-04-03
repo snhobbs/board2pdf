@@ -9,9 +9,9 @@ import tempfile
 import logging
 
 try:
-    from .pypdf import PdfReader, PdfWriter, Transformation, generic, _utils
+    from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic, _utils
 except ImportError:
-    from pypdf import PdfReader, PdfWriter, Transformation, generic, _utils
+    from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic, _utils
 
 try:
     import fitz  # This imports PyMuPDF
@@ -120,24 +120,31 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
     return True
 
 
-def merge_pdf_fitz(input_folder, input_files, output_folder, output_file):
+def merge_pdf_fitz(input_folder, input_files, output_folder, output_file, frame_file: str, layer_scale: float):
     try:
         output = fitz.open()
-        page: fitz.Page = None
+        page = None
         for filename in reversed(input_files):
             try:
                 # using "with" to force RAII and avoid another "for" closing files
                 with fitz.open(os.path.join(input_folder, filename)) as src:
                     if page is None:
-                        page = output.new_page(width=src[0].rect.width, height=src[0].rect.height)
+                        page = output.new_page(width=src[0].rect.width * layer_scale,
+                                               height=src[0].rect.height * layer_scale)
+                        cropbox = fitz.Rect((page.rect.width - src[0].rect.width) / 2,
+                                            (page.rect.height - src[0].rect.height) / 2,
+                                            (page.rect.width + src[0].rect.width) / 2,
+                                            (page.rect.height + src[0].rect.height) / 2)
 
-                    page.show_pdf_page(src[0].rect,  # select output rect
+                    pos = cropbox if frame_file == filename else page.rect
+                    page.show_pdf_page(pos,  # select output rect
                                        src,  # input document
                                        overlay=False)
-            except:
+            except Exception:
                 io_file_error_msg(merge_pdf_fitz.__name__, filename, input_folder)
                 return False
 
+        page.set_cropbox(cropbox)
         output.save(os.path.join(output_folder, output_file))
 
     except Exception:
@@ -147,22 +154,36 @@ def merge_pdf_fitz(input_folder, input_files, output_folder, output_file):
     return True
 
 
-def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
+def merge_pdf_pypdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
+                    layer_scale: float):
     try:
-        open_files = []
-        merged_page = None
+        page = None
         for filename in input_files:
             try:
-                file = open(os.path.join(input_folder, filename), 'rb')
-                open_files.append(file)
-                pdf_reader = PdfReader(file)
-                page_obj = pdf_reader.pages[0]
-                if merged_page is None:
-                    merged_page = page_obj
-                else:
-                    merged_page.merge_page(page_obj)
+                filepath = os.path.join(input_folder, filename)
+                pdf_reader = PdfReader(filepath)
+                src_page: PageObject = pdf_reader.pages[0]
 
-            except:
+                op = Transformation()
+                if layer_scale > 1.0:
+                    if filename == frame_file:
+                        x_offset = src_page.mediabox.width * (layer_scale - 1.0) / 2
+                        y_offset = src_page.mediabox.height * (layer_scale - 1.0) / 2
+                        op = op.translate(x_offset, y_offset)
+                    else:
+                        op = op.scale(layer_scale)
+
+                if page is None:
+                    page = PageObject.create_blank_page(width=src_page.mediabox.width * layer_scale,
+                                                        height=src_page.mediabox.height * layer_scale)
+                    page.cropbox.lower_left = ((page.mediabox.width - src_page.mediabox.width) / 2,
+                                               (page.mediabox.height - src_page.mediabox.height) / 2)
+                    page.cropbox.upper_right = ((page.mediabox.width + src_page.mediabox.width) / 2,
+                                                (page.mediabox.height + src_page.mediabox.height) / 2)
+
+                page.merge_transformed_page(src_page, op)
+
+            except Exception:
                 error_bitmap = ""
                 error_msg = traceback.format_exc()
                 if 'KeyError: 0' in error_msg:
@@ -171,18 +192,13 @@ def merge_pdf_pypdf(input_folder, input_files, output_folder, output_file):
                 return False
 
         output = PdfWriter()
-        output.add_page(merged_page)
+        output.add_page(page)
         with open(os.path.join(output_folder, output_file), "wb") as output_stream:
             output.write(output_stream)
 
     except:
         io_file_error_msg(merge_pdf_pypdf.__name__, output_file, output_folder)
         return False
-
-    # Close the input files. I don't know why, but merged_page.merge_page(pageObj) doesn't work if I close the files in the merge-loop.
-    finally:
-        for f in open_files:
-            f.close()
 
     return True
 
@@ -192,12 +208,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
         output = PdfWriter()
         for filename in input_files:
             try:
-                with open(os.path.join(input_folder, filename), "rb") as file:
-                    # file = open(os.path.join(input_folder, filename), 'rb')
-                    pdf_reader = PdfReader(file)
-                    page_obj = pdf_reader.pages[0]
-                    output.add_page(page_obj)
-                    # pdf_reader.stream.close()
+                output.append(os.path.join(input_folder, filename))
             except:
                 io_file_error_msg(create_pdf_from_pages.__name__, filename, input_folder)
                 return False
@@ -206,8 +217,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
             # This has to be done on the writer, not the reader!
             page.compress_content_streams()  # This is CPU intensive!
 
-        with open(os.path.join(output_folder, output_file), "wb") as outputStream:
-            output.write(outputStream)
+        output.write(os.path.join(output_folder, output_file))
 
     except:
         io_file_error_msg(create_pdf_from_pages.__name__, output_file, output_folder)
@@ -219,6 +229,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
                  dlg=None, **kwargs) -> bool:
     asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
+    layer_scale = kwargs.pop('layer_scale', 1.0)
     colorize_lib: str = kwargs.pop('colorize_lib', '')
     merge_lib: str = kwargs.pop('merge_lib', '')
 
@@ -320,7 +331,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             temp.append(templates[t].get("mirrored", False))  # Add if the template is mirrored or not
             temp.append(templates[t].get("tented", False))  # Add if the template is tented or not
 
-            frame_layer = templates[t].get("frame", "None")  # Layer with frame
+            frame_layer = templates[t].get("frame", "")  # Layer with frame
 
             # Build a dict to translate layer names to layerID
             layer_names = {}
@@ -460,13 +471,17 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             else:
                 filelist.append(input_file)
 
+            if layer_info[3]:
+                # the frame layer is scaled by 1.0, all others by `layer_scale`
+                frame_file = filelist[-1]
+
         # Merge pdf files
         progress += progress_step
         set_progress_status(progress, f"Merging all layers of template {template_name}")
 
         assembly_file = f"{base_filename}_{template[0]}.pdf"
 
-        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file):
+        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale):
             set_progress_status(100, "Failed when merging all layers of template " + template_name)
             return False
 
