@@ -9,9 +9,9 @@ import tempfile
 import logging
 
 try:
-    from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic, _utils
+    from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
 except ImportError:
-    from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic, _utils
+    from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
 
 try:
     import fitz  # This imports PyMuPDF
@@ -53,12 +53,9 @@ def colorize_pdf_fitz(folder, input_file, output_file, color):
         with fitz.open(os.path.join(folder, input_file)) as doc:
             xref_number = doc[0].get_contents()
             stream_bytes = doc.xref_stream(xref_number[0])
-            new_color = str(color[0]) + ' ' + str(color[1]) + ' ' + str(color[2]) + ' '
-            new_color_RG = bytes(new_color + 'RG', 'ascii')
-            new_color_rg = bytes(new_color + 'rg', 'ascii')
-
-            stream_bytes = re.sub(b'0.0.0.RG', new_color_RG, stream_bytes)
-            stream_bytes = re.sub(b'0.0.0.rg', new_color_rg, stream_bytes)
+            new_color = ''.join([f'{c:.3g} ' for c in color])
+            _logger.debug(f'{new_color=}')
+            stream_bytes = re.sub(br'(\s)0 0 0 (RG|rg)', bytes(fr'\g<1>{new_color}\g<2>', 'ascii'), stream_bytes)
 
             doc.update_stream(xref_number[0], stream_bytes)
             doc.save(os.path.join(folder, output_file), clean=True)
@@ -97,17 +94,15 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
             content = generic.ContentStream(content_object, source)
 
             for i, (operands, operator) in enumerate(content.operations):
-                if operator == _utils.b_("rg") or operator == _utils.b_("RG"):
+                if operator in (b"rg", b"RG"):
                     if operands == [0, 0, 0]:
-                        rgb = content.operations[i][0]
                         content.operations[i] = (
-                            [generic.FloatObject(color[0]), generic.FloatObject(color[1]),
-                             generic.FloatObject(color[2])], content.operations[i][1])
+                            [generic.FloatObject(intensity) for intensity in color], operator)
                     # else:
-                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
-                    #          type(rgb[1]), type(rgb[2]))
+                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(operands[0]),
+                    #          type(operands[1]), type(operands[2]))
 
-            page.__setitem__(generic.NameObject('/Contents'), content)
+            page[generic.NameObject("/Contents")] = content
             output.add_page(page)
 
             with open(os.path.join(folder, output_file), "wb") as output_stream:
