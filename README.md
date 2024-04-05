@@ -37,6 +37,12 @@ If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the 
 
 More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 
+## Problem with Ubuntu and possibly other Linux distros
+
+When PyMuPDF (fitz) is installed with pip, KiCad crashes with a segmentation fault when Board2Pdf is loaded. Board2Pdf loads when the PCB Editor loads, so the crash happens directly when the PCB Editor i started. If this happens to you, you have two options:
+1. Uninstall PyMuPDF using `python -m pip uninstall --upgrade PyMuPDF` or `pip uninstall --upgrade PyMuPDF` and use pypdf instead.
+2. Uninstall PyMuPDF as in (1), but install it again using the apt package manager.
+
 ## Usage - GUI
 
 The plugin includes a default configuration which should make it more or less self explanatory if you test it out. The
