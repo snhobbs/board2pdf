@@ -37,14 +37,20 @@ If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the 
 
 More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 
-## Usage
+## Usage - GUI
 
 The plugin includes a default configuration which should make it more or less self explanatory if you test it out. The
 basic idea is that each template will result in a page in the pdf file that\'s created by this plugin. You can enable
 any number of templates to get different views and color modes of the pcb. Each template can be individually configured
 to give the desired output. It\'s completely up to you which layers to show, and which colors the layers shall have.
 
-More information can be found in the [Wiki](https://gitlab.com/dennevi/Board2Pdf/-/wikis/home).
+More information can be found in the [Wiki - Usage GUI](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Usage---GUI).
+
+## Usage - CLI
+
+Board2Pdf can be executed from the command line using board2pdf-cli.py. 
+
+More information can be found in the [Wiki - Usage CLI](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Usage---CLI).
 
 ## Support
 
@@ -59,17 +65,14 @@ If you make some improvements, please issue a pull request. All help is apprecia
 
 ## Authors and acknowledgment
 
-This script is written by Albin Dennevi. If you need to come in contact with me please use the KiCad forum as described
-under Support. But for bugs and feature requests, please add an issue in GitLab.
+This script is written by Albin Dennevi, with contributions from others. If you need to come in contact with me please use the KiCad forum as described under Support. But for bugs and feature requests, please add an issue in GitLab.
 
 Credit goes to qu1ck, the author of the [InteractiveHtmlBom](https://github.com/openscopeproject/InteractiveHtmlBom)
 plugin. I used the GUI of this project as a starting point when making the GUI for this project.
 
 ## License
 
-This plugin is licensed under the open-source GNU GPL license, version 3.0 or later. A copy of the license is included
-in this software, and it can also be viewed [here](https://www.gnu.org/licenses/gpl-3.0.en.html). This is the same
-license as pdfCropMargins is licensed under, personally I would've choosen a more open license.
+This plugin is licensed under the open-source GNU GPL license, version 3.0 or later. A copy of the license is included in this software, and it can also be viewed [here](https://www.gnu.org/licenses/gpl-3.0.en.html). This is the same license as pdfCropMargins is licensed under, personally I would've choosen a more open license.
 
 ## Project status
 
