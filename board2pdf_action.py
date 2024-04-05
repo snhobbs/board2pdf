@@ -6,7 +6,7 @@ import sys
 import pcbnew
 import wx
 
-version = "1.3"
+version = "1.4-dev"
 
 if __name__ == "__main__":
     # Circumvent the "scripts can't do relative imports because they are not
