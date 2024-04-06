@@ -39,9 +39,9 @@ More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Boa
 
 ## Problem with Ubuntu and possibly other Linux distros
 
-When PyMuPDF (fitz) is installed with pip, KiCad crashes with a segmentation fault when Board2Pdf is loaded. Board2Pdf loads when the PCB Editor loads, so the crash happens directly when the PCB Editor i started. If this happens to you, you have two options:
+When PyMuPDF (fitz) is installed with pip, KiCad crashes with a segmentation fault when Board2Pdf is loaded. Board2Pdf loads when the PCB Editor loads, so the crash happens directly when the PCB Editor is started. If this happens to you, you have two options:
 1. Uninstall PyMuPDF using `python -m pip uninstall --upgrade PyMuPDF` or `pip uninstall --upgrade PyMuPDF` and use pypdf instead.
-2. Uninstall PyMuPDF as in (1), but install it again using the apt package manager.
+2. Uninstall PyMuPDF as in (1), but install it again using the apt package manager: `sudo apt install python3-fitz`
 
 ## Usage - GUI
 
