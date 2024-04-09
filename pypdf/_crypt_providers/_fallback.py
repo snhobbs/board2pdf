@@ -25,8 +25,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from pypdf._crypt_providers._base import CryptBase
-from pypdf.errors import DependencyError
+from ._base import CryptBase
+from ..errors import DependencyError
 
 _DEPENDENCY_ERROR_STR = "cryptography>=3.1 is required for AES algorithm"
 

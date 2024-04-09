@@ -25,10 +25,10 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from pypdf._crypt_providers._base import CryptBase, CryptIdentity
+from ._base import CryptBase, CryptIdentity
 
 try:
-    from pypdf._crypt_providers._cryptography import (
+    from ._cryptography import (
         CryptAES,
         CryptRC4,
         aes_cbc_decrypt,
@@ -39,7 +39,7 @@ try:
         rc4_decrypt,
         rc4_encrypt,
     )
-    from pypdf._utils import Version
+    from .._utils import Version
 
     if Version(crypt_provider[1]) <= Version("3.0"):
         # This is due to the backend parameter being required back then:
@@ -47,7 +47,7 @@ try:
         raise ImportError("cryptography<=3.0 is not supported")  # pragma: no cover
 except ImportError:
     try:
-        from pypdf._crypt_providers._pycryptodome import (  # type: ignore
+        from ._pycryptodome import (  # type: ignore
             CryptAES,
             CryptRC4,
             aes_cbc_decrypt,
@@ -59,7 +59,7 @@ except ImportError:
             rc4_encrypt,
         )
     except ImportError:
-        from pypdf._crypt_providers._fallback import (  # type: ignore
+        from ._fallback import (  # type: ignore
             CryptAES,
             CryptRC4,
             aes_cbc_decrypt,

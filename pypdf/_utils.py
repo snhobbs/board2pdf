@@ -55,7 +55,10 @@ if sys.version_info[:2] >= (3, 10):
     # Python 3.10+: https://www.python.org/dev/peps/pep-0484/
     from typing import TypeAlias
 else:
-    from typing_extensions import TypeAlias
+    try:
+        from typing_extensions import TypeAlias
+    except ImportError:
+        from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
 
 from .errors import (
     STREAM_TRUNCATED_PREMATURELY,
