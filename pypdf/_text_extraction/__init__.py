@@ -12,6 +12,7 @@ from ..generic import DictionaryObject, TextStringObject, encode_pdfdocencoding
 CUSTOM_RTL_MIN: int = -1
 CUSTOM_RTL_MAX: int = -1
 CUSTOM_RTL_SPECIAL_CHARS: List[int] = []
+LAYOUT_NEW_BT_GROUP_SPACE_WIDTHS: int = 5
 
 
 class OrientationNotFoundError(Exception):
@@ -87,9 +88,9 @@ def orient(m: List[float]) -> int:
 
 def crlf_space_check(
     text: str,
-    tm_prev: List[float],
-    cm_matrix: List[float],
-    tm_matrix: List[float],
+    cmtm_prev: Tuple[List[float], List[float]],
+    cmtm_matrix: Tuple[List[float], List[float]],
+    memo_cmtm: Tuple[List[float], List[float]],
     cmap: Tuple[
         Union[str, Dict[int, str]], Dict[str, str], str, Optional[DictionaryObject]
     ],
@@ -98,14 +99,22 @@ def crlf_space_check(
     font_size: float,
     visitor_text: Optional[Callable[[Any, Any, Any, Any, Any], None]],
     spacewidth: float,
-) -> Tuple[str, str, List[float]]:
+) -> Tuple[str, str, List[float], List[float]]:
+    cm_prev = cmtm_prev[0]
+    tm_prev = cmtm_prev[1]
+    cm_matrix = cmtm_matrix[0]
+    tm_matrix = cmtm_matrix[1]
+    memo_cm = memo_cmtm[0]
+    memo_tm = memo_cmtm[1]
+
+    m_prev = mult(tm_prev, cm_prev)
     m = mult(tm_matrix, cm_matrix)
     orientation = orient(m)
-    delta_x = m[4] - tm_prev[4]
-    delta_y = m[5] - tm_prev[5]
+    delta_x = m[4] - m_prev[4]
+    delta_y = m[5] - m_prev[5]
     k = math.sqrt(abs(m[0] * m[3]) + abs(m[1] * m[2]))
     f = font_size * k
-    tm_prev = m
+    cm_prev = m
     if orientation not in orientations:
         raise OrientationNotFoundError
     try:
@@ -116,8 +125,8 @@ def crlf_space_check(
                     if visitor_text is not None:
                         visitor_text(
                             text + "\n",
-                            cm_matrix,
-                            tm_matrix,
+                            memo_cm,
+                            memo_tm,
                             cmap[3],
                             font_size,
                         )
@@ -135,8 +144,8 @@ def crlf_space_check(
                     if visitor_text is not None:
                         visitor_text(
                             text + "\n",
-                            cm_matrix,
-                            tm_matrix,
+                            memo_cm,
+                            memo_tm,
                             cmap[3],
                             font_size,
                         )
@@ -154,8 +163,8 @@ def crlf_space_check(
                     if visitor_text is not None:
                         visitor_text(
                             text + "\n",
-                            cm_matrix,
-                            tm_matrix,
+                            memo_cm,
+                            memo_tm,
                             cmap[3],
                             font_size,
                         )
@@ -173,8 +182,8 @@ def crlf_space_check(
                     if visitor_text is not None:
                         visitor_text(
                             text + "\n",
-                            cm_matrix,
-                            tm_matrix,
+                            memo_cm,
+                            memo_tm,
                             cmap[3],
                             font_size,
                         )
@@ -187,7 +196,9 @@ def crlf_space_check(
                 text += " "
     except Exception:
         pass
-    return text, output, tm_prev
+    tm_prev = tm_matrix.copy()
+    cm_prev = cm_matrix.copy()
+    return text, output, cm_prev, tm_prev
 
 
 def handle_tj(
@@ -206,7 +217,7 @@ def handle_tj(
 ) -> Tuple[str, bool]:
     m = mult(tm_matrix, cm_matrix)
     orientation = orient(m)
-    if orientation in orientations:
+    if orientation in orientations and len(operands) > 0:
         if isinstance(operands[0], str):
             text += operands[0]
         else:
@@ -242,17 +253,17 @@ def handle_tj(
                 if (
                     # cases where the current inserting order is kept
                     (xx <= 0x2F)                        # punctuations but...
-                    or (0x3A <= xx and xx <= 0x40)      # numbers (x30-39)
-                    or (0x2000 <= xx and xx <= 0x206F)  # upper punctuations..
-                    or (0x20A0 <= xx and xx <= 0x21FF)  # but (numbers) indices/exponents
+                    or 0x3A <= xx <= 0x40               # numbers (x30-39)
+                    or 0x2000 <= xx <= 0x206F           # upper punctuations..
+                    or 0x20A0 <= xx <= 0x21FF           # but (numbers) indices/exponents
                     or xx in CUSTOM_RTL_SPECIAL_CHARS   # customized....
                 ):
                     text = x + text if rtl_dir else text + x
                 elif (  # right-to-left characters set
-                    (0x0590 <= xx and xx <= 0x08FF)
-                    or (0xFB1D <= xx and xx <= 0xFDFF)
-                    or (0xFE70 <= xx and xx <= 0xFEFF)
-                    or (CUSTOM_RTL_MIN <= xx and xx <= CUSTOM_RTL_MAX)
+                    0x0590 <= xx <= 0x08FF
+                    or 0xFB1D <= xx <= 0xFDFF
+                    or 0xFE70 <= xx <= 0xFEFF
+                    or CUSTOM_RTL_MIN <= xx <= CUSTOM_RTL_MAX
                 ):
                     if not rtl_dir:
                         rtl_dir = True

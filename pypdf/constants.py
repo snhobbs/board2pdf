@@ -8,8 +8,10 @@ PDF Reference, third edition, Version 1.4, 2001. ISBN 0-201-75839-3.
 PDF Reference, sixth edition, Version 1.7, 2006.
 """
 
-from enum import IntFlag
+from enum import IntFlag, auto
 from typing import Dict, Tuple
+
+from ._utils import deprecate_with_replacement
 
 
 class Core:
@@ -85,9 +87,53 @@ class UserAccessPermissions(IntFlag):
     R31 = 2**30
     R32 = 2**31
 
+    @classmethod
+    def _is_reserved(cls, name: str) -> bool:
+        """Check if the given name corresponds to a reserved flag entry."""
+        return name.startswith("R") and name[1:].isdigit()
 
-class Ressources:
-    """TABLE 3.30 Entries in a resource dictionary."""
+    @classmethod
+    def _is_active(cls, name: str) -> bool:
+        """Check if the given reserved name defaults to 1 = active."""
+        return name not in {"R1", "R2"}
+
+    def to_dict(self) -> Dict[str, bool]:
+        """Convert the given flag value to a corresponding verbose name mapping."""
+        result: Dict[str, bool] = {}
+        for name, flag in UserAccessPermissions.__members__.items():
+            if UserAccessPermissions._is_reserved(name):
+                continue
+            result[name.lower()] = (self & flag) == flag
+        return result
+
+    @classmethod
+    def from_dict(cls, value: Dict[str, bool]) -> "UserAccessPermissions":
+        """Convert the verbose name mapping to the corresponding flag value."""
+        value_copy = value.copy()
+        result = cls(0)
+        for name, flag in cls.__members__.items():
+            if cls._is_reserved(name):
+                # Reserved names have a required value. Use it.
+                if cls._is_active(name):
+                    result |= flag
+                continue
+            is_active = value_copy.pop(name.lower(), False)
+            if is_active:
+                result |= flag
+        if value_copy:
+            raise ValueError(f"Unknown dictionary keys: {value_copy!r}")
+        return result
+
+    @classmethod
+    def all(cls) -> "UserAccessPermissions":
+        return cls((2**32 - 1) - cls.R1 - cls.R2)
+
+
+class Resources:
+    """
+    TABLE 3.30 Entries in a resource dictionary.
+    used to be Ressources
+    """
 
     EXT_G_STATE = "/ExtGState"  # dictionary, optional
     COLOR_SPACE = "/ColorSpace"  # dictionary, optional
@@ -97,6 +143,62 @@ class Ressources:
     FONT = "/Font"  # dictionary, optional
     PROC_SET = "/ProcSet"  # array, optional
     PROPERTIES = "/Properties"  # dictionary, optional
+
+
+class Ressources:  # deprecated
+    """
+    Use :class: `Resources` instead.
+
+    .. deprecated:: 5.0.0
+    """
+
+    @classmethod  # type: ignore
+    @property
+    def EXT_G_STATE(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/ExtGState"  # dictionary, optional
+
+    @classmethod  # type: ignore
+    @property
+    def COLOR_SPACE(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/ColorSpace"  # dictionary, optional
+
+    @classmethod  # type: ignore
+    @property
+    def PATTERN(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/Pattern"  # dictionary, optional
+
+    @classmethod  # type: ignore
+    @property
+    def SHADING(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/Shading"  # dictionary, optional
+
+    @classmethod  # type: ignore
+    @property
+    def XOBJECT(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/XObject"  # dictionary, optional
+
+    @classmethod  # type: ignore
+    @property
+    def FONT(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/Font"  # dictionary, optional
+
+    @classmethod  # type: ignore
+    @property
+    def PROC_SET(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/ProcSet"  # array, optional
+
+    @classmethod  # type: ignore
+    @property
+    def PROPERTIES(cls) -> str:
+        deprecate_with_replacement("Ressources", "Resources", "5.0.0")
+        return "/Properties"  # dictionary, optional
 
 
 class PagesAttributes:
@@ -150,7 +252,16 @@ class FileSpecificationDictionaryEntries:
     Type = "/Type"
     FS = "/FS"  # The name of the file system to be used to interpret this file specification
     F = "/F"  # A file specification string of the form described in Section 3.10.1
+    UF = "/UF"  # A unicode string of the file as described in Section 3.10.1
+    DOS = "/DOS"
+    Mac = "/Mac"
+    Unix = "/Unix"
+    ID = "/ID"
+    V = "/V"
     EF = "/EF"  # dictionary, containing a subset of the keys F , UF , DOS , Mac , and Unix
+    RF = "/RF"  # dictionary, containing arrays of /EmbeddedFile
+    DESC = "/Desc"  # description of the file
+    Cl = "/Cl"
 
 
 class StreamAttributes:
@@ -175,6 +286,7 @@ class FilterTypes:
     RUN_LENGTH_DECODE = "/RunLengthDecode"  # abbreviation: RL
     CCITT_FAX_DECODE = "/CCITTFaxDecode"  # abbreviation: CCF
     DCT_DECODE = "/DCTDecode"  # abbreviation: DCT
+    JPX_DECODE = "/JPXDecode"
 
 
 class FilterTypeAbbreviations:
@@ -213,7 +325,7 @@ class CcittFaxDecodeParameters:
 
 
 class ImageAttributes:
-    """Table 6.20."""
+    """Table 4.39 Pdf Reference 1.7 page 340+"""
 
     TYPE = "/Type"  # name, required; must be /XObject
     SUBTYPE = "/Subtype"  # name, required; must be /Image
@@ -223,8 +335,11 @@ class ImageAttributes:
     BITS_PER_COMPONENT = "/BitsPerComponent"  # integer, required
     COLOR_SPACE = "/ColorSpace"  # name, required
     DECODE = "/Decode"  # array, optional
+    INTENT = "/Intent"  # string, optional
     INTERPOLATE = "/Interpolate"  # boolean, optional
     IMAGE_MASK = "/ImageMask"  # boolean, optional
+    MASK = "/Mask"  # 1-bit image mask stream
+    S_MASK = "/SMask"  # dictionary or name, optional
 
 
 class ColorSpaces:
@@ -273,6 +388,7 @@ class AnnotationDictionaryAttributes:
     F = "/F"
     AP = "/AP"
     AS = "/AS"
+    DA = "/DA"
     Border = "/Border"
     C = "/C"
     StructParent = "/StructParent"
@@ -300,12 +416,53 @@ class FieldDictionaryAttributes:
     TU = "/TU"  # text string, optional
     TM = "/TM"  # text string, optional
     Ff = "/Ff"  # integer, optional
-    V = "/V"  # text string, optional
+    V = "/V"  # text string or array, optional
     DV = "/DV"  # text string, optional
     AA = "/AA"  # dictionary, optional
+    Opt = "/Opt"
+
+    class FfBits:
+        ReadOnly = 1 << 0
+        Required = 1 << 1
+        NoExport = 1 << 2
+        Multiline = 1 << 12  # Tx Table 8.77
+        Password = 1 << 13  # Tx
+
+        NoToggleToOff = 1 << 14  # Btn table 8.75
+        Radio = 1 << 15  # Btn
+        Pushbutton = 1 << 16  # Btn
+
+        Combo = 1 << 17  # Ch table 8.79
+        Edit = 1 << 18  # Ch
+        Sort = 1 << 19  # Ch
+
+        FileSelect = 1 << 20  # Tx
+
+        MultiSelect = 1 << 21  # Ch
+
+        DoNotSpellCheck = 1 << 22  # Tx / Ch
+        DoNotScroll = 1 << 23  # Tx
+        Comb = 1 << 24  # Tx
+
+        RadiosInUnison = 1 << 25  # Btn
+
+        RichText = 1 << 25  # Tx
+
+        CommitOnSelChange = 1 << 26  # Ch
 
     @classmethod
     def attributes(cls) -> Tuple[str, ...]:
+        """
+        Get a tuple of all the attributes present in a Field Dictionary.
+
+        This method returns a tuple of all the attribute constants defined in
+        the FieldDictionaryAttributes class. These attributes correspond to the
+        entries that are common to all field dictionaries as specified in the
+        PDF 1.7 reference.
+
+        Returns:
+            A tuple containing all the attribute constants.
+        """
         return (
             cls.TM,
             cls.T,
@@ -321,6 +478,18 @@ class FieldDictionaryAttributes:
 
     @classmethod
     def attributes_dict(cls) -> Dict[str, str]:
+        """
+        Get a dictionary of attribute keys and their human-readable names.
+
+        This method returns a dictionary where the keys are the attribute
+        constants defined in the FieldDictionaryAttributes class and the values
+        are their corresponding human-readable names. These attributes
+        correspond to the entries that are common to all field dictionaries as
+        specified in the PDF 1.7 reference.
+
+        Returns:
+            A dictionary containing attribute keys and their names.
+        """
         return {
             cls.FT: "Field Type",
             cls.Parent: "Parent",
@@ -340,10 +509,33 @@ class CheckboxRadioButtonAttributes:
 
     @classmethod
     def attributes(cls) -> Tuple[str, ...]:
+        """
+        Get a tuple of all the attributes present in a Field Dictionary.
+
+        This method returns a tuple of all the attribute constants defined in
+        the CheckboxRadioButtonAttributes class. These attributes correspond to
+        the entries that are common to all field dictionaries as specified in
+        the PDF 1.7 reference.
+
+        Returns:
+            A tuple containing all the attribute constants.
+        """
         return (cls.Opt,)
 
     @classmethod
     def attributes_dict(cls) -> Dict[str, str]:
+        """
+        Get a dictionary of attribute keys and their human-readable names.
+
+        This method returns a dictionary where the keys are the attribute
+        constants defined in the CheckboxRadioButtonAttributes class and the
+        values are their corresponding human-readable names. These attributes
+        correspond to the entries that are common to all field dictionaries as
+        specified in the PDF 1.7 reference.
+
+        Returns:
+            A dictionary containing attribute keys and their names.
+        """
         return {
             cls.Opt: "Options",
         }
@@ -381,13 +573,35 @@ class PageLayouts:
 
 
 class GraphicsStateParameters:
-    """Table 4.8 of the 1.7 reference."""
+    """Table 58 – Entries in a Graphics State Parameter Dictionary"""
 
     TYPE = "/Type"  # name, optional
     LW = "/LW"  # number, optional
-    # TODO: Many more!
+    LC = "/LC"  # integer, optional
+    LJ = "/LJ"  # integer, optional
+    ML = "/ML"  # number, optional
+    D = "/D"  # array, optional
+    RI = "/RI"  # name, optional
+    OP = "/OP"
+    op = "/op"
+    OPM = "/OPM"
     FONT = "/Font"  # array, optional
+    BG = "/BG"
+    BG2 = "/BG2"
+    UCR = "/UCR"
+    UCR2 = "/UCR2"
+    TR = "/TR"
+    TR2 = "/TR2"
+    HT = "/HT"
+    FL = "/FL"
+    SM = "/SM"
+    SA = "/SA"
+    BM = "/BM"
     S_MASK = "/SMask"  # dictionary or name, optional
+    CA = "/CA"
+    ca = "/ca"
+    AIS = "/AIS"
+    TK = "/TK"
 
 
 class CatalogDictionary:
@@ -441,7 +655,7 @@ class PageLabelStyle:
 
 
 class AnnotationFlag(IntFlag):
-    """See 12.5.3 "Anntation Flags"."""
+    """See 12.5.3 "Annotation Flags"."""
 
     INVISIBLE = 1
     HIDDEN = 2
@@ -476,9 +690,18 @@ PDF_KEYS = (
     PageAttributes,
     PageLayouts,
     PagesAttributes,
-    Ressources,
+    Resources,
     StreamAttributes,
     TrailerKeys,
     TypArguments,
     TypFitArguments,
 )
+
+
+class ImageType(IntFlag):
+    NONE = 0
+    XOBJECT_IMAGES = auto()
+    INLINE_IMAGES = auto()
+    DRAWING_IMAGES = auto()
+    ALL = XOBJECT_IMAGES | INLINE_IMAGES | DRAWING_IMAGES
+    IMAGES = ALL  # for consistency with ObjectDeletionFlag

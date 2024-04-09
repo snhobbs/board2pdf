@@ -28,8 +28,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import math
-import warnings
+import re
+import sys
 from decimal import Decimal
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -47,27 +49,28 @@ from typing import (
 )
 
 from ._cmap import build_char_map, unknown_char_map
-from ._protocols import PdfReaderProtocol, PdfWriterProtocol
+from ._protocols import PdfCommonDocProtocol
 from ._text_extraction import (
     OrientationNotFoundError,
+    _layout_mode,
     crlf_space_check,
     handle_tj,
     mult,
 )
 from ._utils import (
+    WHITESPACES_AS_REGEXP,
     CompressedTransformationMatrix,
     File,
+    ImageFile,
     TransformationMatrixType,
-    deprecation_no_replacement,
-    deprecation_with_replacement,
     logger_warning,
     matrix_multiply,
 )
 from .constants import AnnotationDictionaryAttributes as ADA
 from .constants import ImageAttributes as IA
 from .constants import PageAttributes as PG
-from .constants import Ressources as RES
-from .errors import PageSizeNotDefinedError
+from .constants import Resources as RES
+from .errors import PageSizeNotDefinedError, PdfReadError
 from .filters import _xobj_to_image
 from .generic import (
     ArrayObject,
@@ -80,7 +83,14 @@ from .generic import (
     NullObject,
     NumberObject,
     RectangleObject,
+    StreamObject,
 )
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
 
 MERGE_CROP_BOX = "cropbox"  # pypdf<=3.4.0 used 'trimbox'
 
@@ -101,31 +111,12 @@ def _get_rectangle(self: Any, name: str, defaults: Iterable[str]) -> RectangleOb
     return retval
 
 
-def getRectangle(
-    self: Any, name: str, defaults: Iterable[str]
-) -> RectangleObject:  # deprecated
-    deprecation_no_replacement("getRectangle", "3.0.0")
-    return _get_rectangle(self, name, defaults)
-
-
 def _set_rectangle(self: Any, name: str, value: Union[RectangleObject, float]) -> None:
     name = NameObject(name)
     self[name] = value
 
 
-def setRectangle(
-    self: Any, name: str, value: Union[RectangleObject, float]
-) -> None:  # deprecated
-    deprecation_no_replacement("setRectangle", "3.0.0")
-    _set_rectangle(self, name, value)
-
-
 def _delete_rectangle(self: Any, name: str) -> None:
-    del self[name]
-
-
-def deleteRectangle(self: Any, name: str) -> None:  # deprecated
-    deprecation_no_replacement("deleteRectangle", "3.0.0")
     del self[name]
 
 
@@ -135,13 +126,6 @@ def _create_rectangle_accessor(name: str, fallback: Iterable[str]) -> property:
         lambda self, value: _set_rectangle(self, name, value),
         lambda self: _delete_rectangle(self, name),
     )
-
-
-def createRectangleAccessor(
-    name: str, fallback: Iterable[str]
-) -> property:  # deprecated
-    deprecation_no_replacement("createRectangleAccessor", "3.0.0")
-    return _create_rectangle_accessor(name, fallback)
 
 
 class Transformation:
@@ -209,6 +193,25 @@ class Transformation:
             matrix[2][1],
         )
 
+    def transform(self, m: "Transformation") -> "Transformation":
+        """
+        Apply one transformation to another.
+
+        Args:
+            m: a Transformation to apply.
+
+        Returns:
+            A new ``Transformation`` instance
+
+        Example:
+            >>> from pypdf import Transformation
+            >>> op = Transformation((1, 0, 0, -1, 0, height)) # vertical mirror
+            >>> op = Transformation().transform(Transformation((-1, 0, 0, 1, iwidth, 0))) # horizontal mirror
+            >>> page.add_transformation(op)
+        """
+        ctm = Transformation.compress(matrix_multiply(self.matrix, m.matrix))
+        return Transformation(ctm)
+
     def translate(self, tx: float = 0, ty: float = 0) -> "Transformation":
         """
         Translate the contents of a page.
@@ -273,6 +276,16 @@ class Transformation:
     def __repr__(self) -> str:
         return f"Transformation(ctm={self.ctm})"
 
+    @overload
+    def apply_on(self, pt: List[float], as_object: bool = False) -> List[float]:
+        ...
+
+    @overload
+    def apply_on(
+        self, pt: Tuple[float, float], as_object: bool = False
+    ) -> Tuple[float, float]:
+        ...
+
     def apply_on(
         self,
         pt: Union[Tuple[float, float], List[float]],
@@ -299,8 +312,8 @@ class PageObject(DictionaryObject):
     """
     PageObject represents a single page within a PDF file.
 
-    Typically this object will be created by accessing the
-    :meth:`get_page()<pypdf.PdfReader.get_page>` method of the
+    Typically these objects will be created by accessing the
+    :attr:`pages<pypdf.PdfReader.pages>` property of the
     :class:`PdfReader<pypdf.PdfReader>` class, but it is
     also possible to create an empty page with the
     :meth:`create_blank_page()<pypdf._page.PageObject.create_blank_page>` static method.
@@ -315,39 +328,15 @@ class PageObject(DictionaryObject):
 
     def __init__(
         self,
-        pdf: Union[None, PdfReaderProtocol, PdfWriterProtocol] = None,
+        pdf: Optional[PdfCommonDocProtocol] = None,
         indirect_reference: Optional[IndirectObject] = None,
-        indirect_ref: Optional[IndirectObject] = None,  # deprecated
     ) -> None:
         DictionaryObject.__init__(self)
-        self.pdf: Union[None, PdfReaderProtocol, PdfWriterProtocol] = pdf
-        if indirect_ref is not None:  # deprecated
-            warnings.warn(
-                (
-                    "indirect_ref is deprecated and will be removed in "
-                    "pypdf 4.0.0. Use indirect_reference instead of indirect_ref."
-                ),
-                DeprecationWarning,
-            )
-            if indirect_reference is not None:
-                raise ValueError("Use indirect_reference instead of indirect_ref.")
-            indirect_reference = indirect_ref
+        self.pdf = pdf
+        self.inline_images: Optional[Dict[str, ImageFile]] = None
+        # below Union for mypy but actually Optional[List[str]]
+        self.inline_images_keys: Optional[List[Union[str, List[str]]]] = None
         self.indirect_reference = indirect_reference
-
-    @property
-    def indirect_ref(self) -> Optional[IndirectObject]:  # deprecated
-        warnings.warn(
-            (
-                "indirect_ref is deprecated and will be removed in pypdf 4.0.0"
-                "Use indirect_reference instead of indirect_ref."
-            ),
-            DeprecationWarning,
-        )
-        return self.indirect_reference
-
-    @indirect_ref.setter
-    def indirect_ref(self, value: Optional[IndirectObject]) -> None:  # deprecated
-        self.indirect_reference = value
 
     def hash_value_data(self) -> bytes:
         data = super().hash_value_data()
@@ -367,7 +356,7 @@ class PageObject(DictionaryObject):
 
     @staticmethod
     def create_blank_page(
-        pdf: Union[None, PdfReaderProtocol, PdfWriterProtocol] = None,
+        pdf: Optional[PdfCommonDocProtocol] = None,
         width: Union[float, Decimal, None] = None,
         height: Union[float, Decimal, None] = None,
     ) -> "PageObject":
@@ -410,22 +399,8 @@ class PageObject(DictionaryObject):
 
         return page
 
-    @staticmethod
-    def createBlankPage(
-        pdf: Optional[PdfReaderProtocol] = None,
-        width: Union[float, Decimal, None] = None,
-        height: Union[float, Decimal, None] = None,
-    ) -> "PageObject":  # deprecated
-        """
-        Use :meth:`create_blank_page` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("createBlankPage", "create_blank_page", "3.0.0")
-        return PageObject.create_blank_page(pdf, width, height)
-
     @property
-    def images(self) -> List[File]:
+    def _old_images(self) -> List[File]:  # deprecated
         """
         Get a list of all images of the page.
 
@@ -441,11 +416,237 @@ class PageObject(DictionaryObject):
         x_object = self[PG.RESOURCES][RES.XOBJECT].get_object()  # type: ignore
         for obj in x_object:
             if x_object[obj][IA.SUBTYPE] == "/Image":
-                extension, byte_stream = _xobj_to_image(x_object[obj])
+                extension, byte_stream, img = _xobj_to_image(x_object[obj])
                 if extension is not None:
                     filename = f"{obj[1:]}{extension}"
                     images_extracted.append(File(name=filename, data=byte_stream))
+                    images_extracted[-1].image = img
+                    images_extracted[-1].indirect_reference = x_object[
+                        obj
+                    ].indirect_reference
         return images_extracted
+
+    def _get_ids_image(
+        self,
+        obj: Optional[DictionaryObject] = None,
+        ancest: Optional[List[str]] = None,
+        call_stack: Optional[List[Any]] = None,
+    ) -> List[Union[str, List[str]]]:
+        if call_stack is None:
+            call_stack = []
+        _i = getattr(obj, "indirect_reference", None)
+        if _i in call_stack:
+            return []
+        else:
+            call_stack.append(_i)
+        if self.inline_images_keys is None:
+            content = self._get_contents_as_bytes() or b""
+            nb_inlines = 0
+            for matching in re.finditer(
+                WHITESPACES_AS_REGEXP + b"BI" + WHITESPACES_AS_REGEXP,
+                content,
+            ):
+                start_of_string = content[: matching.start()]
+                if len(re.findall(b"[^\\\\]\\(", start_of_string)) == len(
+                    re.findall(b"[^\\\\]\\)", start_of_string)
+                ):
+                    nb_inlines += 1
+            self.inline_images_keys = [f"~{x}~" for x in range(nb_inlines)]
+        if obj is None:
+            obj = self
+        if ancest is None:
+            ancest = []
+        lst: List[Union[str, List[str]]] = []
+        if PG.RESOURCES not in obj or RES.XOBJECT not in cast(
+            DictionaryObject, obj[PG.RESOURCES]
+        ):
+            return self.inline_images_keys
+
+        x_object = obj[PG.RESOURCES][RES.XOBJECT].get_object()  # type: ignore
+        for o in x_object:
+            if not isinstance(x_object[o], StreamObject):
+                continue
+            if x_object[o][IA.SUBTYPE] == "/Image":
+                lst.append(o if len(ancest) == 0 else ancest + [o])
+            else:  # is a form with possible images inside
+                lst.extend(self._get_ids_image(x_object[o], ancest + [o], call_stack))
+        return lst + self.inline_images_keys
+
+    def _get_image(
+        self,
+        id: Union[str, List[str], Tuple[str]],
+        obj: Optional[DictionaryObject] = None,
+    ) -> ImageFile:
+        if obj is None:
+            obj = cast(DictionaryObject, self)
+        if isinstance(id, tuple):
+            id = list(id)
+        if isinstance(id, List) and len(id) == 1:
+            id = id[0]
+        try:
+            xobjs = cast(
+                DictionaryObject, cast(DictionaryObject, obj[PG.RESOURCES])[RES.XOBJECT]
+            )
+        except KeyError:
+            if not (id[0] == "~" and id[-1] == "~"):
+                raise
+        if isinstance(id, str):
+            if id[0] == "~" and id[-1] == "~":
+                if self.inline_images is None:
+                    self.inline_images = self._get_inline_images()
+                if self.inline_images is None:  # pragma: no cover
+                    raise KeyError("no inline image can be found")
+                return self.inline_images[id]
+
+            imgd = _xobj_to_image(cast(DictionaryObject, xobjs[id]))
+            extension, byte_stream = imgd[:2]
+            f = ImageFile(
+                name=f"{id[1:]}{extension}",
+                data=byte_stream,
+                image=imgd[2],
+                indirect_reference=xobjs[id].indirect_reference,
+            )
+            return f
+        else:  # in a sub object
+            ids = id[1:]
+            return self._get_image(ids, cast(DictionaryObject, xobjs[id[0]]))
+
+    @property
+    def images(self) -> List[ImageFile]:
+        """
+        Read-only property emulating a list of images on a page.
+
+        Get a list of all images on the page. The key can be:
+        - A string (for the top object)
+        - A tuple (for images within XObject forms)
+        - An integer
+
+        Examples:
+            reader.pages[0].images[0]        # return fist image
+            reader.pages[0].images['/I0']    # return image '/I0'
+            # return image '/Image1' within '/TP1' Xobject/Form:
+            reader.pages[0].images['/TP1','/Image1']
+            for img in reader.pages[0].images: # loop within all objects
+
+        images.keys() and images.items() can be used.
+
+        The ImageFile has the following properties:
+
+            `.name` : name of the object
+            `.data` : bytes of the object
+            `.image`  : PIL Image Object
+            `.indirect_reference` : object reference
+
+        and the following methods:
+            `.replace(new_image: PIL.Image.Image, **kwargs)` :
+                replace the image in the pdf with the new image
+                applying the saving parameters indicated (such as quality)
+
+        Example usage:
+
+            reader.pages[0].images[0]=replace(Image.open("new_image.jpg", quality = 20)
+
+        Inline images are extracted and named ~0~, ~1~, ..., with the
+        indirect_reference set to None.
+        """
+        return _VirtualListImages(self._get_ids_image, self._get_image)  # type: ignore
+
+    def _get_inline_images(self) -> Dict[str, ImageFile]:
+        """
+        get inline_images
+        entries will be identified as ~1~
+        """
+        content = self.get_contents()
+        if content is None:
+            return {}
+        imgs_data = []
+        for param, ope in content.operations:
+            if ope == b"INLINE IMAGE":
+                imgs_data.append(
+                    {"settings": param["settings"], "__streamdata__": param["data"]}
+                )
+            elif ope in (b"BI", b"EI", b"ID"):  # pragma: no cover
+                raise PdfReadError(
+                    f"{ope} operator met whereas not expected,"
+                    "please share usecase with pypdf dev team"
+                )
+            """backup
+            elif ope == b"BI":
+                img_data["settings"] = {}
+            elif ope == b"EI":
+                imgs_data.append(img_data)
+                img_data = {}
+            elif ope == b"ID":
+                img_data["__streamdata__"] = b""
+            elif "__streamdata__" in img_data:
+                if len(img_data["__streamdata__"]) > 0:
+                    img_data["__streamdata__"] += b"\n"
+                    raise Exception("check append")
+                img_data["__streamdata__"] += param
+            elif "settings" in img_data:
+                img_data["settings"][ope.decode()] = param
+            """
+        files = {}
+        for num, ii in enumerate(imgs_data):
+            init = {
+                "__streamdata__": ii["__streamdata__"],
+                "/Length": len(ii["__streamdata__"]),
+            }
+            for k, v in ii["settings"].items():
+                try:
+                    v = NameObject(
+                        {
+                            "/G": "/DeviceGray",
+                            "/RGB": "/DeviceRGB",
+                            "/CMYK": "/DeviceCMYK",
+                            "/I": "/Indexed",
+                            "/AHx": "/ASCIIHexDecode",
+                            "/A85": "/ASCII85Decode",
+                            "/LZW": "/LZWDecode",
+                            "/Fl": "/FlateDecode",
+                            "/RL": "/RunLengthDecode",
+                            "/CCF": "/CCITTFaxDecode",
+                            "/DCT": "/DCTDecode",
+                        }[v]
+                    )
+                except (TypeError, KeyError):
+                    if isinstance(v, NameObject):
+                        #  it is a custom name : we have to look in resources :
+                        # the only applicable case is for ColorSpace
+                        try:
+                            res = cast(DictionaryObject, self["/Resources"])[
+                                "/ColorSpace"
+                            ]
+                            v = cast(DictionaryObject, res)[v]
+                        except KeyError:  # for res and v
+                            raise PdfReadError(
+                                f"Can not find resource entry {v} for {k}"
+                            )
+                init[
+                    NameObject(
+                        {
+                            "/BPC": "/BitsPerComponent",
+                            "/CS": "/ColorSpace",
+                            "/D": "/Decode",
+                            "/DP": "/DecodeParms",
+                            "/F": "/Filter",
+                            "/H": "/Height",
+                            "/W": "/Width",
+                            "/I": "/Interpolate",
+                            "/Intent": "/Intent",
+                            "/IM": "/ImageMask",
+                        }[k]
+                    )
+                ] = v
+            ii["object"] = EncodedStreamObject.initialize_from_dictionary(init)
+            extension, byte_stream, img = _xobj_to_image(ii["object"])
+            files[f"~{num}~"] = ImageFile(
+                name=f"~{num}~{extension}",
+                data=byte_stream,
+                image=img,
+                indirect_reference=None,
+            )
+        return files
 
     @property
     def rotation(self) -> int:
@@ -459,7 +660,7 @@ class PageObject(DictionaryObject):
         return rotate_obj if isinstance(rotate_obj, int) else rotate_obj.get_object()
 
     @rotation.setter
-    def rotation(self, r: Union[int, float]) -> None:
+    def rotation(self, r: float) -> None:
         self[NameObject(PG.ROTATE)] = NumberObject((((int(r) + 45) // 90) * 90) % 360)
 
     def transfer_rotation_to_content(self) -> None:
@@ -511,28 +712,6 @@ class PageObject(DictionaryObject):
             raise ValueError("Rotation angle must be a multiple of 90")
         self[NameObject(PG.ROTATE)] = NumberObject(self.rotation + angle)
         return self
-
-    def rotate_clockwise(self, angle: int) -> "PageObject":  # deprecated
-        deprecation_with_replacement("rotate_clockwise", "rotate", "3.0.0")
-        return self.rotate(angle)
-
-    def rotateClockwise(self, angle: int) -> "PageObject":  # deprecated
-        """
-        Use :meth:`rotate_clockwise` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("rotateClockwise", "rotate", "3.0.0")
-        return self.rotate(angle)
-
-    def rotateCounterClockwise(self, angle: int) -> "PageObject":  # deprecated
-        """
-        Use :meth:`rotate_clockwise` with a negative argument instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("rotateCounterClockwise", "rotate", "3.0.0")
-        return self.rotate(-angle)
 
     def _merge_resources(
         self,
@@ -618,20 +797,18 @@ class PageObject(DictionaryObject):
     def _content_stream_rename(
         stream: ContentStream,
         rename: Dict[Any, Any],
-        pdf: Union[None, PdfReaderProtocol, PdfWriterProtocol],
+        pdf: Optional[PdfCommonDocProtocol],
     ) -> ContentStream:
         if not rename:
             return stream
         stream = ContentStream(stream, pdf)
         for operands, _operator in stream.operations:
             if isinstance(operands, list):
-                for i in range(len(operands)):
-                    op = operands[i]
+                for i, op in enumerate(operands):
                     if isinstance(op, NameObject):
                         operands[i] = rename.get(op, op)
             elif isinstance(operands, dict):
-                for i in operands:
-                    op = operands[i]
+                for i, op in operands.items():
                     if isinstance(op, NameObject):
                         operands[i] = rename.get(op, op)
             else:
@@ -639,21 +816,9 @@ class PageObject(DictionaryObject):
         return stream
 
     @staticmethod
-    def _push_pop_gs(
-        contents: Any, pdf: Union[None, PdfReaderProtocol, PdfWriterProtocol]
-    ) -> ContentStream:
-        # adds a graphics state "push" and "pop" to the beginning and end
-        # of a content stream.  This isolates it from changes such as
-        # transformation matricies.
-        stream = ContentStream(contents, pdf)
-        stream.operations.insert(0, ([], "q"))
-        stream.operations.append(([], "Q"))
-        return stream
-
-    @staticmethod
     def _add_transformation_matrix(
         contents: Any,
-        pdf: Union[None, PdfReaderProtocol, PdfWriterProtocol],
+        pdf: Optional[PdfCommonDocProtocol],
         ctm: CompressedTransformationMatrix,
     ) -> ContentStream:
         """Add transformation matrix at the beginning of the given contents stream."""
@@ -675,6 +840,23 @@ class PageObject(DictionaryObject):
         )
         return contents
 
+    def _get_contents_as_bytes(self) -> Optional[bytes]:
+        """
+        Return the page contents as bytes.
+
+        Returns:
+            The ``/Contents`` object as bytes, or ``None`` if it doesn't exist.
+
+        """
+        if PG.CONTENTS in self:
+            obj = self[PG.CONTENTS].get_object()
+            if isinstance(obj, list):
+                return b"".join(x.get_object().get_data() for x in obj)
+            else:
+                return cast(bytes, cast(EncodedStreamObject, obj).get_data())
+        else:
+            return None
+
     def get_contents(self) -> Optional[ContentStream]:
         """
         Access the page contents.
@@ -684,20 +866,78 @@ class PageObject(DictionaryObject):
             ``/Contents`` is optional, as described in PDF Reference  7.7.3.3
         """
         if PG.CONTENTS in self:
-            return self[PG.CONTENTS].get_object()  # type: ignore
+            try:
+                pdf = cast(IndirectObject, self.indirect_reference).pdf
+            except AttributeError:
+                pdf = None
+            obj = self[PG.CONTENTS].get_object()
+            if isinstance(obj, NullObject):
+                return None
+            else:
+                return ContentStream(obj, pdf)
         else:
             return None
 
-    def getContents(self) -> Optional[ContentStream]:  # deprecated
+    def replace_contents(
+        self, content: Union[None, ContentStream, EncodedStreamObject, ArrayObject]
+    ) -> None:
         """
-        Use :meth:`get_contents` instead.
-
-        .. deprecated:: 1.28.0
+        Replace the page contents with the new content and nullify old objects
+        Args:
+            content : new content. if None delete the content field.
         """
-        deprecation_with_replacement("getContents", "get_contents", "3.0.0")
-        return self.get_contents()
+        if not hasattr(self, "indirect_reference") or self.indirect_reference is None:
+            # the page is not attached : the content is directly attached.
+            self[NameObject(PG.CONTENTS)] = content
+            return
+        if isinstance(self.get(PG.CONTENTS, None), ArrayObject):
+            for o in self[PG.CONTENTS]:  # type: ignore[attr-defined]
+                try:
+                    self._objects[o.indirect_reference.idnum - 1] = NullObject()  # type: ignore
+                except AttributeError:
+                    pass
 
-    def merge_page(self, page2: "PageObject", expand: bool = False) -> None:
+        if isinstance(content, ArrayObject):
+            for i in range(len(content)):
+                content[i] = self.indirect_reference.pdf._add_object(content[i])
+
+        if content is None:
+            if PG.CONTENTS not in self:
+                return
+            else:
+                assert self.indirect_reference is not None
+                assert self[PG.CONTENTS].indirect_reference is not None
+                self.indirect_reference.pdf._objects[
+                    self[PG.CONTENTS].indirect_reference.idnum - 1  # type: ignore
+                ] = NullObject()
+                del self[PG.CONTENTS]
+        elif not hasattr(self.get(PG.CONTENTS, None), "indirect_reference"):
+            try:
+                self[NameObject(PG.CONTENTS)] = self.indirect_reference.pdf._add_object(
+                    content
+                )
+            except AttributeError:
+                # applies at least for page not in writer
+                # as a backup solution, we put content as an object although not in accordance with pdf ref
+                # this will be fixed with the _add_object
+                self[NameObject(PG.CONTENTS)] = content
+        else:
+            content.indirect_reference = self[
+                PG.CONTENTS
+            ].indirect_reference  # TODO: in a future may required generation management
+            try:
+                self.indirect_reference.pdf._objects[
+                    content.indirect_reference.idnum - 1  # type: ignore
+                ] = content
+            except AttributeError:
+                # applies at least for page not in writer
+                # as a backup solution, we put content as an object although not in accordance with pdf ref
+                # this will be fixed with the _add_object
+                self[NameObject(PG.CONTENTS)] = content
+
+    def merge_page(
+        self, page2: "PageObject", expand: bool = False, over: bool = True
+    ) -> None:
         """
         Merge the content streams of two pages into one.
 
@@ -710,19 +950,11 @@ class PageObject(DictionaryObject):
         Args:
             page2: The page to be merged into this one. Should be
                 an instance of :class:`PageObject<PageObject>`.
+            over: set the page2 content over page1 if True(default) else under
             expand: If true, the current page dimensions will be
                 expanded to accommodate the dimensions of the page to be merged.
         """
-        self._merge_page(page2, expand=expand)
-
-    def mergePage(self, page2: "PageObject") -> None:  # deprecated
-        """
-        Use :meth:`merge_page` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("mergePage", "merge_page", "3.0.0")
-        return self.merge_page(page2)
+        self._merge_page(page2, over=over, expand=expand)
 
     def _merge_page(
         self,
@@ -762,8 +994,7 @@ class PageObject(DictionaryObject):
             if PG.ANNOTS in page:
                 annots = page[PG.ANNOTS]
                 if isinstance(annots, ArrayObject):
-                    for ref in annots:
-                        new_annots.append(ref)
+                    new_annots.extend(annots)
 
         for res in (
             RES.EXT_G_STATE,
@@ -793,16 +1024,13 @@ class PageObject(DictionaryObject):
         )
 
         new_content_array = ArrayObject()
-
         original_content = self.get_contents()
         if original_content is not None:
-            new_content_array.append(
-                PageObject._push_pop_gs(original_content, self.pdf)
-            )
+            original_content.isolate_graphics_state()
+            new_content_array.append(original_content)
 
         page2content = page2.get_contents()
         if page2content is not None:
-            page2content = ContentStream(page2content, self.pdf)
             rect = getattr(page2, MERGE_CROP_BOX)
             page2content.operations.insert(
                 0,
@@ -826,7 +1054,7 @@ class PageObject(DictionaryObject):
             page2content = PageObject._content_stream_rename(
                 page2content, rename, self.pdf
             )
-            page2content = PageObject._push_pop_gs(page2content, self.pdf)
+            page2content.isolate_graphics_state()
             if over:
                 new_content_array.append(page2content)
             else:
@@ -836,7 +1064,7 @@ class PageObject(DictionaryObject):
         if expand:
             self._expand_mediabox(page2, ctm)
 
-        self[NameObject(PG.CONTENTS)] = ContentStream(new_content_array, self.pdf)
+        self.replace_contents(ContentStream(new_content_array, self.pdf))
         self[NameObject(PG.RESOURCES)] = new_resources
         self[NameObject(PG.ANNOTS)] = new_annots
 
@@ -855,8 +1083,13 @@ class PageObject(DictionaryObject):
         pdf = self.indirect_reference.pdf
 
         rename = {}
+        if PG.RESOURCES not in self:
+            self[NameObject(PG.RESOURCES)] = DictionaryObject()
         original_resources = cast(DictionaryObject, self[PG.RESOURCES].get_object())
-        page2resources = cast(DictionaryObject, page2[PG.RESOURCES].get_object())
+        if PG.RESOURCES not in page2:
+            page2resources = DictionaryObject()
+        else:
+            page2resources = cast(DictionaryObject, page2[PG.RESOURCES].get_object())
 
         for res in (
             RES.EXT_G_STATE,
@@ -913,10 +1146,10 @@ class PageObject(DictionaryObject):
                 if "/QuadPoints" in a:
                     q = cast(ArrayObject, a["/QuadPoints"])
                     aa[NameObject("/QuadPoints")] = ArrayObject(
-                        cast(tuple, trsf.apply_on((q[0], q[1]), True))
-                        + cast(tuple, trsf.apply_on((q[2], q[3]), True))
-                        + cast(tuple, trsf.apply_on((q[4], q[5]), True))
-                        + cast(tuple, trsf.apply_on((q[6], q[7]), True))
+                        trsf.apply_on((q[0], q[1]), True)
+                        + trsf.apply_on((q[2], q[3]), True)
+                        + trsf.apply_on((q[4], q[5]), True)
+                        + trsf.apply_on((q[6], q[7]), True)
                     )
                 try:
                     aa["/Popup"][NameObject("/Parent")] = aa.indirect_reference
@@ -929,16 +1162,13 @@ class PageObject(DictionaryObject):
                     pass
 
         new_content_array = ArrayObject()
-
         original_content = self.get_contents()
         if original_content is not None:
-            new_content_array.append(
-                PageObject._push_pop_gs(original_content, self.pdf)
-            )
+            original_content.isolate_graphics_state()
+            new_content_array.append(original_content)
 
         page2content = page2.get_contents()
         if page2content is not None:
-            page2content = ContentStream(page2content, self.pdf)
             rect = getattr(page2, MERGE_CROP_BOX)
             page2content.operations.insert(
                 0,
@@ -962,7 +1192,7 @@ class PageObject(DictionaryObject):
             page2content = PageObject._content_stream_rename(
                 page2content, rename, self.pdf
             )
-            page2content = PageObject._push_pop_gs(page2content, self.pdf)
+            page2content.isolate_graphics_state()
             if over:
                 new_content_array.append(page2content)
             else:
@@ -972,18 +1202,7 @@ class PageObject(DictionaryObject):
         if expand:
             self._expand_mediabox(page2, ctm)
 
-        if PG.CONTENTS not in self:
-            self[NameObject(PG.CONTENTS)] = pdf._add_object(ContentStream(None, pdf))
-        ind = self.raw_get(PG.CONTENTS)
-        try:
-            if not isinstance(ind, IndirectObject):
-                raise KeyError
-            pdf._replace_object(ind, ContentStream(new_content_array, pdf))
-        except KeyError:
-            self[NameObject(PG.CONTENTS)] = pdf._add_object(
-                ContentStream(new_content_array, pdf)
-            )
-
+        self.replace_contents(new_content_array)
         # self[NameObject(PG.CONTENTS)] = ContentStream(new_content_array, pdf)
         # self[NameObject(PG.RESOURCES)] = new_resources
         # self[NameObject(PG.ANNOTS)] = new_annots
@@ -1062,26 +1281,6 @@ class PageObject(DictionaryObject):
             expand,
         )
 
-    def mergeTransformedPage(
-        self,
-        page2: "PageObject",
-        ctm: Union[CompressedTransformationMatrix, Transformation],
-        expand: bool = False,
-    ) -> None:  # deprecated
-        """
-        deprecated
-
-        deprecated:: 1.28.0
-
-            Use :meth:`merge_transformed_page`  instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeTransformedPage(page2, ctm,expand)",
-            "page.merge_transformed_page(page2,ctm,expand)",
-            "3.0.0",
-        )
-        self.merge_transformed_page(page2, ctm, expand)
-
     def merge_scaled_page(
         self, page2: "PageObject", scale: float, over: bool = True, expand: bool = False
     ) -> None:
@@ -1098,23 +1297,6 @@ class PageObject(DictionaryObject):
         """
         op = Transformation().scale(scale, scale)
         self.merge_transformed_page(page2, op, over, expand)
-
-    def mergeScaledPage(
-        self, page2: "PageObject", scale: float, expand: bool = False
-    ) -> None:  # deprecated
-        """
-        deprecated
-
-        .. deprecated:: 1.28.0
-
-            Use :meth:`merge_scaled_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeScaledPage(page2, scale, expand)",
-            "page2.merge_scaled_page(page2, scale, expand)",
-            "3.0.0",
-        )
-        self.merge_scaled_page(page2, scale, expand)
 
     def merge_rotated_page(
         self,
@@ -1136,23 +1318,6 @@ class PageObject(DictionaryObject):
         """
         op = Transformation().rotate(rotation)
         self.merge_transformed_page(page2, op, over, expand)
-
-    def mergeRotatedPage(
-        self, page2: "PageObject", rotation: float, expand: bool = False
-    ) -> None:  # deprecated
-        """
-        deprecated
-
-        .. deprecated:: 1.28.0
-
-            Use :meth:`add_transformation` and :meth:`merge_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeRotatedPage(page2, rotation, expand)",
-            "page2.mergeotatedPage(page2, rotation, expand)",
-            "3.0.0",
-        )
-        self.merge_rotated_page(page2, rotation, expand)
 
     def merge_translated_page(
         self,
@@ -1177,131 +1342,6 @@ class PageObject(DictionaryObject):
         op = Transformation().translate(tx, ty)
         self.merge_transformed_page(page2, op, over, expand)
 
-    def mergeTranslatedPage(
-        self, page2: "PageObject", tx: float, ty: float, expand: bool = False
-    ) -> None:  # deprecated
-        """
-        deprecated
-
-        .. deprecated:: 1.28.0
-
-            Use :meth:`merge_translated_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeTranslatedPage(page2, tx, ty, expand)",
-            "page2.add_transformation(Transformation().translate(tx, ty)); "
-            "page.merge_page(page2, expand)",
-            "3.0.0",
-        )
-        self.merge_translated_page(page2, tx, ty, expand)
-
-    def mergeRotatedTranslatedPage(
-        self,
-        page2: "PageObject",
-        rotation: float,
-        tx: float,
-        ty: float,
-        expand: bool = False,
-    ) -> None:  # deprecated
-        """
-        .. deprecated:: 1.28.0
-
-            Use :meth:`merge_transformed_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeRotatedTranslatedPage(page2, rotation, tx, ty, expand)",
-            "page.merge_transformed_page(page2, Transformation().rotate(rotation).translate(tx, ty), expand);",
-            "3.0.0",
-        )
-        op = Transformation().translate(-tx, -ty).rotate(rotation).translate(tx, ty)
-        return self.merge_transformed_page(page2, op, expand)
-
-    def mergeRotatedScaledPage(
-        self, page2: "PageObject", rotation: float, scale: float, expand: bool = False
-    ) -> None:  # deprecated
-        """
-        .. deprecated:: 1.28.0
-
-            Use :meth:`merge_transformed_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeRotatedScaledPage(page2, rotation, scale, expand)",
-            "page.merge_transformed_page(page2, Transformation()"
-            ".rotate(rotation).scale(scale)); page.merge_page(page2, expand)",
-            "3.0.0",
-        )
-        op = Transformation().rotate(rotation).scale(scale, scale)
-        self.mergeTransformedPage(page2, op, expand)
-
-    def mergeScaledTranslatedPage(
-        self,
-        page2: "PageObject",
-        scale: float,
-        tx: float,
-        ty: float,
-        expand: bool = False,
-    ) -> None:  # deprecated
-        """
-        mergeScaledTranslatedPage is similar to merge_page, but the stream to
-        be merged is translated and scaled by applying a transformation matrix.
-
-        :param PageObject page2: the page to be merged into this one. Should be
-            an instance of :class:`PageObject<PageObject>`.
-        :param float scale: The scaling factor
-        :param float tx: The translation on X axis
-        :param float ty: The translation on Y axis
-        :param bool expand: Whether the page should be expanded to fit the
-            dimensions of the page to be merged.
-
-        .. deprecated:: 1.28.0
-
-            Use :meth:`add_transformation` and :meth:`merge_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeScaledTranslatedPage(page2, scale, tx, ty, expand)",
-            "page2.add_transformation(Transformation().scale(scale).translate(tx, ty)); "
-            "page.merge_page(page2, expand)",
-            "3.0.0",
-        )
-        op = Transformation().scale(scale, scale).translate(tx, ty)
-        return self.mergeTransformedPage(page2, op, expand)
-
-    def mergeRotatedScaledTranslatedPage(
-        self,
-        page2: "PageObject",
-        rotation: float,
-        scale: float,
-        tx: float,
-        ty: float,
-        expand: bool = False,
-    ) -> None:  # deprecated
-        """
-        mergeRotatedScaledTranslatedPage is similar to merge_page, but the
-        stream to be merged is translated, rotated and scaled by applying a
-        transformation matrix.
-
-        :param PageObject page2: the page to be merged into this one. Should be
-            an instance of :class:`PageObject<PageObject>`.
-        :param float tx: The translation on X axis
-        :param float ty: The translation on Y axis
-        :param float rotation: The angle of the rotation, in degrees
-        :param float scale: The scaling factor
-        :param bool expand: Whether the page should be expanded to fit the
-            dimensions of the page to be merged.
-
-        .. deprecated:: 1.28.0
-
-            Use :meth:`add_transformation` and :meth:`merge_page` instead.
-        """
-        deprecation_with_replacement(
-            "page.mergeRotatedScaledTranslatedPage(page2, rotation, tx, ty, expand)",
-            "page2.add_transformation(Transformation().rotate(rotation).scale(scale)); "
-            "page.merge_page(page2, expand)",
-            "3.0.0",
-        )
-        op = Transformation().rotate(rotation).scale(scale, scale).translate(tx, ty)
-        self.mergeTransformedPage(page2, op, expand)
-
     def add_transformation(
         self,
         ctm: Union[Transformation, CompressedTransformationMatrix],
@@ -1323,8 +1363,8 @@ class PageObject(DictionaryObject):
         content = self.get_contents()
         if content is not None:
             content = PageObject._add_transformation_matrix(content, self.pdf, ctm)
-            content = PageObject._push_pop_gs(content, self.pdf)
-            self[NameObject(PG.CONTENTS)] = content
+            content.isolate_graphics_state()
+            self.replace_contents(content)
         # if expanding the page to fit a new page, calculate the new media box size
         if expand:
             corners = [
@@ -1350,25 +1390,9 @@ class PageObject(DictionaryObject):
 
             lowerleft = (min(new_x), min(new_y))
             upperright = (max(new_x), max(new_y))
-            lowerleft = (min(corners[0], lowerleft[0]), min(corners[1], lowerleft[1]))
-            upperright = (
-                max(corners[2], upperright[0]),
-                max(corners[3], upperright[1]),
-            )
 
             self.mediabox.lower_left = lowerleft
             self.mediabox.upper_right = upperright
-
-    def addTransformation(
-        self, ctm: CompressedTransformationMatrix
-    ) -> None:  # deprecated
-        """
-        Use :meth:`add_transformation` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("addTransformation", "add_transformation", "3.0.0")
-        self.add_transformation(ctm)
 
     def scale(self, sx: float, sy: float) -> None:
         """
@@ -1433,15 +1457,6 @@ class PageObject(DictionaryObject):
         """
         self.scale(factor, factor)
 
-    def scaleBy(self, factor: float) -> None:  # deprecated
-        """
-        Use :meth:`scale_by` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("scaleBy", "scale_by", "3.0.0")
-        self.scale(factor, factor)
-
     def scale_to(self, width: float, height: float) -> None:
         """
         Scale a page to the specified dimensions by applying a transformation
@@ -1455,16 +1470,7 @@ class PageObject(DictionaryObject):
         sy = height / float(self.mediabox.height)
         self.scale(sx, sy)
 
-    def scaleTo(self, width: float, height: float) -> None:  # deprecated
-        """
-        Use :meth:`scale_to` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("scaleTo", "scale_to", "3.0.0")
-        self.scale_to(width, height)
-
-    def compress_content_streams(self) -> None:
+    def compress_content_streams(self, level: int = -1) -> None:
         """
         Compress the size of this page by joining all content streams and
         applying a FlateDecode filter.
@@ -1474,12 +1480,7 @@ class PageObject(DictionaryObject):
         """
         content = self.get_contents()
         if content is not None:
-            content_obj: Any
-            if not isinstance(content, ContentStream):
-                content_obj = ContentStream(content, self.pdf)
-            else:
-                content_obj = content
-            content_obj = content_obj.flate_encode()
+            content_obj = content.flate_encode(level)
             try:
                 content.indirect_reference.pdf._objects[  # type: ignore
                     content.indirect_reference.idnum - 1  # type: ignore
@@ -1488,22 +1489,26 @@ class PageObject(DictionaryObject):
                 if self.indirect_reference is not None and hasattr(
                     self.indirect_reference.pdf, "_add_object"
                 ):
-                    self[
-                        NameObject(PG.CONTENTS)
-                    ] = self.indirect_reference.pdf._add_object(content_obj)
+                    self.replace_contents(content_obj)
                 else:
                     raise ValueError("Page must be part of a PdfWriter")
 
-    def compressContentStreams(self) -> None:  # deprecated
+    @property
+    def page_number(self) -> Optional[int]:
         """
-        Use :meth:`compress_content_streams` instead.
+        Read-only property which return the page number with the pdf file.
 
-        .. deprecated:: 1.28.0
+        Returns:
+            int : page number ; None if the page is not attached to a pdf
         """
-        deprecation_with_replacement(
-            "compressContentStreams", "compress_content_streams", "3.0.0"
-        )
-        self.compress_content_streams()
+        if self.indirect_reference is None:
+            return None
+        else:
+            try:
+                lst = self.indirect_reference.pdf.pages
+                return lst.index(self)
+            except ValueError:
+                return None
 
     def _debug_for_extract(self) -> str:  # pragma: no cover
         out = ""
@@ -1577,7 +1582,7 @@ class PageObject(DictionaryObject):
                 # /Resources can be inherited sometimes so we look to parents
                 objr = objr["/Parent"].get_object()
                 # if no parents we will have no /Resources will be available
-                # => an exception wil be raised
+                # => an exception will be raised
             resources_dict = cast(DictionaryObject, objr[PG.RESOURCES])
         except Exception:
             # no resources means no text is possible (no font) we consider the
@@ -1609,14 +1614,14 @@ class PageObject(DictionaryObject):
         cm_matrix: List[float] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
         cm_stack = []
         tm_matrix: List[float] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
-        tm_prev: List[float] = [
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-        ]  # will store cm_matrix * tm_matrix
+
+        # cm/tm_prev stores the last modified matrices can be an intermediate position
+        cm_prev: List[float] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+        tm_prev: List[float] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+
+        # memo_cm/tm will be used to store the position at the beginning of building the text
+        memo_cm: List[float] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+        memo_tm: List[float] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
         char_scale = 1.0
         space_scale = 1.0
         _space_width: float = 500.0  # will be set correctly at first Tf
@@ -1626,10 +1631,10 @@ class PageObject(DictionaryObject):
         def current_spacewidth() -> float:
             return _space_width / 1000.0
 
-        def process_operation(operator: bytes, operands: List) -> None:
-            nonlocal cm_matrix, cm_stack, tm_matrix, tm_prev, output, text
+        def process_operation(operator: bytes, operands: List[Any]) -> None:
+            nonlocal cm_matrix, cm_stack, tm_matrix, cm_prev, tm_prev, memo_cm, memo_tm
             nonlocal char_scale, space_scale, _space_width, TL, font_size, cmap
-            nonlocal orientations, rtl_dir, visitor_text
+            nonlocal orientations, rtl_dir, visitor_text, output, text
             global CUSTOM_RTL_MIN, CUSTOM_RTL_MAX, CUSTOM_RTL_SPECIAL_CHARS
 
             check_crlf_space: bool = False
@@ -1638,14 +1643,18 @@ class PageObject(DictionaryObject):
                 tm_matrix = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
                 output += text
                 if visitor_text is not None:
-                    visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+                    visitor_text(text, memo_cm, memo_tm, cmap[3], font_size)
                 text = ""
+                memo_cm = cm_matrix.copy()
+                memo_tm = tm_matrix.copy()
                 return None
             elif operator == b"ET":
                 output += text
                 if visitor_text is not None:
-                    visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+                    visitor_text(text, memo_cm, memo_tm, cmap[3], font_size)
                 text = ""
+                memo_cm = cm_matrix.copy()
+                memo_tm = tm_matrix.copy()
             # table 4.7 "Graphics state operators", page 219
             # cm_matrix calculation is a reserved for the moment
             elif operator == b"q":
@@ -1676,7 +1685,7 @@ class PageObject(DictionaryObject):
             elif operator == b"cm":
                 output += text
                 if visitor_text is not None:
-                    visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+                    visitor_text(text, memo_cm, memo_tm, cmap[3], font_size)
                 text = ""
                 cm_matrix = mult(
                     [
@@ -1689,6 +1698,8 @@ class PageObject(DictionaryObject):
                     ],
                     cm_matrix,
                 )
+                memo_cm = cm_matrix.copy()
+                memo_tm = tm_matrix.copy()
             # Table 5.2 page 398
             elif operator == b"Tz":
                 char_scale = float(operands[0]) / 100.0
@@ -1700,8 +1711,10 @@ class PageObject(DictionaryObject):
                 if text != "":
                     output += text  # .translate(cmap)
                     if visitor_text is not None:
-                        visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+                        visitor_text(text, memo_cm, memo_tm, cmap[3], font_size)
                 text = ""
+                memo_cm = cm_matrix.copy()
+                memo_tm = tm_matrix.copy()
                 try:
                     # charMapTuple: font_type, float(sp_width / 2), encoding,
                     #               map_dict, font-dictionary
@@ -1770,11 +1783,11 @@ class PageObject(DictionaryObject):
                 return None
             if check_crlf_space:
                 try:
-                    text, output, tm_prev = crlf_space_check(
+                    text, output, cm_prev, tm_prev = crlf_space_check(
                         text,
-                        tm_prev,
-                        cm_matrix,
-                        tm_matrix,
+                        (cm_prev, tm_prev),
+                        (cm_matrix, tm_matrix),
+                        (memo_cm, memo_tm),
                         cmap,
                         orientations,
                         output,
@@ -1782,6 +1795,9 @@ class PageObject(DictionaryObject):
                         visitor_text,
                         current_spacewidth(),
                     )
+                    if text == "":
+                        memo_cm = cm_matrix.copy()
+                        memo_tm = tm_matrix.copy()
                 except OrientationNotFoundError:
                     return None
 
@@ -1813,12 +1829,18 @@ class PageObject(DictionaryObject):
             elif operator == b"Do":
                 output += text
                 if visitor_text is not None:
-                    visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+                    visitor_text(text, memo_cm, memo_tm, cmap[3], font_size)
                 try:
                     if output[-1] != "\n":
                         output += "\n"
                         if visitor_text is not None:
-                            visitor_text("\n", cm_matrix, tm_matrix, cmap[3], font_size)
+                            visitor_text(
+                                "\n",
+                                memo_cm,
+                                memo_tm,
+                                cmap[3],
+                                font_size,
+                            )
                 except IndexError:
                     pass
                 try:
@@ -1834,7 +1856,13 @@ class PageObject(DictionaryObject):
                         )
                         output += text
                         if visitor_text is not None:
-                            visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+                            visitor_text(
+                                text,
+                                memo_cm,
+                                memo_tm,
+                                cmap[3],
+                                font_size,
+                            )
                 except Exception:
                     logger_warning(
                         f" impossible to decode XFormObject {operands[0]}",
@@ -1842,25 +1870,120 @@ class PageObject(DictionaryObject):
                     )
                 finally:
                     text = ""
+                    memo_cm = cm_matrix.copy()
+                    memo_tm = tm_matrix.copy()
+
             else:
                 process_operation(operator, operands)
             if visitor_operand_after is not None:
                 visitor_operand_after(operator, operands, cm_matrix, tm_matrix)
         output += text  # just in case of
         if text != "" and visitor_text is not None:
-            visitor_text(text, cm_matrix, tm_matrix, cmap[3], font_size)
+            visitor_text(text, memo_cm, memo_tm, cmap[3], font_size)
         return output
+
+    def _layout_mode_fonts(self) -> Dict[str, _layout_mode.Font]:
+        """
+        Get fonts formatted for "layout" mode text extraction.
+
+        Returns:
+            Dict[str, Font]: dictionary of _layout_mode.Font instances keyed by font name
+        """
+        # Font retrieval logic adapted from pypdf.PageObject._extract_text()
+        objr: Any = self
+        fonts: Dict[str, _layout_mode.Font] = {}
+        while objr is not None:
+            try:
+                resources_dict: Any = objr[PG.RESOURCES]
+            except KeyError:
+                resources_dict = {}
+            if "/Font" in resources_dict and self.pdf is not None:
+                for font_name in resources_dict["/Font"]:
+                    *cmap, font_dict_obj = build_char_map(font_name, 200.0, self)
+                    font_dict = {
+                        k: v.get_object()
+                        if isinstance(v, IndirectObject)
+                        else [_v.get_object() for _v in v]
+                        if isinstance(v, ArrayObject)
+                        else v
+                        for k, v in font_dict_obj.items()
+                    }
+                    # mypy really sucks at unpacking
+                    fonts[font_name] = _layout_mode.Font(*cmap, font_dict)  # type: ignore[call-arg,arg-type]
+            try:
+                objr = objr["/Parent"].get_object()
+            except KeyError:
+                objr = None
+
+        return fonts
+
+    def _layout_mode_text(
+        self,
+        space_vertically: bool = True,
+        scale_weight: float = 1.25,
+        strip_rotated: bool = True,
+        debug_path: Optional[Path] = None,
+    ) -> str:
+        """
+        Get text preserving fidelity to source PDF text layout.
+
+        Args:
+            space_vertically: include blank lines inferred from y distance + font
+                height. Defaults to True.
+            scale_weight: multiplier for string length when calculating weighted
+                average character width. Defaults to 1.25.
+            strip_rotated: Removes text that is rotated w.r.t. to the page from
+                layout mode output. Defaults to True.
+            debug_path (Path | None): if supplied, must target a directory.
+                creates the following files with debug information for layout mode
+                functions if supplied:
+                  - fonts.json: output of self._layout_mode_fonts
+                  - tjs.json: individual text render ops with corresponding transform matrices
+                  - bts.json: text render ops left justified and grouped by BT/ET operators
+                  - bt_groups.json: BT/ET operations grouped by rendered y-coord (aka lines)
+                Defaults to None.
+
+        Returns:
+            str: multiline string containing page text in a fixed width format that
+                closely adheres to the rendered layout in the source pdf.
+        """
+        fonts = self._layout_mode_fonts()
+        if debug_path:  # pragma: no cover
+            import json
+
+            debug_path.joinpath("fonts.json").write_text(
+                json.dumps(
+                    fonts, indent=2, default=lambda x: getattr(x, "to_dict", str)(x)
+                ),
+                "utf-8",
+            )
+
+        ops = iter(
+            ContentStream(self["/Contents"].get_object(), self.pdf, "bytes").operations
+        )
+        bt_groups = _layout_mode.text_show_operations(
+            ops, fonts, strip_rotated, debug_path
+        )
+
+        if not bt_groups:
+            return ""
+
+        ty_groups = _layout_mode.y_coordinate_groups(bt_groups, debug_path)
+
+        char_width = _layout_mode.fixed_char_width(bt_groups, scale_weight)
+
+        return _layout_mode.fixed_width_page(ty_groups, char_width, space_vertically)
 
     def extract_text(
         self,
         *args: Any,
-        Tj_sep: Optional[str] = None,
-        TJ_sep: Optional[str] = None,
         orientations: Union[int, Tuple[int, ...]] = (0, 90, 180, 270),
         space_width: float = 200.0,
         visitor_operand_before: Optional[Callable[[Any, Any, Any, Any], None]] = None,
         visitor_operand_after: Optional[Callable[[Any, Any, Any, Any], None]] = None,
         visitor_text: Optional[Callable[[Any, Any, Any, Any, Any], None]] = None,
+        extraction_mode: Literal["plain", "layout"] = "plain",
+        **kwargs: Any,
     ) -> str:
         """
         Locate all text drawing commands, in the order they are provided in the
@@ -1881,8 +2004,6 @@ class PageObject(DictionaryObject):
         For example in some PDF files this can be useful to parse tables.
 
         Args:
-            Tj_sep: Deprecated. Kept for compatibility until pypdf 4.0.0
-            TJ_sep: Deprecated. Kept for compatibility until pypdf 4.0.0
             orientations: list of orientations text_extraction will look for
                 default = (0, 90, 180, 270)
                 note: currently only 0(Up),90(turned Left), 180(upside Down),
@@ -1900,18 +2021,42 @@ class PageObject(DictionaryObject):
                 text matrix, font-dictionary and font-size.
                 The font-dictionary may be None in case of unknown fonts.
                 If not None it may e.g. contain key "/BaseFont" with value "/Arial,Bold".
+            extraction_mode (Literal["plain", "layout"]): "plain" for legacy functionality,
+                "layout" for experimental layout mode functionality.
+                NOTE: orientations, space_width, and visitor_* parameters are NOT respected
+                in "layout" mode.
+
+        KwArgs:
+            layout_mode_space_vertically (bool): include blank lines inferred from
+                y distance + font height. Defaults to True.
+            layout_mode_scale_weight (float): multiplier for string length when calculating
+                weighted average character width. Defaults to 1.25.
+            layout_mode_strip_rotated (bool): layout mode does not support rotated text.
+                Set to False to include rotated text anyway. If rotated text is discovered,
+                layout will be degraded and a warning will result. Defaults to True.
+            layout_mode_debug_path (Path | None): if supplied, must target a directory.
+                creates the following files with debug information for layout mode
+                functions if supplied:
+
+                  - fonts.json: output of self._layout_mode_fonts
+                  - tjs.json: individual text render ops with corresponding transform matrices
+                  - bts.json: text render ops left justified and grouped by BT/ET operators
+                  - bt_groups.json: BT/ET operations grouped by rendered y-coord (aka lines)
 
         Returns:
             The extracted text
         """
+        if extraction_mode not in ["plain", "layout"]:
+            raise ValueError(f"Invalid text extraction mode '{extraction_mode}'")
+        if extraction_mode == "layout":
+            return self._layout_mode_text(
+                space_vertically=kwargs.get("layout_mode_space_vertically", True),
+                scale_weight=kwargs.get("layout_mode_scale_weight", 1.25),
+                strip_rotated=kwargs.get("layout_mode_strip_rotated", True),
+                debug_path=kwargs.get("layout_mode_debug_path", None),
+            )
         if len(args) >= 1:
             if isinstance(args[0], str):
-                Tj_sep = args[0]
-                if len(args) >= 2:
-                    if isinstance(args[1], str):
-                        TJ_sep = args[1]
-                    else:
-                        raise TypeError(f"Invalid positional parameter {args[1]}")
                 if len(args) >= 3:
                     if isinstance(args[2], (tuple, int)):
                         orientations = args[2]
@@ -1931,11 +2076,6 @@ class PageObject(DictionaryObject):
                         raise TypeError(f"Invalid positional parameter {args[1]}")
             else:
                 raise TypeError(f"Invalid positional parameter {args[0]}")
-        if Tj_sep is not None or TJ_sep is not None:
-            warnings.warn(
-                "parameters Tj_Sep, TJ_sep depreciated, and will be removed in pypdf 4.0.0.",
-                DeprecationWarning,
-            )
 
         if isinstance(orientations, int):
             orientations = (orientations,)
@@ -1985,15 +2125,6 @@ class PageObject(DictionaryObject):
             visitor_text,
         )
 
-    def extractText(self, Tj_sep: str = "", TJ_sep: str = "") -> str:  # deprecated
-        """
-        Use :meth:`extract_text` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("extractText", "extract_text", "3.0.0")
-        return self.extract_text()
-
     def _get_fonts(self) -> Tuple[Set[str], Set[str]]:
         """
         Get the names of embedded fonts and unembedded fonts.
@@ -2003,7 +2134,9 @@ class PageObject(DictionaryObject):
         """
         obj = self.get_object()
         assert isinstance(obj, DictionaryObject)
-        fonts, embedded = _get_fonts_walk(cast(DictionaryObject, obj[PG.RESOURCES]))
+        fonts: Set[str] = set()
+        embedded: Set[str] = set()
+        fonts, embedded = _get_fonts_walk(obj, fonts, embedded)
         unembedded = fonts - embedded
         return embedded, unembedded
 
@@ -2011,26 +2144,6 @@ class PageObject(DictionaryObject):
     """A :class:`RectangleObject<pypdf.generic.RectangleObject>`, expressed in
     default user space units, defining the boundaries of the physical medium on
     which the page is intended to be displayed or printed."""
-
-    @property
-    def mediaBox(self) -> RectangleObject:  # deprecated
-        """
-        Use :py:attr:`mediabox` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("mediaBox", "mediabox", "3.0.0")
-        return self.mediabox
-
-    @mediaBox.setter
-    def mediaBox(self, value: RectangleObject) -> None:  # deprecated
-        """
-        Use :py:attr:`mediabox` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("mediaBox", "mediabox", "3.0.0")
-        self.mediabox = value
 
     cropbox = _create_rectangle_accessor("/CropBox", (PG.MEDIABOX,))
     """
@@ -2044,80 +2157,20 @@ class PageObject(DictionaryObject):
     :attr:`mediabox<mediabox>`.
     """
 
-    @property
-    def cropBox(self) -> RectangleObject:  # deprecated
-        """
-        Use :py:attr:`cropbox` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("cropBox", "cropbox", "3.0.0")
-        return self.cropbox
-
-    @cropBox.setter
-    def cropBox(self, value: RectangleObject) -> None:  # deprecated
-        deprecation_with_replacement("cropBox", "cropbox", "3.0.0")
-        self.cropbox = value
-
     bleedbox = _create_rectangle_accessor("/BleedBox", ("/CropBox", PG.MEDIABOX))
     """A :class:`RectangleObject<pypdf.generic.RectangleObject>`, expressed in
     default user space units, defining the region to which the contents of the
     page should be clipped when output in a production environment."""
-
-    @property
-    def bleedBox(self) -> RectangleObject:  # deprecated
-        """
-        Use :py:attr:`bleedbox` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("bleedBox", "bleedbox", "3.0.0")
-        return self.bleedbox
-
-    @bleedBox.setter
-    def bleedBox(self, value: RectangleObject) -> None:  # deprecated
-        deprecation_with_replacement("bleedBox", "bleedbox", "3.0.0")
-        self.bleedbox = value
 
     trimbox = _create_rectangle_accessor("/TrimBox", ("/CropBox", PG.MEDIABOX))
     """A :class:`RectangleObject<pypdf.generic.RectangleObject>`, expressed in
     default user space units, defining the intended dimensions of the finished
     page after trimming."""
 
-    @property
-    def trimBox(self) -> RectangleObject:  # deprecated
-        """
-        Use :py:attr:`trimbox` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("trimBox", "trimbox", "3.0.0")
-        return self.trimbox
-
-    @trimBox.setter
-    def trimBox(self, value: RectangleObject) -> None:  # deprecated
-        deprecation_with_replacement("trimBox", "trimbox", "3.0.0")
-        self.trimbox = value
-
     artbox = _create_rectangle_accessor("/ArtBox", ("/CropBox", PG.MEDIABOX))
     """A :class:`RectangleObject<pypdf.generic.RectangleObject>`, expressed in
     default user space units, defining the extent of the page's meaningful
     content as intended by the page's creator."""
-
-    @property
-    def artBox(self) -> RectangleObject:  # deprecated
-        """
-        Use :py:attr:`artbox` instead.
-
-        .. deprecated:: 1.28.0
-        """
-        deprecation_with_replacement("artBox", "artbox", "3.0.0")
-        return self.artbox
-
-    @artBox.setter
-    def artBox(self, value: RectangleObject) -> None:  # deprecated
-        deprecation_with_replacement("artBox", "artbox", "3.0.0")
-        self.artbox = value
 
     @property
     def annotations(self) -> Optional[ArrayObject]:
@@ -2141,7 +2194,7 @@ class PageObject(DictionaryObject):
             self[NameObject("/Annots")] = value
 
 
-class _VirtualList(Sequence):
+class _VirtualList(Sequence[PageObject]):
     def __init__(
         self,
         length_function: Callable[[], int],
@@ -2179,6 +2232,47 @@ class _VirtualList(Sequence):
             raise IndexError("sequence index out of range")
         return self.get_function(index)
 
+    def __delitem__(self, index: Union[int, slice]) -> None:
+        if isinstance(index, slice):
+            r = list(range(*index.indices(len(self))))
+            # pages have to be deleted from last to first
+            r.sort()
+            r.reverse()
+            for p in r:
+                del self[p]  # recursive call
+            return
+        if not isinstance(index, int):
+            raise TypeError("index must be integers")
+        len_self = len(self)
+        if index < 0:
+            # support negative indexes
+            index = len_self + index
+        if index < 0 or index >= len_self:
+            raise IndexError("index out of range")
+        ind = self[index].indirect_reference
+        assert ind is not None
+        parent = cast(DictionaryObject, ind.get_object()).get("/Parent", None)
+        while parent is not None:
+            parent = cast(DictionaryObject, parent.get_object())
+            try:
+                i = parent["/Kids"].index(ind)
+                del parent["/Kids"][i]
+                try:
+                    assert ind is not None
+                    del ind.pdf.flattened_pages[index]  # case of page in a Reader
+                except Exception:  # pragma: no cover
+                    pass
+                if "/Count" in parent:
+                    parent[NameObject("/Count")] = NumberObject(parent["/Count"] - 1)
+                if len(parent["/Kids"]) == 0:
+                    # No more objects in this part of this sub tree
+                    ind = parent.indirect_reference
+                    parent = cast(DictionaryObject, parent.get("/Parent", None))
+                else:
+                    parent = None
+            except ValueError:  # from index
+                raise PdfReadError(f"Page Not Found in Page Tree {ind}")
+
     def __iter__(self) -> Iterator[PageObject]:
         for i in range(len(self)):
             yield self[i]
@@ -2190,8 +2284,8 @@ class _VirtualList(Sequence):
 
 def _get_fonts_walk(
     obj: DictionaryObject,
-    fnt: Optional[Set[str]] = None,
-    emb: Optional[Set[str]] = None,
+    fnt: Set[str],
+    emb: Set[str],
 ) -> Tuple[Set[str], Set[str]]:
     """
     Get the set of all fonts and all embedded fonts.
@@ -2211,20 +2305,135 @@ def _get_fonts_walk(
 
     We create and add to two sets, fnt = fonts used and emb = fonts embedded.
     """
-    if fnt is None:
-        fnt = set()
-    if emb is None:
-        emb = set()
-    if not hasattr(obj, "keys"):
-        return set(), set()
     fontkeys = ("/FontFile", "/FontFile2", "/FontFile3")
-    if "/BaseFont" in obj:
-        fnt.add(cast(str, obj["/BaseFont"]))
-    if "/FontName" in obj and [x for x in fontkeys if x in obj]:
-        # the list comprehension ensures there is FontFile
-        emb.add(cast(str, obj["/FontName"]))
 
-    for key in obj:
-        _get_fonts_walk(cast(DictionaryObject, obj[key]), fnt, emb)
+    def process_font(f: DictionaryObject) -> None:
+        nonlocal fnt, emb
+        f = cast(DictionaryObject, f.get_object())  # to be sure
+        if "/BaseFont" in f:
+            fnt.add(cast(str, f["/BaseFont"]))
 
+        if (
+            ("/CharProcs" in f)
+            or (
+                "/FontDescriptor" in f
+                and any(
+                    x in cast(DictionaryObject, f["/FontDescriptor"]) for x in fontkeys
+                )
+            )
+            or (
+                "/DescendantFonts" in f
+                and "/FontDescriptor"
+                in cast(
+                    DictionaryObject,
+                    cast(ArrayObject, f["/DescendantFonts"])[0].get_object(),
+                )
+                and any(
+                    x
+                    in cast(
+                        DictionaryObject,
+                        cast(
+                            DictionaryObject,
+                            cast(ArrayObject, f["/DescendantFonts"])[0].get_object(),
+                        )["/FontDescriptor"],
+                    )
+                    for x in fontkeys
+                )
+            )
+        ):
+            # the list comprehension ensures there is FontFile
+            try:
+                emb.add(cast(str, f["/BaseFont"]))
+            except KeyError:
+                emb.add("(" + cast(str, f["/Subtype"]) + ")")
+
+    if "/DR" in obj and "/Font" in cast(DictionaryObject, obj["/DR"]):
+        for f in cast(DictionaryObject, cast(DictionaryObject, obj["/DR"])["/Font"]):
+            process_font(f)
+    if "/Resources" in obj:
+        if "/Font" in cast(DictionaryObject, obj["/Resources"]):
+            for f in cast(
+                DictionaryObject, cast(DictionaryObject, obj["/Resources"])["/Font"]
+            ).values():
+                process_font(f)
+        if "/XObject" in cast(DictionaryObject, obj["/Resources"]):
+            for x in cast(
+                DictionaryObject, cast(DictionaryObject, obj["/Resources"])["/XObject"]
+            ).values():
+                _get_fonts_walk(cast(DictionaryObject, x.get_object()), fnt, emb)
+    if "/Annots" in obj:
+        for a in cast(ArrayObject, obj["/Annots"]):
+            _get_fonts_walk(cast(DictionaryObject, a.get_object()), fnt, emb)
+    if "/AP" in obj:
+        if (
+            cast(DictionaryObject, cast(DictionaryObject, obj["/AP"])["/N"]).get(
+                "/Type"
+            )
+            == "/XObject"
+        ):
+            _get_fonts_walk(
+                cast(DictionaryObject, cast(DictionaryObject, obj["/AP"])["/N"]),
+                fnt,
+                emb,
+            )
+        else:
+            for a in cast(DictionaryObject, cast(DictionaryObject, obj["/AP"])["/N"]):
+                _get_fonts_walk(cast(DictionaryObject, a), fnt, emb)
     return fnt, emb  # return the sets for each page
+
+
+class _VirtualListImages(Sequence[ImageFile]):
+    def __init__(
+        self,
+        ids_function: Callable[[], List[Union[str, List[str]]]],
+        get_function: Callable[[Union[str, List[str], Tuple[str]]], ImageFile],
+    ) -> None:
+        self.ids_function = ids_function
+        self.get_function = get_function
+        self.current = -1
+
+    def __len__(self) -> int:
+        return len(self.ids_function())
+
+    def keys(self) -> List[Union[str, List[str]]]:
+        return self.ids_function()
+
+    def items(self) -> List[Tuple[Union[str, List[str]], ImageFile]]:
+        return [(x, self[x]) for x in self.ids_function()]
+
+    @overload
+    def __getitem__(self, index: Union[int, str, List[str]]) -> ImageFile:
+        ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[ImageFile]:
+        ...
+
+    def __getitem__(
+        self, index: Union[int, slice, str, List[str], Tuple[str]]
+    ) -> Union[ImageFile, Sequence[ImageFile]]:
+        lst = self.ids_function()
+        if isinstance(index, slice):
+            indices = range(*index.indices(len(self)))
+            lst = [lst[x] for x in indices]
+            cls = type(self)
+            return cls((lambda: lst), self.get_function)
+        if isinstance(index, (str, list, tuple)):
+            return self.get_function(index)
+        if not isinstance(index, int):
+            raise TypeError("invalid sequence indices type")
+        len_self = len(lst)
+        if index < 0:
+            # support negative indexes
+            index = len_self + index
+        if index < 0 or index >= len_self:
+            raise IndexError("sequence index out of range")
+        return self.get_function(lst[index])
+
+    def __iter__(self) -> Iterator[ImageFile]:
+        for i in range(len(self)):
+            yield self[i]
+
+    def __str__(self) -> str:
+        p = [f"Image_{i}={n}" for i, n in enumerate(self.ids_function())]
+        return f"[{', '.join(p)}]"
