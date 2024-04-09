@@ -42,7 +42,7 @@ def run_with_dialog():
     config.load()
 
     def perform_export(dialog_panel):
-        plot.plot_gerbers(board, dialog_panel.outputDirPicker.Path, config.templates,
+        plot.plot_pdfs(board, dialog_panel.outputDirPicker.Path, config.templates,
                           dialog_panel.templatesSortOrderBox.GetItems(),
                           dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
                           dialog_panel.m_checkBox_create_svg.IsChecked(),

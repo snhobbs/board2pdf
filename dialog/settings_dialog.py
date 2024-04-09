@@ -21,6 +21,13 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
         best_size.IncBy(dx=0, dy=30)
         self.SetClientSize(best_size)
         self.SetTitle('Board2Pdf %s' % version)
+        if (int(pcbnew.Version()[0:1]) < 8):
+            # If KiCad version < 8, no support for not exporting property popups
+            self.m_comboBox_popups.Clear()
+            popups_choices = []
+            popups_choices.insert(0, "Only available in KiCad 8.0")
+            self.m_comboBox_frame.SetItems(popups_choices)
+            self.m_comboBox_popups.Disable()
 
     # hack for new wxFormBuilder generating code incompatible with old wxPython
     # noinspection PyMethodOverriding
@@ -55,6 +62,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_tent.Disable()
         self.m_staticText_template_name.Disable()
         self.m_staticText_frame_layer.Disable()
+        self.m_staticText_popups.Disable()
+        self.m_comboBox_popups.Disable()
 
         self.layersSortOrderBox.Disable()
         self.m_button_layer_up.Disable()
@@ -86,6 +95,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_tent.Enable()
         self.m_staticText_template_name.Enable()
         self.m_staticText_frame_layer.Enable()
+        if (int(pcbnew.Version()[0:1]) >= 8):
+            self.m_staticText_popups.Enable()
+            self.m_comboBox_popups.Enable()
 
         self.layersSortOrderBox.Enable()
         self.m_button_layer_up.Enable()
@@ -380,6 +392,15 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     if saved_frame_pos != wx.NOT_FOUND:
                         self.m_comboBox_frame.SetSelection(saved_frame_pos)
 
+            # Update the comboBox where user can select from which layer to take the popup menus
+            if item in self.templates and "popups" in self.templates[item]:
+                saved_popups = self.templates[item]["popups"]
+            else:
+                saved_popups = "Both Layers"
+            saved_popups_pos = self.m_comboBox_popups.FindString(saved_popups)
+            if saved_popups_pos != wx.NOT_FOUND:
+                self.m_comboBox_popups.SetSelection(saved_popups_pos)
+
             # Set the mirror checkbox according to saved setting
             if item in self.templates and "mirrored" in self.templates[item]:
                 mirrored = self.templates[item]["mirrored"]
@@ -471,6 +492,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                              "tented": self.m_checkBox_tent.IsChecked(),
                              "enabled_layers": enabled_layers,
                              "frame": frame_layer.split(' (')[0],  # Remove parenthesis if there is one
+                             "popups": self.m_comboBox_popups.GetValue(),
                              "layers": self.layersColorDict,
                              "layers_negative": self.layersNegativeDict,
                              "layers_footprint_values": self.layersFootprintValuesDict,

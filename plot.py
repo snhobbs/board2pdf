@@ -105,8 +105,44 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
 
     return True
 
+def merge_pdf_fitz(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
+                    layer_scale: float):
+    # I haven't found a way to scale the pdf and preserve the popup-menus.
+    # For now, I'm taking the easy way out and handle the merging differently depending
+    # on if scaling is used or not. At least the popup-menus are preserved when not using scaling.
+    # https://github.com/pymupdf/PyMuPDF/discussions/2499
+    if layer_scale == 1.0:
+        return merge_pdf_fitz_without_scaling(input_folder, input_files, output_folder, output_file, frame_file)
+    else:
+        return merge_pdf_fitz_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, layer_scale)
+    
+def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str):
+    try:
+        output = None
+        for filename in reversed(input_files):
+            try:
+                if output is None:
+                    output = fitz.open(os.path.join(input_folder, filename))
+                else:
+                    # using "with" to force RAII and avoid another "for" closing files
+                    with fitz.open(os.path.join(input_folder, filename)) as src:
+                        output[0].show_pdf_page(src[0].rect,  # select output rect
+                                                src,  # input document
+                                                overlay=False)
+            except Exception:
+                io_file_error_msg(merge_pdf_fitz.__name__, filename, input_folder)
+                return False
 
-def merge_pdf_fitz(input_folder, input_files, output_folder, output_file, frame_file: str, layer_scale: float):
+        output.save(os.path.join(output_folder, output_file))
+
+    except Exception:
+        io_file_error_msg(merge_pdf_fitz.__name__, output_file, output_folder)
+        return False
+
+    return True
+    
+def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
+                    layer_scale: float):
     try:
         output = fitz.open()
         page = None
@@ -189,7 +225,7 @@ def merge_pdf_pypdf(input_folder: str, input_files: list, output_folder: str, ou
     return True
 
 
-def create_pdf_from_pages(input_folder, input_files, output_folder, output_file):
+def create_pdf_from_pages(input_folder, input_files, output_folder, output_file, use_popups):
     try:
         output = PdfWriter()
         for filename in input_files:
@@ -198,6 +234,11 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
             except:
                 io_file_error_msg(create_pdf_from_pages.__name__, filename, input_folder)
                 return False
+
+        # If popup menus are used, add the needed javascript. Pypdf and fitz removes this in most operations.
+        if use_popups:
+            javascript_string = "function ShM(aEntries) { var aParams = []; for (var i in aEntries) { aParams.push({ cName: aEntries[i][0], cReturn: aEntries[i][1] }) } var cChoice = app.popUpMenuEx.apply(app, aParams); if (cChoice != null && cChoice.substring(0, 1) == '#') this.pageNum = parseInt(cChoice.slice(1)); else if (cChoice != null && cChoice.substring(0, 4) == 'http') app.launchURL(cChoice); }"
+            output.add_js(javascript_string)
 
         for page in output.pages:
             # This has to be done on the writer, not the reader!
@@ -215,7 +256,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
 class LayerInfo:
     std_color = "#000000"
 
-    def __init__(self, layer_names: dict, layer_name: str, template: dict, frame_layer: str):
+    def __init__(self, layer_names: dict, layer_name: str, template: dict, frame_layer: str, popups: str):
         self.name: str = layer_name
         self.id: int = layer_names[layer_name]
         self.color_hex: str = template["layers"].get(layer_name, self.std_color)  # color as '#rrggbb' hex string
@@ -238,6 +279,17 @@ class LayerInfo:
             self.reference_designator = not template["layers_footprint_values"][layer_name] == "false"
         except KeyError:
             self.reference_designator = True
+            
+        # Check the popup settings.
+        self.front_popups = False
+        self.back_popups = False
+        if popups == "Front Layer":
+            self.front_popups = True
+        elif popups == "Back Layer":
+            self.back_popups = True
+        elif popups == "Both Layers":
+            self.front_popups = True
+            self.back_popups = True
 
     @property
     def has_color(self) -> bool:
@@ -265,6 +317,7 @@ class Template:
         self.tented: bool = template.get("tented", False)  # template is tented or not
 
         frame_layer: str = template.get("frame", "")  # layer name of the frame layer
+        popups: str = template.get("popups", "")  # setting saying if popups shall be taken from front, back or both
 
         # collection the settings of the enabled layers
         self.settings: list[LayerInfo] = []
@@ -273,8 +326,13 @@ class Template:
             enabled_layers = template["enabled_layers"].split(',')
             for el in enabled_layers:
                 if el:
+                    # If this is the first layer, use the popup settings.
+                    if el == enabled_layers[0]:
+                        layer_popups: str  = popups
+                    else:
+                        layer_popups: str  = "None"
                     # Prepend to settings
-                    layer_info = LayerInfo(layer_names, el, template, frame_layer)
+                    layer_info = LayerInfo(layer_names, el, template, frame_layer, layer_popups)
                     self.settings.insert(0, layer_info)
 
     @property
@@ -287,7 +345,7 @@ class Template:
         return f'{self.__class__.__name__}:{{ {var_str} }}'
 
 
-def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
+def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
                  dlg=None, **kwargs) -> bool:
     asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
     layer_scale = kwargs.pop('layer_scale', 1.0)
@@ -380,7 +438,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
             _logger.debug(temp)
             steps += 1 + temp.steps
             templates_list.append(temp)
-    # msg_box("fNewly created template_list:\n{templates_list}")
     progress_step: float = 95 / steps
 
     """
@@ -448,6 +505,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                 plot_options.SetPlotReference(layer_info.reference_designator)
                 plot_options.SetMirror(template.mirrored)
                 plot_options.SetPlotViaOnMaskLayer(template.tented)
+                if int(pcbnew.Version()[0:1]) >= 8:
+                    plot_options.m_PDFFrontFPPropertyPopups = layer_info.front_popups
+                    plot_options.m_PDFBackFPPropertyPopups = layer_info.back_popups
                 plot_controller.SetLayer(layer_info.id)
                 plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
                 plot_controller.PlotLayer()
@@ -495,8 +555,9 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     # Add all generated pdfs to one file
     progress += progress_step
     set_progress_status(progress, "Adding all templates to a single file")
+    use_popups = layer_info.front_popups or layer_info.back_popups
 
-    if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file):
+    if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file, use_popups):
         set_progress_status(100, "Failed when adding all templates to a single file")
         return False
 
@@ -563,4 +624,4 @@ def cli(board_filepath: str, configfile: str, **kwargs) -> bool:
     config_vars = config.load()
     # note: cli parameters override config.ini values
     config_vars.update(kwargs)
-    return plot_gerbers(board, **config_vars)
+    return plot_pdfs(board, **config_vars)

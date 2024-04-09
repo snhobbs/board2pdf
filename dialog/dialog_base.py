@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+## Python code generated with wxFormBuilder (version 4.1.0-0-g733bf3d)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -265,7 +265,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer61 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Template Properties" ), wx.VERTICAL )
 
-        gSizer1 = wx.GridSizer( 3, 2, 0, 0 )
+        gSizer1 = wx.GridSizer( 4, 2, 0, 0 )
 
         self.m_staticText_template_name = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Template name", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_template_name.Wrap( -1 )
@@ -283,6 +283,15 @@ class SettingsDialogPanel ( wx.Panel ):
         m_comboBox_frameChoices = []
         self.m_comboBox_frame = wx.ComboBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), m_comboBox_frameChoices, 0 )
         gSizer1.Add( self.m_comboBox_frame, 0, wx.ALL|wx.EXPAND, 5 )
+
+        self.m_staticText_popups = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Property Popups", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_popups.Wrap( -1 )
+
+        gSizer1.Add( self.m_staticText_popups, 0, wx.ALL, 5 )
+
+        m_comboBox_popupsChoices = [ u"None", u"Front Layer", u"Back Layer", u"Both Layers", wx.EmptyString ]
+        self.m_comboBox_popups = wx.ComboBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), m_comboBox_popupsChoices, 0 )
+        gSizer1.Add( self.m_comboBox_popups, 0, wx.ALL|wx.EXPAND, 5 )
 
         self.m_checkBox_mirror = wx.CheckBox( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Mirror all layers (bottom view)", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer1.Add( self.m_checkBox_mirror, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
