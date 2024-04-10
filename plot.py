@@ -9,9 +9,9 @@ import tempfile
 import logging
 
 try:
-    from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic, _utils
+    from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
 except ImportError:
-    from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic, _utils
+    from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
 
 try:
     import fitz  # This imports PyMuPDF
@@ -39,26 +39,14 @@ def io_file_error_msg(function: str, input_file: str, folder: str, more: str = '
         print(f'Error: {msg}', file=sys.stderr)
 
 
-def hex_to_rgb(value):
-    """Return (red, green, blue) in float between 0-1 for the color given as #rrggbb."""
-    value = value.lstrip('#')
-    lv = len(value)
-    rgb = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
-    rgb = (rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
-    return rgb
-
-
 def colorize_pdf_fitz(folder, input_file, output_file, color):
     try:
         with fitz.open(os.path.join(folder, input_file)) as doc:
             xref_number = doc[0].get_contents()
             stream_bytes = doc.xref_stream(xref_number[0])
-            new_color = str(color[0]) + ' ' + str(color[1]) + ' ' + str(color[2]) + ' '
-            new_color_RG = bytes(new_color + 'RG', 'ascii')
-            new_color_rg = bytes(new_color + 'rg', 'ascii')
-
-            stream_bytes = re.sub(b'0.0.0.RG', new_color_RG, stream_bytes)
-            stream_bytes = re.sub(b'0.0.0.rg', new_color_rg, stream_bytes)
+            new_color = ''.join([f'{c:.3g} ' for c in color])
+            _logger.debug(f'{new_color=}')
+            stream_bytes = re.sub(br'(\s)0 0 0 (RG|rg)', bytes(fr'\g<1>{new_color}\g<2>', 'ascii'), stream_bytes)
 
             doc.update_stream(xref_number[0], stream_bytes)
             doc.save(os.path.join(folder, output_file), clean=True)
@@ -97,17 +85,15 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
             content = generic.ContentStream(content_object, source)
 
             for i, (operands, operator) in enumerate(content.operations):
-                if operator == _utils.b_("rg") or operator == _utils.b_("RG"):
+                if operator in (b"rg", b"RG"):
                     if operands == [0, 0, 0]:
-                        rgb = content.operations[i][0]
                         content.operations[i] = (
-                            [generic.FloatObject(color[0]), generic.FloatObject(color[1]),
-                             generic.FloatObject(color[2])], content.operations[i][1])
+                            [generic.FloatObject(intensity) for intensity in color], operator)
                     # else:
-                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(rgb[0]),
-                    #          type(rgb[1]), type(rgb[2]))
+                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(operands[0]),
+                    #          type(operands[1]), type(operands[2]))
 
-            page.__setitem__(generic.NameObject('/Contents'), content)
+            page[generic.NameObject("/Contents")] = content
             output.add_page(page)
 
             with open(os.path.join(folder, output_file), "wb") as output_stream:
@@ -226,14 +212,87 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file)
     return True
 
 
+class LayerInfo:
+    std_color = "#000000"
+
+    def __init__(self, layer_names: dict, layer_name: str, template: dict, frame_layer: str):
+        self.name: str = layer_name
+        self.id: int = layer_names[layer_name]
+        self.color_hex: str = template["layers"].get(layer_name, self.std_color)  # color as '#rrggbb' hex string
+        self.with_frame: bool = layer_name == frame_layer
+
+        try:
+            # Bool specifying if footprint values shall be plotted
+            self.negative = template["layers_negative"][layer_name] == "true"
+        except KeyError:
+            self.negative = False
+
+        try:
+            # Bool specifying if layer is negative
+            self.footprint_value = template["layers_negative"][layer_name] == "true"
+        except KeyError:
+            self.footprint_value = False
+
+        try:
+            # Bool specifying if footprint values shall be plotted
+            self.reference_designator = not template["layers_footprint_values"][layer_name] == "false"
+        except KeyError:
+            self.reference_designator = True
+
+    @property
+    def has_color(self) -> bool:
+        """Checks if the layer color is not the standard color (=black)."""
+        return self.color_hex != self.std_color
+
+    @property
+    def color_rgb(self) -> tuple[float, float, float]:
+        """Return (red, green, blue) in float between 0-1."""
+        value = self.color_hex.lstrip('#')
+        lv = len(value)
+        rgb = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+        rgb = (rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
+        return rgb
+
+    def __repr__(self):
+        var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
+        return f'{self.__class__.__name__}:{{ {var_str} }}'
+
+
+class Template:
+    def __init__(self, name: str, template: dict, layer_names: dict):
+        self.name: str = name  # the template name
+        self.mirrored: bool = template.get("mirrored", False)  # template is mirrored or not
+        self.tented: bool = template.get("tented", False)  # template is tented or not
+
+        frame_layer: str = template.get("frame", "")  # layer name of the frame layer
+
+        # collection the settings of the enabled layers
+        self.settings: list[LayerInfo] = []
+
+        if "enabled_layers" in template:
+            enabled_layers = template["enabled_layers"].split(',')
+            for el in enabled_layers:
+                if el:
+                    # Prepend to settings
+                    layer_info = LayerInfo(layer_names, el, template, frame_layer)
+                    self.settings.insert(0, layer_info)
+
+    @property
+    def steps(self) -> int:
+        """number of process steps for this template"""
+        return len(self.settings) + sum([layer.has_color for layer in self.settings])
+
+    def __repr__(self):
+        var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
+        return f'{self.__class__.__name__}:{{ {var_str} }}'
+
+
 def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
                  dlg=None, **kwargs) -> bool:
     asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
     layer_scale = kwargs.pop('layer_scale', 1.0)
     colorize_lib: str = kwargs.pop('colorize_lib', '')
     merge_lib: str = kwargs.pop('merge_lib', '')
-
-    std_color = "#000000"
 
     if dlg is None:
         use_fitz = has_fitz or create_svg
@@ -284,21 +343,6 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
     progress = 5
     set_progress_status(progress, "Started plotting...")
 
-    steps = 1
-    # Count number of process steps
-    for t in enabled_templates:
-        steps += 1
-        if "enabled_layers" in templates[t]:
-            enabled_layers = templates[t]["enabled_layers"].split(',')
-            enabled_layers = [l for l in enabled_layers if l != '']  # removes empty entries
-            for el in enabled_layers:
-                steps += 1
-                if "layers" in templates[t]:
-                    if el in templates[t]["layers"]:
-                        if templates[t]["layers"][el] != std_color:
-                            steps += 1
-    progress_step: float = 95 / steps
-
     plot_controller = pcbnew.PLOT_CONTROLLER(board)
     plot_options = plot_controller.GetPlotOptions()
 
@@ -321,61 +365,23 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     plot_options.SetOutputDirectory(temp_dir)
 
-    templates_list = []
+    # Build a dict to translate layer names to layerID
+    layer_names = {}
+    for i in range(pcbnew.PCBNEW_LAYER_ID_START, pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT):
+        layer_names[board.GetStandardLayerName(i)] = i
+
+    steps: int = 2  # number of process steps
+    templates_list: list[Template] = []
     for t in enabled_templates:
-        temp = []
         # {  "Test-template": {"mirrored": true, "enabled_layers": "B.Fab,B.Mask,Edge.Cuts,F.Adhesive", "frame": "In4.Cu",
         #          "layers": {"B.Fab": "#000012", "B.Mask": "#000045"}}  }
         if t in templates:
-            temp.append(t)  # Add the template name
-            temp.append(templates[t].get("mirrored", False))  # Add if the template is mirrored or not
-            temp.append(templates[t].get("tented", False))  # Add if the template is tented or not
-
-            frame_layer = templates[t].get("frame", "")  # Layer with frame
-
-            # Build a dict to translate layer names to layerID
-            layer_names = {}
-            i = pcbnew.PCBNEW_LAYER_ID_START
-            while i < pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT:
-                layer_names[board.GetStandardLayerName(i)] = i
-                i += 1
-
-            settings = []
-
-            if "enabled_layers" in templates[t]:
-                enabled_layers = templates[t]["enabled_layers"].split(',')
-                enabled_layers = [l for l in enabled_layers if l != '']  # removes empty entries
-                for el in enabled_layers:
-                    s = [
-                        el,  # Layer name string
-                        layer_names[el],  # Layer ID
-                        templates[t]["layers"].get(el, std_color),  # Layer color, black as default
-                        el == frame_layer,
-                    ]
-
-                    try:
-                        # Bool specifying if layer is negative
-                        s.append(templates[t]["layers_negative"][el] == "true")
-                    except KeyError:
-                        s.append(False)
-
-                    try:
-                        # Bool specifying if footprint values shall be plotted
-                        s.append(not templates[t]["layers_footprint_values"][el] == "false")
-                    except KeyError:
-                        s.append(True)
-
-                    try:
-                        # Bool specifying if reference designators shall be plotted
-                        s.append(not templates[t]["layers_reference_designators"][el] == "false")
-                    except KeyError:
-                        s.append(True)
-
-                    settings.insert(0, s)  # Prepend to settings
-
-            temp.append(settings)
+            temp = Template(t, templates[t], layer_names)
+            _logger.debug(temp)
+            steps += 1 + temp.steps
             templates_list.append(temp)
-    # msg_box("Newly created template_list:\n" + str(templates_list))
+    # msg_box("fNewly created template_list:\n{templates_list}")
+    progress_step: float = 95 / steps
 
     """
     [
@@ -408,15 +414,14 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
     # Iterate over the templates
     for template in templates_list:
-        template_name = template[0]
         # msg_box("Now starting with template: " + template_name)
         # Plot layers to pdf files
-        for layer_info in template[3]:
+        for layer_info in template.settings:
             progress += progress_step
-            set_progress_status(progress, f"Plotting {layer_info[0]} for template {template_name}")
+            set_progress_status(progress, f"Plotting {layer_info.name} for template {template.name}")
 
             if pcbnew.Version()[0:3] == "6.0":
-                if pcbnew.IsCopperLayer(layer_info[1]):  # Should probably do this on mask layers as well
+                if pcbnew.IsCopperLayer(layer_info.id):  # Should probably do this on mask layers as well
                     plot_options.SetDrillMarksType(
                         2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
                 else:
@@ -424,7 +429,7 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                         0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
             else:  # API changed in V6.99/V7
                 try:
-                    if pcbnew.IsCopperLayer(layer_info[1]):  # Should probably do this on mask layers as well
+                    if pcbnew.IsCopperLayer(layer_info.id):  # Should probably do this on mask layers as well
                         plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_FULL_DRILL_SHAPE)
                     else:
                         plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
@@ -437,14 +442,14 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
                     return False
 
             try:
-                plot_options.SetPlotFrameRef(layer_info[3])
-                plot_options.SetNegative(layer_info[4])
-                plot_options.SetPlotValue(layer_info[5])
-                plot_options.SetPlotReference(layer_info[6])
-                plot_options.SetMirror(template[1])
-                plot_options.SetPlotViaOnMaskLayer(template[2])
-                plot_controller.SetLayer(layer_info[1])
-                plot_controller.OpenPlotfile(layer_info[0], pcbnew.PLOT_FORMAT_PDF, template_name)
+                plot_options.SetPlotFrameRef(layer_info.with_frame)
+                plot_options.SetNegative(layer_info.negative)
+                plot_options.SetPlotValue(layer_info.footprint_value)
+                plot_options.SetPlotReference(layer_info.reference_designator)
+                plot_options.SetMirror(template.mirrored)
+                plot_options.SetPlotViaOnMaskLayer(template.tented)
+                plot_controller.SetLayer(layer_info.id)
+                plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
                 plot_controller.PlotLayer()
             except:
                 msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
@@ -455,39 +460,40 @@ def plot_gerbers(board, output_path, templates, enabled_templates, del_temp_file
 
         filelist = []
         # Change color of pdf files
-        for layer_info in template[3]:
-            ln = layer_info[0].replace('.', '_')
+        for layer_info in template.settings:
+            ln = layer_info.name.replace('.', '_')
             input_file = f"{base_filename}-{ln}.pdf"
             output_file = f"{base_filename}-{ln}-colored.pdf"
-            if layer_info[2] != std_color:
+            if layer_info.has_color:
                 progress += progress_step
-                set_progress_status(progress, f"Coloring {layer_info[0]} for template {template_name}")
+                set_progress_status(progress, f"Coloring {layer_info.name} for template {template.name}")
 
-                if not colorize_pdf(temp_dir, input_file, output_file, hex_to_rgb(layer_info[2])):
-                    set_progress_status(100, f"Failed when coloring {layer_info[0]} for template {template_name}")
+                if not colorize_pdf(temp_dir, input_file, output_file, layer_info.color_rgb):
+                    set_progress_status(100, f"Failed when coloring {layer_info.name} for template {template.name}")
                     return False
 
                 filelist.append(output_file)
             else:
                 filelist.append(input_file)
 
-            if layer_info[3]:
+            if layer_info.with_frame:
                 # the frame layer is scaled by 1.0, all others by `layer_scale`
                 frame_file = filelist[-1]
 
         # Merge pdf files
         progress += progress_step
-        set_progress_status(progress, f"Merging all layers of template {template_name}")
+        set_progress_status(progress, f"Merging all layers of template {template.name}")
 
-        assembly_file = f"{base_filename}_{template[0]}.pdf"
+        assembly_file = f"{base_filename}_{template.name}.pdf"
 
         if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale):
-            set_progress_status(100, "Failed when merging all layers of template " + template_name)
+            set_progress_status(100, "Failed when merging all layers of template " + template.name)
             return False
 
         template_filelist.append(assembly_file)
 
     # Add all generated pdfs to one file
+    progress += progress_step
     set_progress_status(progress, "Adding all templates to a single file")
 
     if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file):
