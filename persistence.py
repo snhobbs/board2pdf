@@ -21,7 +21,7 @@ class Persistence:
     _typeconv: dict = {
         bool: lambda x: "True" if x else "False",
         (list, tuple): lambda x: ",".join(x),
-        dict: lambda x: json.dumps(x),
+        dict: lambda x: json.dumps(x, indent=4),
         (int, float): lambda x: str(x),
         str: lambda x: x,
     }
