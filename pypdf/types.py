@@ -3,20 +3,23 @@
 import sys
 from typing import List, Union
 
-if sys.version_info[:2] >= (3, 8):
-    # Python 3.8+: https://peps.python.org/pep-0586
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+try:
+    if sys.version_info[:2] >= (3, 8):
+        # Python 3.8+: https://peps.python.org/pep-0586
+        from typing import Literal
+    else:
+        from typing_extensions import Literal
+except ImportError:
+    from .board2pdf_typing_extensions.src.typing_extensions import Literal
 
-if sys.version_info[:2] >= (3, 10):
-    # Python 3.10+: https://www.python.org/dev/peps/pep-0484/
-    from typing import TypeAlias
-else:
-    try:
+try:
+    if sys.version_info[:2] >= (3, 10):
+        # Python 3.10+: https://www.python.org/dev/peps/pep-0484/
+        from typing import TypeAlias
+    else:
         from typing_extensions import TypeAlias
-    except ImportError:
-        from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
+except ImportError:
+    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
 
 from .generic._base import NameObject, NullObject, NumberObject
 from .generic._data_structures import ArrayObject, Destination

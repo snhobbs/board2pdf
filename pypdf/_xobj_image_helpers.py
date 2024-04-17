@@ -15,21 +15,23 @@ from .generic import (
     NullObject,
 )
 
-if sys.version_info[:2] >= (3, 8):
-    from typing import Literal
-else:
-    # PEP 586 introduced typing.Literal with Python 3.8
-    # For older Python versions, the backport typing_extensions is necessary:
-    from typing_extensions import Literal
+try:
+    if sys.version_info[:2] >= (3, 8):
+        from typing import Literal
+    else:
+        # PEP 586 introduced typing.Literal with Python 3.8
+        # For older Python versions, the backport typing_extensions is necessary:
+        from typing_extensions import Literal
+except ImportError:
+    from .board2pdf_typing_extensions.src.typing_extensions import Literal
 
-if sys.version_info[:2] >= (3, 10):
-    from typing import TypeAlias
-else:
-    try:
+try:
+    if sys.version_info[:2] >= (3, 10):
+        from typing import TypeAlias
+    else:
         from typing_extensions import TypeAlias
-    except ImportError:
-        from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
-
+except ImportError:
+    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
 
 try:
     from PIL import Image
