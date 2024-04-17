@@ -22,12 +22,11 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
         self.SetClientSize(best_size)
         self.SetTitle('Board2Pdf %s' % version)
         if (int(pcbnew.Version()[0:1]) < 8):
-            # If KiCad version < 8, no support for not exporting property popups
-            self.m_comboBox_popups.Clear()
-            popups_choices = []
-            popups_choices.insert(0, "Only available in KiCad 8.0")
-            self.m_comboBox_frame.SetItems(popups_choices)
-            self.m_comboBox_popups.Disable()
+            # If KiCad version < 8, no support for exporting property popups on just Front or Back layer
+            pos = self.panel.m_comboBox_popups.FindString("Front Layer")
+            self.panel.m_comboBox_popups.Delete(pos)
+            pos = self.panel.m_comboBox_popups.FindString("Back Layer")
+            self.panel.m_comboBox_popups.Delete(pos)
 
     # hack for new wxFormBuilder generating code incompatible with old wxPython
     # noinspection PyMethodOverriding
@@ -95,9 +94,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_tent.Enable()
         self.m_staticText_template_name.Enable()
         self.m_staticText_frame_layer.Enable()
-        if (int(pcbnew.Version()[0:1]) >= 8):
-            self.m_staticText_popups.Enable()
-            self.m_comboBox_popups.Enable()
+        self.m_staticText_popups.Enable()
+        self.m_comboBox_popups.Enable()
 
         self.layersSortOrderBox.Enable()
         self.m_button_layer_up.Enable()
@@ -396,6 +394,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             if item in self.templates and "popups" in self.templates[item]:
                 saved_popups = self.templates[item]["popups"]
             else:
+                saved_popups = "Both Layers"
+            if int(pcbnew.Version()[0:1]) < 8 and (saved_popups == "Front Layer" or saved_popups == "Back Layer"):
                 saved_popups = "Both Layers"
             saved_popups_pos = self.m_comboBox_popups.FindString(saved_popups)
             if saved_popups_pos != wx.NOT_FOUND:

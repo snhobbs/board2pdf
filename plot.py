@@ -106,12 +106,13 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
     return True
 
 def merge_pdf_fitz(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float):
+                    layer_scale: float, template_use_popups: bool):
     # I haven't found a way to scale the pdf and preserve the popup-menus.
     # For now, I'm taking the easy way out and handle the merging differently depending
     # on if scaling is used or not. At least the popup-menus are preserved when not using scaling.
     # https://github.com/pymupdf/PyMuPDF/discussions/2499
-    if layer_scale == 1.0:
+    # If popups aren't used, I'm using the with_scaling method to get rid of annotations
+    if template_use_popups and layer_scale == 1.0:
         return merge_pdf_fitz_without_scaling(input_folder, input_files, output_folder, output_file, frame_file)
     else:
         return merge_pdf_fitz_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, layer_scale)
@@ -177,7 +178,7 @@ def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_fol
 
 
 def merge_pdf_pypdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float):
+                    layer_scale: float, template_use_popups: bool):
     try:
         page = None
         for filename in input_files:
@@ -281,15 +282,15 @@ class LayerInfo:
             self.reference_designator = True
             
         # Check the popup settings.
-        self.front_popups = False
-        self.back_popups = False
+        self.front_popups = True
+        self.back_popups = True
         if popups == "Front Layer":
-            self.front_popups = True
+            self.back_popups = False
         elif popups == "Back Layer":
-            self.back_popups = True
-        elif popups == "Both Layers":
-            self.front_popups = True
-            self.back_popups = True
+            self.front_popups = False
+        elif popups == "None":
+            self.front_popups = False
+            self.back_popups = False
 
     @property
     def has_color(self) -> bool:
@@ -467,6 +468,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         set_progress_status(100, "Failed to set plot_options")
         return False
 
+    use_popups = False
     template_filelist = []
 
     # Iterate over the templates
@@ -506,8 +508,13 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
                 plot_options.SetMirror(template.mirrored)
                 plot_options.SetPlotViaOnMaskLayer(template.tented)
                 if int(pcbnew.Version()[0:1]) >= 8:
-                    plot_options.m_PDFFrontFPPropertyPopups = layer_info.front_popups
-                    plot_options.m_PDFBackFPPropertyPopups = layer_info.back_popups
+                    if layer_scale == 1.0:
+                        plot_options.m_PDFFrontFPPropertyPopups = layer_info.front_popups
+                        plot_options.m_PDFBackFPPropertyPopups = layer_info.back_popups
+                    else:
+                        plot_options.m_PDFFrontFPPropertyPopups = False
+                        plot_options.m_PDFBackFPPropertyPopups = False
+
                 plot_controller.SetLayer(layer_info.id)
                 plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
                 plot_controller.PlotLayer()
@@ -518,6 +525,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
         plot_controller.ClosePlot()
 
+        template_use_popups = False
         filelist = []
         # Change color of pdf files
         for layer_info in template.settings:
@@ -539,6 +547,9 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             if layer_info.with_frame:
                 # the frame layer is scaled by 1.0, all others by `layer_scale`
                 frame_file = filelist[-1]
+            # Set template_use_popups to True if any layer has popups and no scaling
+            if layer_scale == 1.0:
+                template_use_popups = template_use_popups or layer_info.front_popups or layer_info.back_popups
 
         # Merge pdf files
         progress += progress_step
@@ -546,16 +557,18 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
         assembly_file = f"{base_filename}_{template.name}.pdf"
 
-        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale):
+        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale, template_use_popups):
             set_progress_status(100, "Failed when merging all layers of template " + template.name)
             return False
 
         template_filelist.append(assembly_file)
+        # Set use_popups to True if any template has popups
+        use_popups = use_popups or template_use_popups
 
     # Add all generated pdfs to one file
     progress += progress_step
     set_progress_status(progress, "Adding all templates to a single file")
-    use_popups = layer_info.front_popups or layer_info.back_popups
+    
 
     if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file, use_popups):
         set_progress_status(100, "Failed when adding all templates to a single file")
