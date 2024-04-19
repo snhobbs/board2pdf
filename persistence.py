@@ -39,8 +39,11 @@ class Persistence:
         self.del_single_page_files: bool = False
         self.assembly_file_extension: str = "__Assembly"
         self.layer_scale: float = 1.0
+        
+        self.global_settings_file_path: str = ''
+        self.local_settings_file_path: str = ''
 
-    def save(self):
+    def save(self, file_path: str):
         _logger.debug(f"save config")
         self._config.read(self._configfile)
 
@@ -59,7 +62,7 @@ class Persistence:
                 self._config.add_section(section)
             self._config.set(section, option, value)
 
-        with open(self._configfile, 'w') as f:
+        with open(file_path, 'w') as f:
             self._config.write(f)
 
     def load(self) -> dict:

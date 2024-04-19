@@ -26,20 +26,30 @@ def run_with_dialog():
     pcb_file_name = board.GetFileName()
     board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
     pcb_file_dir = os.path.dirname(os.path.abspath(pcb_file_name))
-    configfile = os.path.join(pcb_file_dir, "board2pdf.config.ini")
+    default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
+    global_configfile = os.path.join(board2pdf_dir, "board2pdf.config.ini")
+    local_configfile = os.path.join(pcb_file_dir, "board2pdf.config.ini")
 
     # Not sure it this is needed any more.
     if not pcb_file_name:
         wx.MessageBox('Please save the board file before plotting the pdf.')
         return
 
-    # If config.ini file doesn't exist, copy the default file to this file.
-    if not os.path.exists(configfile):
-        default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
-        shutil.copyfile(default_configfile, configfile)
+    # If local config.ini file doesn't exist, use global. If global doesn't exist, use default.
+    if os.path.exists(local_configfile):
+        configfile = local_configfile
+        configfile_name = "local"
+    elif os.path.exists(global_configfile):
+        configfile = global_configfile
+        configfile_name = "global"
+    else:
+        configfile = default_configfile
+        configfile_name = "default"
 
     config = persistence.Persistence(configfile)
     config.load()
+    config.local_settings_file_path = local_configfile
+    config.global_settings_file_path = global_configfile
 
     def perform_export(dialog_panel):
         plot.plot_pdfs(board, dialog_panel.outputDirPicker.Path, config.templates,
@@ -68,6 +78,7 @@ def run_with_dialog():
     dlg.panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
     dlg.panel.m_checkBox_create_svg.SetValue(config.create_svg)
     dlg.panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
+    dlg.panel.m_staticText_status.SetLabel(f'Status: loaded {configfile_name} settings')
 
     # Check if able to import fitz. If it's possible then select fitz, otherwise select pypdf.
     try:

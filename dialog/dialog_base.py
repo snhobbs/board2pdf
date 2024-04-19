@@ -210,11 +210,11 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer39 = wx.BoxSizer( wx.HORIZONTAL )
 
-        self.m_button41 = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Save current settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )
+        self.saveSettingsBtn = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Save current settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )
 
-        self.m_button41.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_FILE_SAVE, wx.ART_BUTTON ) )
-        self.m_button41.SetBitmapMargins( wx.Size( 2,-1 ) )
-        bSizer39.Add( self.m_button41, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+        self.saveSettingsBtn.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_FILE_SAVE, wx.ART_BUTTON ) )
+        self.saveSettingsBtn.SetBitmapMargins( wx.Size( 2,-1 ) )
+        bSizer39.Add( self.saveSettingsBtn, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
         bSizer39.Add( ( 0, 0), 1, wx.EXPAND, 5 )
@@ -459,7 +459,7 @@ class SettingsDialogPanel ( wx.Panel ):
         self.disabledTemplatesSortOrderBox.Bind( wx.EVT_LISTBOX_DCLICK, self.OnTemplateEnable )
         self.m_button_template_enable.Bind( wx.EVT_BUTTON, self.OnTemplateEnable )
         self.m_button4.Bind( wx.EVT_BUTTON, self.OnTemplateDelete )
-        self.m_button41.Bind( wx.EVT_BUTTON, self.OnSaveSettings )
+        self.saveSettingsBtn.Bind( wx.EVT_BUTTON, self.OnSaveSettings )
         self.m_button42.Bind( wx.EVT_BUTTON, self.OnPerform )
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
