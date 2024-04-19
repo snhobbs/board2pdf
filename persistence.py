@@ -40,6 +40,7 @@ class Persistence:
         self.assembly_file_extension: str = "__Assembly"
         self.layer_scale: float = 1.0
         
+        self.default_settings_file_path: str = ''
         self.global_settings_file_path: str = ''
         self.local_settings_file_path: str = ''
 
