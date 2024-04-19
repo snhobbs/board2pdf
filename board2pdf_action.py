@@ -48,8 +48,9 @@ def run_with_dialog():
 
     config = persistence.Persistence(configfile)
     config.load()
-    config.local_settings_file_path = local_configfile
+    config.default_settings_file_path = default_configfile
     config.global_settings_file_path = global_configfile
+    config.local_settings_file_path = local_configfile
 
     def perform_export(dialog_panel):
         plot.plot_pdfs(board, dialog_panel.outputDirPicker.Path, config.templates,
@@ -63,7 +64,18 @@ def run_with_dialog():
         dialog_panel.Refresh()
         dialog_panel.Update()
 
-    dlg = dialog.SettingsDialog(config, perform_export, version)
+    def load_saved(dialog_panel, config):
+        # Update dialog with data from saved config.
+        dialog_panel.outputDirPicker.Path = config.output_path
+        dialog_panel.templatesSortOrderBox.SetItems(config.enabled_templates)
+        dialog_panel.disabledTemplatesSortOrderBox.SetItems(config.disabled_templates)
+        dialog_panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
+        dialog_panel.m_checkBox_create_svg.SetValue(config.create_svg)
+        dialog_panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
+        dialog_panel.ClearTemplateSettings()
+        dialog_panel.hide_template_settings()
+
+    dlg = dialog.SettingsDialog(config, perform_export, load_saved, version)
     try:
         icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
         icon = wx.Icon(icon_path)

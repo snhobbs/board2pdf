@@ -11,11 +11,10 @@ from . import dialog_base
 def pop_error(msg):
     wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
 
-
 class SettingsDialog(dialog_base.SettingsDialogBase):
-    def __init__(self, config, perform_export_func, version):
+    def __init__(self, config, perform_export_func, load_saved_func, version):
         dialog_base.SettingsDialogBase.__init__(self, None)
-        self.panel = SettingsDialogPanel(self, config, perform_export_func)
+        self.panel = SettingsDialogPanel(self, config, perform_export_func, load_saved_func)
         best_size = self.panel.BestSize
         # hack for some gtk themes that incorrectly calculate best size
         best_size.IncBy(dx=0, dy=30)
@@ -40,9 +39,10 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
 
 # Implementing settings_dialog
 class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
-    def __init__(self, parent, config, perform_export_func):
+    def __init__(self, parent, config, perform_export_func, load_saved_func):
         self.config = config
         self.perform_export_func = perform_export_func
+        self.load_saved_func = load_saved_func
         self.templates: dict = config.templates
         self.current_template: str = ""
         self.current_layer: str = ""
@@ -54,16 +54,54 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.hide_layer_settings()
 
         self.save_menu = wx.Menu()
-        self.save_locally = self.save_menu.Append(
-            wx.ID_ANY, u"Locally", wx.EmptyString, wx.ITEM_NORMAL)
         self.save_globally = self.save_menu.Append(
             wx.ID_ANY, u"Globally", wx.EmptyString, wx.ITEM_NORMAL)
+        self.save_locally = self.save_menu.Append(
+            wx.ID_ANY, u"Locally", wx.EmptyString, wx.ITEM_NORMAL)
 
         self.Bind(
-            wx.EVT_MENU, self.OnSaveLocally, id=self.save_locally.GetId())
-        self.Bind(
             wx.EVT_MENU, self.OnSaveGlobally, id=self.save_globally.GetId())
-        
+        self.Bind(
+            wx.EVT_MENU, self.OnSaveLocally, id=self.save_locally.GetId())
+
+        self.load_menu = wx.Menu()
+        self.load_default = self.load_menu.Append(
+            wx.ID_ANY, u"Default", wx.EmptyString, wx.ITEM_NORMAL)
+        self.load_globally = self.load_menu.Append(
+            wx.ID_ANY, u"Globally", wx.EmptyString, wx.ITEM_NORMAL)
+        self.load_locally = self.load_menu.Append(
+            wx.ID_ANY, u"Locally", wx.EmptyString, wx.ITEM_NORMAL)
+
+        self.Bind(
+            wx.EVT_MENU, self.OnLoadDefault, id=self.load_default.GetId())
+        self.Bind(
+            wx.EVT_MENU, self.OnLoadGlobal, id=self.load_globally.GetId())
+        self.Bind(
+            wx.EVT_MENU, self.OnLoadLocal, id=self.load_locally.GetId())
+
+    def OnLoadSettings(self, event):
+        # type: (wx.CommandEvent) -> None
+        pos = wx.Point(0, event.GetEventObject().GetSize().y)
+        self.loadSettingsBtn.PopupMenu(self.load_menu, pos)
+
+    def OnLoadDefault(self, event):
+        self.config._configfile = self.config.default_settings_file_path
+        self.config.load()
+        self.load_saved_func(self, self.config)
+        self.m_staticText_status.SetLabel('Status: default settings loaded')
+
+    def OnLoadGlobal(self, event):
+        self.config._configfile = self.config.global_settings_file_path
+        self.config.load()
+        self.load_saved_func(self, self.config)
+        self.m_staticText_status.SetLabel('Status: global settings loaded')
+
+    def OnLoadLocal(self, event):
+        self.config._configfile = self.config.local_settings_file_path
+        self.config.load()
+        self.load_saved_func(self, self.config)
+        self.m_staticText_status.SetLabel('Status: local settings loaded')
+
     def OnSaveSettings(self, event):
         # type: (wx.CommandEvent) -> None
         pos = wx.Point(0, event.GetEventObject().GetSize().y)
@@ -94,20 +132,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.config.save(self.config.local_settings_file_path)
 
         self.m_staticText_status.SetLabel('Status: settings saved locally')
-    '''
-    def OnSaveSettings(self, event):
-        self.SaveTemplate()
-
-        self.config.output_path = self.outputDirPicker.Path
-        self.config.enabled_templates = self.templatesSortOrderBox.GetItems()
-        self.config.disabled_templates = self.disabledTemplatesSortOrderBox.GetItems()
-        self.config.create_svg = self.m_checkBox_create_svg.IsChecked()
-        self.config.del_temp_files = self.m_checkBox_delete_temp_files.IsChecked()
-        self.config.del_single_page_files = self.m_checkBox_delete_single_page_files.IsChecked()
-        self.config.save()
-
-        self.m_staticText_status.SetLabel('Status: settings saved')
-    '''
 
     def hide_template_settings(self):
         self.m_textCtrl_template_name.Disable()

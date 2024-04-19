@@ -210,11 +210,16 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer39 = wx.BoxSizer( wx.HORIZONTAL )
 
-        self.saveSettingsBtn = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Save current settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )
+        self.saveSettingsBtn = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Save settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )
 
         self.saveSettingsBtn.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_FILE_SAVE, wx.ART_BUTTON ) )
         self.saveSettingsBtn.SetBitmapMargins( wx.Size( 2,-1 ) )
         bSizer39.Add( self.saveSettingsBtn, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+
+        self.loadSettingsBtn = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Load settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )
+
+        self.loadSettingsBtn.SetBitmap( wx.ArtProvider.GetBitmap( wx.ART_FILE_OPEN, wx.ART_BUTTON ) )
+        bSizer39.Add( self.loadSettingsBtn, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
         bSizer39.Add( ( 0, 0), 1, wx.EXPAND, 5 )
@@ -460,6 +465,7 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button_template_enable.Bind( wx.EVT_BUTTON, self.OnTemplateEnable )
         self.m_button4.Bind( wx.EVT_BUTTON, self.OnTemplateDelete )
         self.saveSettingsBtn.Bind( wx.EVT_BUTTON, self.OnSaveSettings )
+        self.loadSettingsBtn.Bind( wx.EVT_BUTTON, self.OnLoadSettings )
         self.m_button42.Bind( wx.EVT_BUTTON, self.OnPerform )
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
@@ -508,6 +514,9 @@ class SettingsDialogPanel ( wx.Panel ):
         event.Skip()
 
     def OnSaveSettings( self, event ):
+        event.Skip()
+
+    def OnLoadSettings( self, event ):
         event.Skip()
 
     def OnPerform( self, event ):
