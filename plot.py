@@ -106,18 +106,18 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
     return True
 
 def merge_pdf_fitz(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float, template_use_popups: bool):
+                    layer_scale: float, template_use_popups: bool, template_name: str):
     # I haven't found a way to scale the pdf and preserve the popup-menus.
     # For now, I'm taking the easy way out and handle the merging differently depending
     # on if scaling is used or not. At least the popup-menus are preserved when not using scaling.
     # https://github.com/pymupdf/PyMuPDF/discussions/2499
     # If popups aren't used, I'm using the with_scaling method to get rid of annotations
     if template_use_popups and layer_scale == 1.0:
-        return merge_pdf_fitz_without_scaling(input_folder, input_files, output_folder, output_file, frame_file)
+        return merge_pdf_fitz_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name)
     else:
-        return merge_pdf_fitz_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, layer_scale)
+        return merge_pdf_fitz_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, layer_scale)
     
-def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str):
+def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, template_name: str):
     try:
         output = None
         for filename in reversed(input_files):
@@ -134,7 +134,14 @@ def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_
                 io_file_error_msg(merge_pdf_fitz.__name__, filename, input_folder)
                 return False
 
+        # Set correct page name in the table of contents (pdf outline)
+        toc = output.get_toc()
+        #print("Toc: ", toc)
+        toc[0][1] = template_name
+        output.set_toc(toc)
+
         output.save(os.path.join(output_folder, output_file))
+        output.close()
 
     except Exception:
         io_file_error_msg(merge_pdf_fitz.__name__, output_file, output_folder)
@@ -143,7 +150,7 @@ def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_
     return True
     
 def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float):
+                    template_name: str, layer_scale: float):
     try:
         output = fitz.open()
         page = None
@@ -168,6 +175,12 @@ def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_fol
                 return False
 
         page.set_cropbox(cropbox)
+
+        # Set correct page name in the table of contents (pdf outline)
+        # When scaling is used, component references will not be retained
+        toc = [[1, template_name, 1]]
+        output.set_toc(toc)
+
         output.save(os.path.join(output_folder, output_file))
 
     except Exception:
@@ -176,9 +189,8 @@ def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_fol
 
     return True
 
-
 def merge_pdf_pypdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float, template_use_popups: bool):
+                    layer_scale: float, template_use_popups: bool, template_name: str):
     try:
         page = None
         for filename in input_files:
@@ -216,6 +228,7 @@ def merge_pdf_pypdf(input_folder: str, input_files: list, output_folder: str, ou
 
         output = PdfWriter()
         output.add_page(page)
+        output.add_outline_item(title=template_name, page_number=0)
         with open(os.path.join(output_folder, output_file), "wb") as output_stream:
             output.write(output_stream)
 
@@ -232,6 +245,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file,
         for filename in input_files:
             try:
                 output.append(os.path.join(input_folder, filename))
+                
             except:
                 io_file_error_msg(create_pdf_from_pages.__name__, filename, input_folder)
                 return False
@@ -557,7 +571,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
         assembly_file = f"{base_filename}_{template.name}.pdf"
 
-        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale, template_use_popups):
+        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale, template_use_popups, template.name):
             set_progress_status(100, "Failed when merging all layers of template " + template.name)
             return False
 
