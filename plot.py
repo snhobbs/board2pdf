@@ -561,6 +561,8 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             if layer_info.with_frame:
                 # the frame layer is scaled by 1.0, all others by `layer_scale`
                 frame_file = filelist[-1]
+            else:
+                frame_file = 'None'
             # Set template_use_popups to True if any layer has popups and no scaling
             if layer_scale == 1.0:
                 template_use_popups = template_use_popups or layer_info.front_popups or layer_info.back_popups
