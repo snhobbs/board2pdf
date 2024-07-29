@@ -15,11 +15,14 @@ except ImportError:
 
 try:
     import fitz  # This imports PyMuPDF
+except (ImportError):
+    try:
+        import fitz_old as fitz
 
-    fitz.open()
-    has_fitz = True
-except (ImportError, AttributeError):
-    has_fitz = False
+        fitz.open()
+        has_fitz = True
+    except (ImportError, AttributeError):
+        has_fitz = False
 
 _logger = logging.getLogger(__name__)
 
