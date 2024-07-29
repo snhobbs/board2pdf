@@ -95,17 +95,20 @@ def run_with_dialog():
     # Check if able to import fitz. If it's possible then select fitz, otherwise select pypdf.
     try:
         import fitz  # This imports PyMuPDF
+    except ImportError:
+        try:
+            import fitz_old as fitz
 
-        fitz.open()  # after pip uninstall PyMuPDF the import still works, but not `open()`
-        dlg.panel.m_radio_pypdf.SetValue(False)
-        dlg.panel.m_radio_merge_pypdf.SetValue(False)
-        dlg.panel.m_radio_fitz.SetValue(True)
-        dlg.panel.m_radio_merge_fitz.SetValue(True)
-    except (ImportError, AttributeError):
-        dlg.panel.m_radio_fitz.SetValue(False)
-        dlg.panel.m_radio_merge_fitz.SetValue(False)
-        dlg.panel.m_radio_pypdf.SetValue(True)
-        dlg.panel.m_radio_merge_pypdf.SetValue(True)
+            fitz.open()  # after pip uninstall PyMuPDF the import still works, but not `open()`
+            dlg.panel.m_radio_pypdf.SetValue(False)
+            dlg.panel.m_radio_merge_pypdf.SetValue(False)
+            dlg.panel.m_radio_fitz.SetValue(True)
+            dlg.panel.m_radio_merge_fitz.SetValue(True)
+        except (ImportError, AttributeError):
+            dlg.panel.m_radio_fitz.SetValue(False)
+            dlg.panel.m_radio_merge_fitz.SetValue(False)
+            dlg.panel.m_radio_pypdf.SetValue(True)
+            dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
     dlg.ShowModal()
     # response = dlg.ShowModal()
