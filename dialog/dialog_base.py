@@ -183,8 +183,8 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer21.Add( self.m_staticText82, 0, wx.ALL, 5 )
 
-        self.m_radio_fitz = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyMuPdf/fitz (fast)", wx.DefaultPosition, wx.DefaultSize, wx.RB_GROUP )
-        bSizer21.Add( self.m_radio_fitz, 0, wx.ALL, 5 )
+        self.m_radio_pymupdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyMuPdf (fast)", wx.DefaultPosition, wx.DefaultSize, wx.RB_GROUP )
+        bSizer21.Add( self.m_radio_pymupdf, 0, wx.ALL, 5 )
 
         self.m_radio_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"pypdf (slow)", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer21.Add( self.m_radio_pypdf, 0, wx.ALL, 5 )
@@ -199,8 +199,8 @@ class SettingsDialogPanel ( wx.Panel ):
 
         bSizer22.Add( self.m_staticText9, 0, wx.ALL, 5 )
 
-        self.m_radio_merge_fitz = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyMuPdf/fitz (fast)", wx.DefaultPosition, wx.DefaultSize, wx.RB_GROUP )
-        bSizer22.Add( self.m_radio_merge_fitz, 0, wx.ALL, 5 )
+        self.m_radio_merge_pymupdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"PyMuPdf (fast)", wx.DefaultPosition, wx.DefaultSize, wx.RB_GROUP )
+        bSizer22.Add( self.m_radio_merge_pymupdf, 0, wx.ALL, 5 )
 
         self.m_radio_merge_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"pypdf (slow)", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer22.Add( self.m_radio_merge_pypdf, 0, wx.ALL, 5 )

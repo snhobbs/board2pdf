@@ -13,16 +13,30 @@ try:
 except ImportError:
     from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
 
+# Try to import PyMuPDF.
+has_pymupdf = True
 try:
-    import fitz  # This imports PyMuPDF
-except (ImportError):
+    import pymupdf  # This imports PyMuPDF
+    
+except:
     try:
-        import fitz_old as fitz
+        import fitz as pymupdf  # This imports PyMuPDF using old name
+        
+    except:
+        try:
+            import fitz_old as pymupdf # This imports PyMuPDF using temporary old name
 
-        fitz.open()
-        has_fitz = True
-    except (ImportError, AttributeError):
-        has_fitz = False
+        except:
+            has_pymupdf = False
+
+# after pip uninstall PyMuPDF the import still works, but not `open()`
+# check if it's possible to call pymupdf.open()
+if has_pymupdf:
+    try:
+        pymupdf.open()
+    except:
+        has_pymupdf = False
+
 
 _logger = logging.getLogger(__name__)
 
@@ -42,9 +56,9 @@ def io_file_error_msg(function: str, input_file: str, folder: str, more: str = '
         print(f'Error: {msg}', file=sys.stderr)
 
 
-def colorize_pdf_fitz(folder, input_file, output_file, color):
+def colorize_pdf_pymupdf(folder, input_file, output_file, color):
     try:
-        with fitz.open(os.path.join(folder, input_file)) as doc:
+        with pymupdf.open(os.path.join(folder, input_file)) as doc:
             xref_number = doc[0].get_contents()
             stream_bytes = doc.xref_stream(xref_number[0])
             new_color = ''.join([f'{c:.3g} ' for c in color])
@@ -56,12 +70,12 @@ def colorize_pdf_fitz(folder, input_file, output_file, color):
 
     except RuntimeError as e:
         if "invalid key in dict" in str(e):
-            io_file_error_msg(colorize_pdf_fitz.__name__, input_file, folder,
+            io_file_error_msg(colorize_pdf_pymupdf.__name__, input_file, folder,
                               "This error can be due to PyMuPdf not being able to handle pdfs created by KiCad 7.0.1 due to a bug in KiCad 7.0.1. Upgrade KiCad or switch to pypdf instead.\n\n")
         return False
 
     except:
-        io_file_error_msg(colorize_pdf_fitz.__name__, input_file, folder)
+        io_file_error_msg(colorize_pdf_pymupdf.__name__, input_file, folder)
         return False
 
     return True
@@ -108,7 +122,7 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color):
 
     return True
 
-def merge_pdf_fitz(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
+def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
                     layer_scale: float, template_use_popups: bool, template_name: str):
     # I haven't found a way to scale the pdf and preserve the popup-menus.
     # For now, I'm taking the easy way out and handle the merging differently depending
@@ -116,25 +130,25 @@ def merge_pdf_fitz(input_folder: str, input_files: list, output_folder: str, out
     # https://github.com/pymupdf/PyMuPDF/discussions/2499
     # If popups aren't used, I'm using the with_scaling method to get rid of annotations
     if template_use_popups and layer_scale == 1.0:
-        return merge_pdf_fitz_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name)
+        return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name)
     else:
-        return merge_pdf_fitz_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, layer_scale)
+        return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, layer_scale)
     
-def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, template_name: str):
+def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, template_name: str):
     try:
         output = None
         for filename in reversed(input_files):
             try:
                 if output is None:
-                    output = fitz.open(os.path.join(input_folder, filename))
+                    output = pymupdf.open(os.path.join(input_folder, filename))
                 else:
                     # using "with" to force RAII and avoid another "for" closing files
-                    with fitz.open(os.path.join(input_folder, filename)) as src:
+                    with pymupdf.open(os.path.join(input_folder, filename)) as src:
                         output[0].show_pdf_page(src[0].rect,  # select output rect
                                                 src,  # input document
                                                 overlay=False)
             except Exception:
-                io_file_error_msg(merge_pdf_fitz.__name__, filename, input_folder)
+                io_file_error_msg(merge_pdf_pymupdf.__name__, filename, input_folder)
                 return False
 
         # Set correct page name in the table of contents (pdf outline)
@@ -147,24 +161,24 @@ def merge_pdf_fitz_without_scaling(input_folder: str, input_files: list, output_
         output.close()
 
     except Exception:
-        io_file_error_msg(merge_pdf_fitz.__name__, output_file, output_folder)
+        io_file_error_msg(merge_pdf_pymupdf.__name__, output_file, output_folder)
         return False
 
     return True
     
-def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
+def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
                     template_name: str, layer_scale: float):
     try:
-        output = fitz.open()
+        output = pymupdf.open()
         page = None
         for filename in reversed(input_files):
             try:
                 # using "with" to force RAII and avoid another "for" closing files
-                with fitz.open(os.path.join(input_folder, filename)) as src:
+                with pymupdf.open(os.path.join(input_folder, filename)) as src:
                     if page is None:
                         page = output.new_page(width=src[0].rect.width * layer_scale,
                                                height=src[0].rect.height * layer_scale)
-                        cropbox = fitz.Rect((page.rect.width - src[0].rect.width) / 2,
+                        cropbox = pymupdf.Rect((page.rect.width - src[0].rect.width) / 2,
                                             (page.rect.height - src[0].rect.height) / 2,
                                             (page.rect.width + src[0].rect.width) / 2,
                                             (page.rect.height + src[0].rect.height) / 2)
@@ -174,7 +188,7 @@ def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_fol
                                        src,  # input document
                                        overlay=False)
             except Exception:
-                io_file_error_msg(merge_pdf_fitz.__name__, filename, input_folder)
+                io_file_error_msg(merge_pdf_pymupdf.__name__, filename, input_folder)
                 return False
 
         page.set_cropbox(cropbox)
@@ -187,7 +201,7 @@ def merge_pdf_fitz_with_scaling(input_folder: str, input_files: list, output_fol
         output.save(os.path.join(output_folder, output_file))
 
     except Exception:
-        io_file_error_msg(merge_pdf_fitz.__name__, output_file, output_folder)
+        io_file_error_msg(merge_pdf_pymupdf.__name__, output_file, output_folder)
         return False
 
     return True
@@ -253,7 +267,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file,
                 io_file_error_msg(create_pdf_from_pages.__name__, filename, input_folder)
                 return False
 
-        # If popup menus are used, add the needed javascript. Pypdf and fitz removes this in most operations.
+        # If popup menus are used, add the needed javascript. Pypdf and PyMuPdf removes this in most operations.
         if use_popups:
             javascript_string = "function ShM(aEntries) { var aParams = []; for (var i in aEntries) { aParams.push({ cName: aEntries[i][0], cReturn: aEntries[i][1] }) } var cChoice = app.popUpMenuEx.apply(app, aParams); if (cChoice != null && cChoice.substring(0, 1) == '#') this.pageNum = parseInt(cChoice.slice(1)); else if (cChoice != null && cChoice.substring(0, 4) == 'http') app.launchURL(cChoice); }"
             output.add_js(javascript_string)
@@ -371,9 +385,9 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     merge_lib: str = kwargs.pop('merge_lib', '')
 
     if dlg is None:
-        use_fitz = has_fitz or create_svg
-        fitz_pdf = has_fitz and colorize_lib != 'pypdf'
-        fitz_merge = has_fitz and merge_lib != 'pypdf'
+        use_pymupdf = has_pymupdf or create_svg
+        pymupdf_pdf = has_pymupdf and colorize_lib != 'pypdf'
+        pymupdf_merge = has_pymupdf and merge_lib != 'pypdf'
 
         def set_progress_status(progress: int, status: str):
             print(f'{int(progress):3d}%: {status}')
@@ -382,9 +396,9 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             print(f"{caption}: {text}")
 
     elif isinstance(dlg, wx.Panel):
-        fitz_pdf = dlg.m_radio_fitz.GetValue()
-        fitz_merge = dlg.m_radio_merge_fitz.GetValue()
-        use_fitz = fitz_pdf or fitz_merge or create_svg
+        pymupdf_pdf = dlg.m_radio_pymupdf.GetValue()
+        pymupdf_merge = dlg.m_radio_merge_pymupdf.GetValue()
+        use_pymupdf = pymupdf_pdf or pymupdf_merge or create_svg
 
         def set_progress_status(progress: int, status: str):
             dlg.m_staticText_status.SetLabel(f'Status: {status}')
@@ -398,15 +412,15 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         print(f"Error: Unknown dialog type {type(dlg)}", file=sys.stderr)
         return False
 
-    if use_fitz and not has_fitz:
+    if use_pymupdf and not has_pymupdf:
         msg_box(
-            "PyMuPdf (fitz) wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com",
+            "PyMuPdf wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com",
             'Error', wx.OK | wx.ICON_ERROR)
         set_progress_status(100, "Failed to load PyMuPDF.")
         return False
 
-    colorize_pdf = colorize_pdf_fitz if fitz_pdf else colorize_pdf_pypdf
-    merge_pdf = merge_pdf_fitz if fitz_merge else merge_pdf_pypdf
+    colorize_pdf = colorize_pdf_pymupdf if pymupdf_pdf else colorize_pdf_pypdf
+    merge_pdf = merge_pdf_pymupdf if pymupdf_merge else merge_pdf_pypdf
 
     os.chdir(os.path.dirname(board.GetFileName()))
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
@@ -596,7 +610,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     # Create SVG(s) if settings says so
     if create_svg:
         for template_file in template_filelist:
-            template_pdf = fitz.open(os.path.join(output_dir, template_file))
+            template_pdf = pymupdf.open(os.path.join(output_dir, template_file))
             try:
                 svg_image = template_pdf[0].get_svg_image()
                 svg_filename = os.path.splitext(template_file)[0] + ".svg"

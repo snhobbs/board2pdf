@@ -92,23 +92,37 @@ def run_with_dialog():
     dlg.panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
     dlg.panel.m_staticText_status.SetLabel(f'Status: loaded {configfile_name} settings')
 
-    # Check if able to import fitz. If it's possible then select fitz, otherwise select pypdf.
+    # Check if able to import PyMuPDF.
+    has_pymupdf = True
     try:
-        import fitz  # This imports PyMuPDF
-    except ImportError:
+        import pymupdf  # This imports PyMuPDF
+        
+    except:
         try:
-            import fitz_old as fitz
+            import fitz as pymupdf  # This imports PyMuPDF using old name
+            
+        except:
+            try:
+                import fitz_old as pymupdf # This imports PyMuPDF using temporary old name
 
-            fitz.open()  # after pip uninstall PyMuPDF the import still works, but not `open()`
-            dlg.panel.m_radio_pypdf.SetValue(False)
-            dlg.panel.m_radio_merge_pypdf.SetValue(False)
-            dlg.panel.m_radio_fitz.SetValue(True)
-            dlg.panel.m_radio_merge_fitz.SetValue(True)
-        except (ImportError, AttributeError):
-            dlg.panel.m_radio_fitz.SetValue(False)
-            dlg.panel.m_radio_merge_fitz.SetValue(False)
-            dlg.panel.m_radio_pypdf.SetValue(True)
-            dlg.panel.m_radio_merge_pypdf.SetValue(True)
+            except:
+                has_pymupdf = False
+
+    # after pip uninstall PyMuPDF the import still works, but not `open()`
+    # check if it's possible to call pymupdf.open()
+    if has_pymupdf:
+        try:
+            pymupdf.open()
+        except:
+            has_pymupdf = False
+
+    # If it was possible to import and open PyMuPdf, select pymupdf otherwise select pypdf.
+    if has_pymupdf:
+        dlg.panel.m_radio_pymupdf.SetValue(True)
+        dlg.panel.m_radio_merge_pymupdf.SetValue(True)
+    else:
+        dlg.panel.m_radio_pypdf.SetValue(True)
+        dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
     dlg.ShowModal()
     # response = dlg.ShowModal()
