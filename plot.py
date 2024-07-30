@@ -41,10 +41,13 @@ if has_pymupdf:
 _logger = logging.getLogger(__name__)
 
 
-def print_exception():
-    etype, value, tb = sys.exc_info()
-    info, error = traceback.format_exception(etype, value, tb)[-2:]
-    print(f'Exception in:\n{info}\n{error}', file=sys.stderr)
+def exception_msg(info: str, tb=True):
+    msg = f"{info}\n\n" + (
+        traceback.format_exc() if tb else '')
+    try:
+        wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
+    except wx._core.PyNoAppError:
+        print(f'Error: {msg}', file=sys.stderr)
 
 
 def io_file_error_msg(function: str, input_file: str, folder: str, more: str = '', tb=True):
@@ -152,12 +155,59 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
                 return False
 
         # Set correct page name in the table of contents (pdf outline)
-        toc = output.get_toc()
-        #print("Toc: ", toc)
-        toc[0][1] = template_name
-        output.set_toc(toc)
 
-        output.save(os.path.join(output_folder, output_file))
+        # toc = output.get_toc(simple=False)
+        # print("Toc: ", toc)
+        # toc[0][1] = template_name
+        # output.set_toc(toc)
+        # The above code doesn't work for the toc (outlines) of a pdf created by Kicad.
+        # It correctly sets the name of the first page, but when clicking on a footprint it no longer zooms to that footprint
+
+        # Lets do it the low-level way instead:
+        try:
+            xref = output.pdf_catalog()  # get xref of the /Catalog
+
+            # print(output.xref_object(xref))  # print object definition
+            # for key in output.xref_get_keys(xref): # iterate over all keys and print the keys and values
+            #     print("%s = %s" % (key, output.xref_get_key(xref, key)))
+
+            # The loop will output something like this:
+            # Type = ('name', '/Catalog')
+            # Pages = ('xref', '1 0 R')
+            # Version = ('name', '/1.5')
+            # PageMode = ('name', '/UseOutlines')
+            # Outlines = ('xref', '20 0 R')
+            # Names = ('xref', '4 0 R')
+            # PageLayout = ('name', '/SinglePage')
+
+            key_value = output.xref_get_key(xref, "Outlines") # Get the value of the 'Outlines' key
+            xref = int(key_value[1].split(' ')[0]) # Set xref to the xref found in the value of the 'Outlines' key
+
+            # The object now referenced by xref looks something like this:
+            # Type = ('name', '/Outlines')
+            # Count = ('int', '3')
+            # First = ('xref', '11 0 R')
+            # Last = ('xref', '11 0 R')
+
+            key_value = output.xref_get_key(xref, "First") # Get the value of the 'First' key
+            xref = int(key_value[1].split(' ')[0]) # Set xref to the xref found in the value of the 'First' key
+
+            # The object now referenced by xref looks something like this:
+            # Title = ('string', 'Page 1')
+            # Parent = ('xref', '20 0 R')
+            # Count = ('int', '-1')
+            # First = ('xref', '12 0 R')
+            # Last = ('xref', '12 0 R')
+            # A = ('xref', '10 0 R')
+
+            if output.xref_get_key(xref, "Title")[0] == 'string': # Check if the 'Title' key exists
+                page_name = "(" + template_name + ")"
+                output.xref_set_key(xref, "Title", page_name)
+
+        except Exception:
+            exception_msg("Didn't manage to set the name of the page in the Table-of-content")
+
+        output.save(os.path.join(output_folder, output_file)) # , garbage=2
         output.close()
 
     except Exception:
