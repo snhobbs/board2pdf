@@ -7,6 +7,7 @@ import re
 import traceback
 import tempfile
 import logging
+from pathlib import Path
 
 try:
     from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
@@ -17,11 +18,11 @@ except ImportError:
 has_pymupdf = True
 try:
     import pymupdf  # This imports PyMuPDF
-    
+
 except:
     try:
         import fitz as pymupdf  # This imports PyMuPDF using old name
-        
+
     except:
         try:
             import fitz_old as pymupdf # This imports PyMuPDF using temporary old name
@@ -136,7 +137,7 @@ def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, 
         return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name)
     else:
         return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, layer_scale)
-    
+
 def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, template_name: str):
     try:
         output = None
@@ -215,7 +216,7 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
         return False
 
     return True
-    
+
 def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
                     template_name: str, layer_scale: float):
     try:
@@ -312,7 +313,7 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file,
         for filename in input_files:
             try:
                 output.append(os.path.join(input_folder, filename))
-                
+
             except:
                 io_file_error_msg(create_pdf_from_pages.__name__, filename, input_folder)
                 return False
@@ -361,7 +362,7 @@ class LayerInfo:
             self.reference_designator = not template["layers_footprint_values"][layer_name] == "false"
         except KeyError:
             self.reference_designator = True
-            
+
         # Check the popup settings.
         self.front_popups = True
         self.back_popups = True
@@ -489,6 +490,11 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
     final_assembly_file = base_filename + asy_file_extension + ".pdf"
     final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
+
+    if "assembly_file_output" in kwargs:
+        final_assembly_file = kwargs.pop('assembly_file_output')
+        final_assembly_file_with_path = str(Path(final_assembly_file_with_path).absolute())
+
 
     # Create the directory if it doesn't exist already
     os.makedirs(output_dir, exist_ok=True)
@@ -651,7 +657,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     # Add all generated pdfs to one file
     progress += progress_step
     set_progress_status(progress, "Adding all templates to a single file")
-    
+
 
     if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file, use_popups):
         set_progress_status(100, "Failed when adding all templates to a single file")
@@ -713,7 +719,11 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
 
 def cli(board_filepath: str, configfile: str, **kwargs) -> bool:
-    import persistence
+    try:
+        from . import persistence
+    except ImportError:
+        import persistence
+
 
     board = pcbnew.LoadBoard(board_filepath)
     config = persistence.Persistence(configfile)

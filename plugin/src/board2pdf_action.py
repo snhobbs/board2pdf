@@ -6,7 +6,6 @@ import sys
 import pcbnew
 import wx
 
-version = "1.6"
 
 if __name__ == "__main__":
     # Circumvent the "scripts can't do relative imports because they are not
@@ -16,13 +15,22 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(dirname))
     __import__(__package__)
 
+from . _version import __version__
 from . import plot
 from . import dialog
 from . import persistence
 
 
+_board = None
+def get_board():
+    global _board
+    if _board is None:
+        _board = pcbnew.GetBoard()
+    return _board
+
+
 def run_with_dialog():
-    board = pcbnew.GetBoard()
+    board = get_board()
     pcb_file_name = board.GetFileName()
     board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
     pcb_file_dir = os.path.dirname(os.path.abspath(pcb_file_name))
@@ -75,7 +83,7 @@ def run_with_dialog():
         dialog_panel.ClearTemplateSettings()
         dialog_panel.hide_template_settings()
 
-    dlg = dialog.SettingsDialog(config, perform_export, load_saved, version)
+    dlg = dialog.SettingsDialog(config, perform_export, load_saved, __version__)
     try:
         icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
         icon = wx.Icon(icon_path)
@@ -96,11 +104,11 @@ def run_with_dialog():
     has_pymupdf = True
     try:
         import pymupdf  # This imports PyMuPDF
-        
+
     except:
         try:
             import fitz as pymupdf  # This imports PyMuPDF using old name
-            
+
         except:
             try:
                 import fitz_old as pymupdf # This imports PyMuPDF using temporary old name
@@ -133,7 +141,7 @@ def run_with_dialog():
 
 class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):
-        self.name = f"Board2Pdf\nversion {version}"
+        self.name = f"Board2Pdf\nversion {__version__}"
         self.category = "Plot"
         self.description = "Plot pcb to pdf."
         self.show_toolbar_button = True  # Optional, defaults to False
@@ -144,4 +152,8 @@ class board2pdf(pcbnew.ActionPlugin):
 
 
 if __name__ == "__main__":
-    run_with_dialog()
+    _board = pcbnew.LoadBoard(sys.argv[1])
+    #run_with_dialog()
+    app = wx.App()
+    p = board2pdf()
+    p.Run()
