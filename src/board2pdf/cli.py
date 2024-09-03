@@ -4,11 +4,15 @@ import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 
-import plot
+try:
+    from . import plot
+except ImportError:
+    import plot
 
 _logger = logging.getLogger(__name__)
-_ini_default = 'board2pdf.config.ini'
+_ini_default = Path(__file__).parent / 'board2pdf.config.ini'
 _log_levels = {'NOTSET': logging.NOTSET, 'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARN': logging.WARN,
                'ERROR': logging.ERROR, 'FATAL': logging.FATAL}
 _pdf_libs = ['pypdf', 'fitz']
@@ -42,7 +46,7 @@ def num_range(arg_type, min_val, max_val):
 def parse_args():
     parser = argparse.ArgumentParser(description='Board2Pdf CLI.')
     parser.add_argument('kicad_pcb', type=shell_path(), help='.kicad_pcb file')
-    parser.add_argument('--ini', default=_ini_default, type=shell_path(False, False), required=False,
+    parser.add_argument('--ini', default=str(_ini_default), type=shell_path(False, False), required=False,
                         help=f'`{_ini_default}` to use')
     parser.add_argument('--log', default='NOTSET', choices=_log_levels.keys(), required=False,
                         help='Enables logging with given log-level')
@@ -54,6 +58,8 @@ def parse_args():
                         help='PDF colorize processor library')
     parser.add_argument('--ext', default=None, required=False,
                         help='File extension to use for the merged PDF. Default is `__Assembly`.')
+    parser.add_argument('--output', default=None, required=False,
+                        help='Output file name. Takes precedent over --ext argument if set.')
     return parser.parse_args()
 
 
@@ -69,11 +75,12 @@ def main():
         logging.basicConfig(filename=log_file, level=log_level)
         _logger.info(f'starting logging with level: {_log_levels[args.log]}')
 
-    ini_path = os.path.abspath(args.ini)
-    if not os.path.exists(ini_path):
+    ini_path = Path(args.ini).absolute()
+
+    if not ini_path.exists():
         _logger.info(f'{ini_path=} not found, use pcb path')
-        ini_path = os.path.join(os.path.dirname(pcb_path), args.ini)
-        if not os.path.exists(ini_path):
+        ini_path = (Path(pcb_path).parent / args.ini).absolute()
+        if not ini_path.exists():
             _logger.error(f'{ini_path=} not found, terminate')
             print(f"Error: ini file `{args.ini}` not found.", sys.stderr)
             sys.exit(1)
@@ -90,6 +97,8 @@ def main():
         optional['merge_lib'] = args.merge
     if args.ext:
         optional['assembly_file_extension'] = args.ext
+    if args.output:
+        optional['assembly_file_output'] = args.output
     _logger.info(f'{optional=}')
 
     sys.exit(0 if plot.cli(pcb_path, ini_path, **optional) else 1)

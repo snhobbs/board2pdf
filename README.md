@@ -84,3 +84,5 @@ This plugin is licensed under the open-source GNU GPL license, version 3.0 or la
 
 This project is considered to be finished. When serious bugs are reported I will try my best to fix them, but don\'t
 expect to much progress in adding features from my side.
+
+
