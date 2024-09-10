@@ -355,11 +355,11 @@ class LayerInfo:
             # Bool specifying if footprint values shall be plotted
             self.footprint_value = template["layers_footprint_values"][layer_name] == "true"
         except KeyError:
-            self.footprint_value = False
+            self.footprint_value = True
 
         try:
-            # Bool specifying if footprint values shall be plotted
-            self.reference_designator = not template["layers_footprint_values"][layer_name] == "false"
+            # Bool specifying if footprint references shall be plotted
+            self.reference_designator = template["layers_reference_designators"][layer_name] == "true"
         except KeyError:
             self.reference_designator = True
 
