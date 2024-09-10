@@ -346,14 +346,14 @@ class LayerInfo:
         self.with_frame: bool = layer_name == frame_layer
 
         try:
-            # Bool specifying if footprint values shall be plotted
+            # Bool specifying if layer is negative
             self.negative = template["layers_negative"][layer_name] == "true"
         except KeyError:
             self.negative = False
 
         try:
-            # Bool specifying if layer is negative
-            self.footprint_value = template["layers_negative"][layer_name] == "true"
+            # Bool specifying if footprint values shall be plotted
+            self.footprint_value = template["layers_footprint_values"][layer_name] == "true"
         except KeyError:
             self.footprint_value = False
 
