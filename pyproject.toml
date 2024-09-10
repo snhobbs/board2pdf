@@ -2,8 +2,8 @@
 name = "board2pdf"
 version = "1.7.1"
 description='KiCAD Gerber PDF Generator'
-authors = []
-license = {file="LICENSE"}
+authors = [{name = "Albin Dennevi"}]
+license = {text = "GNU GPLv3"}
 readme = "README.md"
 
 requires-python = ">=3.6"
