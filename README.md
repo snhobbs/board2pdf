@@ -13,7 +13,7 @@ found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from With
 When loaded the plugin looks like this. Here the user can configure how the pdf shall look.
 ![Screenshot](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/screenshot.png "Screenshot")
 
-This plugin ONLY works with the KiCad 6.0 and 7.0. It does NOT work with KiCad 5.1.x or earlier versions. Take the leap!
+This plugin ONLY works with the KiCad 6.0 and later. It does NOT work with KiCad 5.1.x or earlier versions. Take the leap!
 You won\'t regret it.
 
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
