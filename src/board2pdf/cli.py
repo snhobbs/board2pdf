@@ -12,7 +12,6 @@ except ImportError:
     import plot
 
 _logger = logging.getLogger(__name__)
-_ini_default = Path(__file__).parent / 'board2pdf.config.ini'
 _log_levels = {'NOTSET': logging.NOTSET, 'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARN': logging.WARN,
                'ERROR': logging.ERROR, 'FATAL': logging.FATAL}
 _pdf_libs = ['pypdf', 'fitz']
@@ -46,8 +45,8 @@ def num_range(arg_type, min_val, max_val):
 def parse_args():
     parser = argparse.ArgumentParser(description='Board2Pdf CLI.')
     parser.add_argument('kicad_pcb', type=shell_path(), help='.kicad_pcb file')
-    parser.add_argument('--ini', default=str(_ini_default), type=shell_path(False, False), required=False,
-                        help=f'`{_ini_default}` to use')
+    parser.add_argument('--ini', default=None, type=shell_path(False, False), required=False,
+                        help=f'Path to `board2pdf.config.ini` to use')
     parser.add_argument('--log', default='NOTSET', choices=_log_levels.keys(), required=False,
                         help='Enables logging with given log-level')
     parser.add_argument('--scale', default=None, type=num_range(float, 1.0, 10.0), required=False,
@@ -75,15 +74,28 @@ def main():
         logging.basicConfig(filename=log_file, level=log_level)
         _logger.info(f'starting logging with level: {_log_levels[args.log]}')
 
-    ini_path = Path(args.ini).absolute()
-
-    if not ini_path.exists():
-        _logger.info(f'{ini_path=} not found, use pcb path')
-        ini_path = (Path(pcb_path).parent / args.ini).absolute()
+    # Check for the ini file specified with the --ini argument
+    # Terminate if the file is not found
+    # If no ini file is specified, look for an ini file in the pcb path, then the globally saved ini
+    # file, and last for the default ini file.
+    if args.ini:
+        ini_path = Path(args.ini).absolute()
         if not ini_path.exists():
-            _logger.error(f'{ini_path=} not found, terminate')
-            print(f"Error: ini file `{args.ini}` not found.", sys.stderr)
+            _logger.error(f'{ini_path=} specified with --ini argument not found, terminate')
+            print(f"Error: ini file `{args.ini}` specified with --ini argument not found.", sys.stderr)
             sys.exit(1)
+    else:
+        ini_path = Path(os.path.join(os.path.dirname(pcb_path), 'board2pdf.config.ini'))
+        if not ini_path.exists():
+            _logger.info(f'{ini_path=} not found, use global path')
+            ini_path = Path(__file__).parent / 'board2pdf.config.ini'
+            if not ini_path.exists():
+                _logger.info(f'{ini_path=} not found, use default path')
+                ini_path = Path(__file__).parent / 'default_config.ini'
+                if not ini_path.exists():
+                    _logger.error(f'{ini_path=} not found, terminate')
+                    print(f"Error: ini file `{args.ini}` not found.", sys.stderr)
+                    sys.exit(1)
 
     _logger.info(f'{pcb_path=}')
     _logger.info(f'{ini_path=}')
