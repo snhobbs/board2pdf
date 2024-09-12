@@ -23,6 +23,8 @@ You won\'t regret it.
 The easiest way to install is to open KiCad -> Plugin And Content Manager. Select Board2Pdf in the Plugins tab, press
 Install and then Apply Changes.
 
+If you only want to use the CLI (use Board2Pdf from the command line) you can also install Board2Pdf using pip: `pip install board2pdf`. Then you can use the Board2Pdf CLI by calling board2pdf just like any other application installed from pip.
+
 For instructions on manual installation,
 see [Wiki - Installation](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Installation)
 
