@@ -60,7 +60,11 @@ def io_file_error_msg(function: str, input_file: str, folder: str, more: str = '
         print(f'Error: {msg}', file=sys.stderr)
 
 
-def colorize_pdf_pymupdf(folder, input_file, output_file, color):
+def colorize_pdf_pymupdf(folder, input_file, output_file, color, transparency):
+    # If transparency is non zero, run colorize_pdf_pymupdf_with_transparency instead.
+    if not transparency == 0:
+        return colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, color, transparency)
+
     try:
         with pymupdf.open(os.path.join(folder, input_file)) as doc:
             xref_number = doc[0].get_contents()
@@ -85,7 +89,114 @@ def colorize_pdf_pymupdf(folder, input_file, output_file, color):
     return True
 
 
-def colorize_pdf_pypdf(folder, input_file, output_file, color):
+def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, color, transparency):
+    opacity = 1-float(transparency / 100)
+
+    doc = pymupdf.open(os.path.join(folder, input_file))
+    page = doc[0]
+    paths = page.get_drawings()  # extract existing drawings
+    # this is a list of "paths", which can directly be drawn again using Shape
+    # -------------------------------------------------------------------------
+    #
+    # define some output page with the same dimensions
+    outpdf = pymupdf.open()
+    outpage = outpdf.new_page(width=page.rect.width, height=page.rect.height)
+    shape = outpage.new_shape()  # make a drawing canvas for the output page
+    # --------------------------------------
+    # loop through the paths and draw them
+    # --------------------------------------
+    for path in paths:
+        #print("Object:")
+        #print("fill_opacity:", type(path["fill_opacity"]))
+        #print("stroke_opacity:", type(path["stroke_opacity"]))
+        if(path["color"] == None):
+            new_color = None
+        else:
+            new_color = color #tuple((float(0.0), float(1.0), float(1.0)))
+            
+        if(path["fill"] == None):
+            new_fill = None
+        else:
+            new_fill = color #tuple((float(1.0), float(0.0), float(1.0)))
+            
+        if(path["fill_opacity"] == None):
+            new_fill_opacity = None
+        else:
+            new_fill_opacity = opacity #float(0.5)
+            
+        if(path["stroke_opacity"] == None):
+            new_stroke_opacity = None
+        else:
+            new_stroke_opacity = opacity #float(0.5)
+            
+        #pprint.pp(path)
+        
+        # ------------------------------------
+        # draw each entry of the 'items' list
+        # ------------------------------------
+        for item in path["items"]:  # these are the draw commands
+            if item[0] == "l":  # line
+                shape.draw_line(item[1], item[2])
+            elif item[0] == "re":  # rectangle
+                shape.draw_rect(item[1])
+            elif item[0] == "qu":  # quad
+                shape.draw_quad(item[1])
+            elif item[0] == "c":  # curve
+                shape.draw_bezier(item[1], item[2], item[3], item[4])
+            else:
+                raise ValueError("unhandled drawing", item)
+        # ------------------------------------------------------
+        # all items are drawn, now apply the common properties
+        # to finish the path
+        # ------------------------------------------------------
+        if new_fill_opacity:
+            shape.finish(
+                fill=new_fill,  # fill color
+                color=new_color,  # line color
+                dashes=path["dashes"],  # line dashing
+                even_odd=path.get("even_odd", True),  # control color of overlaps
+                closePath=path["closePath"],  # whether to connect last and first point
+                #lineJoin=path["lineJoin"],  # how line joins should look like
+                #lineCap=max(path["lineCap"]),  # how line ends should look like
+                width=path["width"],  # line width
+                #stroke_opacity=new_stroke_opacity,  # same value for both
+                fill_opacity=new_fill_opacity,  # opacity parameters
+                )
+        
+        if new_stroke_opacity:
+            shape.finish(
+                fill=new_fill,  # fill color
+                color=new_color,  # line color
+                dashes=path["dashes"],  # line dashing
+                even_odd=path.get("even_odd", True),  # control color of overlaps
+                closePath=path["closePath"],  # whether to connect last and first point
+                #lineJoin=path["lineJoin"],  # how line joins should look like
+                #lineCap=max(path["lineCap"]),  # how line ends should look like
+                lineJoin=2,
+                lineCap=1,
+                width=path["width"],  # line width
+                stroke_opacity=new_stroke_opacity,  # same value for both
+                #fill_opacity=new_fill_opacity,  # opacity parameters
+                )
+
+        
+    # all paths processed - commit the shape to its page
+    shape.commit()
+
+    print("New page")
+    page = outpdf[0]
+    paths = page.get_drawings()  # extract existing drawings
+
+    #for path in paths:
+    #    print("Object:")
+    #    pprint.pp(path)
+
+    outpdf.save(os.path.join(folder, output_file), clean=True)
+    
+    return True
+
+
+def colorize_pdf_pypdf(folder, input_file, output_file, color, transparency):
     try:
         with open(os.path.join(folder, input_file), "rb") as f:
             class ErrorHandler(object):
@@ -206,7 +317,11 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
                 output.xref_set_key(xref, "Title", page_name)
 
         except Exception:
-            exception_msg("Didn't manage to set the name of the page in the Table-of-content")
+            # If the first page was colored using colorize_pdf_pymupdf_with_transparency, then the table of
+            # contents (pdf outline) has been lost.
+            # Lets create a new toc with the correct page name.
+            toc = [[1, template_name, 1]]
+            output.set_toc(toc)
 
         output.save(os.path.join(output_folder, output_file)) # , garbage=2
         output.close()
@@ -338,12 +453,18 @@ def create_pdf_from_pages(input_folder, input_files, output_folder, output_file,
 
 class LayerInfo:
     std_color = "#000000"
+    std_transparency = 0
 
     def __init__(self, layer_names: dict, layer_name: str, template: dict, frame_layer: str, popups: str):
         self.name: str = layer_name
         self.id: int = layer_names[layer_name]
         self.color_hex: str = template["layers"].get(layer_name, self.std_color)  # color as '#rrggbb' hex string
         self.with_frame: bool = layer_name == frame_layer
+        
+        try:
+            self.transparency_value = int(template["layers_transparency"][layer_name])  # transparency as '0'-'100' string
+        except KeyError:
+            self.transparency_value = 0
 
         try:
             # Bool specifying if layer is negative
@@ -378,6 +499,11 @@ class LayerInfo:
     def has_color(self) -> bool:
         """Checks if the layer color is not the standard color (=black)."""
         return self.color_hex != self.std_color
+        
+    @property
+    def has_transparency(self) -> bool:
+        """Checks if the layer transparency is not the standard value (=0%)."""
+        return self.transparency_value != self.std_transparency
 
     @property
     def color_rgb(self) -> tuple[float, float, float]:
@@ -387,6 +513,12 @@ class LayerInfo:
         rgb = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
         rgb = (rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
         return rgb
+
+    @property
+    def transparency(self) -> int:
+        """Return 0-100 in str."""
+        value = self.transparency_value
+        return value
 
     def __repr__(self):
         var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
@@ -619,11 +751,11 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             ln = layer_info.name.replace('.', '_')
             input_file = f"{base_filename}-{ln}.pdf"
             output_file = f"{base_filename}-{ln}-colored.pdf"
-            if layer_info.has_color:
+            if layer_info.has_color or layer_info.has_transparency:
                 progress += progress_step
                 set_progress_status(progress, f"Coloring {layer_info.name} for template {template.name}")
 
-                if not colorize_pdf(temp_dir, input_file, output_file, layer_info.color_rgb):
+                if not colorize_pdf(temp_dir, input_file, output_file, layer_info.color_rgb, layer_info.transparency):
                     set_progress_status(100, f"Failed when coloring {layer_info.name} for template {template.name}")
                     return False
 

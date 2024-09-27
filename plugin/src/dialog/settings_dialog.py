@@ -153,12 +153,15 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def hide_layer_settings(self):
         self.m_textCtrl_color.Disable()
+        self.m_textCtrl_transparency.Disable()
         self.m_button_pick_color.Disable()
         self.m_checkBox_negative.Disable()
         self.m_checkBox_reference_designators.Disable()
         self.m_checkBox_footprint_values.Disable()
         self.m_staticText_layer_color.Disable()
         self.m_textCtrl_color.ChangeValue("")
+        self.m_staticText_layer_transparency.Disable()
+        self.m_textCtrl_transparency.ChangeValue("")
         self.m_color_shower.SetBackgroundColour(wx.NullColour)
         self.m_color_shower.SetForegroundColour(wx.NullColour)
         self.m_color_shower.SetLabel("")
@@ -186,11 +189,13 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def show_layer_settings(self):
         self.m_textCtrl_color.Enable()
+        self.m_textCtrl_transparency.Enable()
         self.m_button_pick_color.Enable()
         self.m_checkBox_negative.Enable()
         self.m_checkBox_reference_designators.Enable()
         self.m_checkBox_footprint_values.Enable()
         self.m_staticText_layer_color.Enable()
+        self.m_staticText_layer_transparency.Enable()
 
     def OnExit(self, event):
         self.GetParent().EndModal(wx.ID_CANCEL)
@@ -433,11 +438,13 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             # Create dictionary with all layers and their settings
             if item in self.templates:
                 self.layersColorDict = self.templates[item].get("layers", {})
+                self.layersTransparencyDict = self.templates[item].get("layers_transparency", {})
                 self.layersNegativeDict = self.templates[item].get("layers_negative", {})
                 self.layersFootprintValuesDict = self.templates[item].get("layers_footprint_values", {})
                 self.layersReferenceDesignatorsDict = self.templates[item].get("layers_reference_designators", {})
             else:
                 self.layersColorDict = {}
+                self.layersTransparencyDict = {}
                 self.layersNegativeDict = {}
                 self.layersFootprintValuesDict = {}
                 self.layersReferenceDesignatorsDict = {}
@@ -495,6 +502,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.m_color_shower.SetForegroundColour(rgb_color)
             self.m_color_shower.SetLabel(str(rgb_color))
 
+            transparency = self.layersTransparencyDict.get(item, "0")
+            self.m_textCtrl_transparency.ChangeValue(transparency+'%')
+
             self.m_checkBox_negative.SetValue(self.layersNegativeDict.get(item, "false") == "true")
             self.m_checkBox_footprint_values.SetValue(self.layersFootprintValuesDict.get(item, "true") == "true")
             self.m_checkBox_reference_designators.SetValue(
@@ -514,6 +524,15 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
         self.SaveTemplate()
 
+    def OnTransparencyLostFocus(self, event):
+        transparency = re.sub('[^0-9]', '', self.m_textCtrl_transparency.GetValue())
+        if not transparency:
+            transparency = "0"
+        if int(transparency) > 100:
+            transparency = "100"
+        self.m_textCtrl_transparency.ChangeValue(str(int(transparency)) + "%")
+        event.Skip()
+
     def OnSaveLayer(self, event):
         if self.current_layer:
             def bool_str(value: bool):
@@ -521,6 +540,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
             cl = self.current_layer
             self.layersColorDict[cl] = self.m_textCtrl_color.GetValue()
+            self.layersTransparencyDict[cl] = re.sub('[^0-9]', '', self.m_textCtrl_transparency.GetValue())
             self.layersNegativeDict[cl] = bool_str(self.m_checkBox_negative.IsChecked())
             self.layersFootprintValuesDict[cl] = self.m_checkBox_footprint_values.GetValue()
             self.layersFootprintValuesDict[cl] = bool_str(self.m_checkBox_footprint_values.IsChecked())
@@ -560,6 +580,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                              "frame": frame_layer.split(' (')[0],  # Remove parenthesis if there is one
                              "popups": self.m_comboBox_popups.GetValue(),
                              "layers": self.layersColorDict,
+                             "layers_transparency": self.layersTransparencyDict,
                              "layers_negative": self.layersNegativeDict,
                              "layers_footprint_values": self.layersFootprintValuesDict,
                              "layers_reference_designators": self.layersReferenceDesignatorsDict}
@@ -582,6 +603,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_tent.SetValue(False)
         self.m_comboBox_frame.Clear()
         self.m_textCtrl_color.ChangeValue("")
+        self.m_textCtrl_transparency.ChangeValue("")
         self.m_color_shower.SetBackgroundColour(wx.NullColour)
         self.m_color_shower.SetForegroundColour(wx.NullColour)
         self.m_color_shower.SetLabel("")

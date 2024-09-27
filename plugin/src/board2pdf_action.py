@@ -5,6 +5,7 @@ import shutil
 import sys
 import pcbnew
 import wx
+import pathlib
 
 
 if __name__ == "__main__":
@@ -152,7 +153,13 @@ class board2pdf(pcbnew.ActionPlugin):
 
 
 if __name__ == "__main__":
-    _board = pcbnew.LoadBoard(sys.argv[1])
+    try:
+        board_path = pathlib.Path(sys.argv[1]).absolute()
+        assert board_path.exists()
+        _board = pcbnew.LoadBoard(str(board_path))
+    except IndexError:
+        pass
+
     #run_with_dialog()
     app = wx.App()
     p = board2pdf()

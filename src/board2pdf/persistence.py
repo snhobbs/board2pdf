@@ -64,7 +64,10 @@ class Persistence:
             self._config.set(section, option, value)
 
         with open(file_path, 'w') as f:
-            self._config.write(f)
+            try:
+                self._config.write(f)
+            except:
+                raise Exception(f"Unable to save")
 
     def load(self) -> dict:
         self._config.read(self._configfile)

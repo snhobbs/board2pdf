@@ -337,15 +337,38 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
 
+        gSizer4 = wx.GridSizer( 0, 2, 0, 0 )
+
+        self.m_staticText_layer_transparency = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Transparency (needs PyMuPdf)", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_layer_transparency.Wrap( -1 )
+
+        gSizer4.Add( self.m_staticText_layer_transparency, 0, wx.ALL, 5 )
+
+        gSizer5 = wx.GridSizer( 0, 2, 0, 0 )
+
+        self.m_textCtrl_transparency = wx.TextCtrl( sbSizer611.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 80,-1 ), 0 )
+        gSizer5.Add( self.m_textCtrl_transparency, 0, wx.ALL, 5 )
+
+        self.m_staticText14 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"0% – 100%", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText14.Wrap( -1 )
+
+        gSizer5.Add( self.m_staticText14, 0, wx.ALL, 5 )
+
+
+        gSizer4.Add( gSizer5, 1, wx.EXPAND, 5 )
+
+
+        sbSizer611.Add( gSizer4, 1, wx.EXPAND, 5 )
+
         gSizer3 = wx.GridSizer( 0, 3, 0, 0 )
 
         self.m_checkBox_negative = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Negative plot", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer3.Add( self.m_checkBox_negative, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
-        self.m_checkBox_reference_designators = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot ref. designators", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_checkBox_reference_designators = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot references", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer3.Add( self.m_checkBox_reference_designators, 0, wx.ALL, 5 )
 
-        self.m_checkBox_footprint_values = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot footprint values", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_checkBox_footprint_values = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot fp values", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer3.Add( self.m_checkBox_footprint_values, 0, wx.ALL, 5 )
 
 
@@ -471,6 +494,8 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
         self.m_textCtrl_color.Bind( wx.EVT_TEXT, self.OnSaveLayer )
         self.m_button_pick_color.Bind( wx.EVT_BUTTON, self.OnPickColor )
+        self.m_textCtrl_transparency.Bind( wx.EVT_KILL_FOCUS, self.OnTransparencyLostFocus )
+        self.m_textCtrl_transparency.Bind( wx.EVT_TEXT, self.OnSaveLayer )
         self.m_checkBox_negative.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.m_checkBox_reference_designators.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
         self.m_checkBox_footprint_values.Bind( wx.EVT_CHECKBOX, self.OnSaveLayer )
@@ -533,6 +558,10 @@ class SettingsDialogPanel ( wx.Panel ):
 
     def OnPickColor( self, event ):
         event.Skip()
+
+    def OnTransparencyLostFocus( self, event ):
+        event.Skip()
+
 
 
 
