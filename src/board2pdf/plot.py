@@ -735,7 +735,10 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
                         plot_options.m_PDFBackFPPropertyPopups = False
 
                 plot_controller.SetLayer(layer_info.id)
-                plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
+                if pcbnew.Version()[0:3] == "6.0":
+                    plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
+                else:
+                    plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, "", template.name)
                 plot_controller.PlotLayer()
             except:
                 msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
