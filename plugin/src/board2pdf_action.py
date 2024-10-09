@@ -150,6 +150,18 @@ def run_with_dialog():
         dlg.panel.m_radio_pypdf.SetValue(True)
         dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
+    # Check if able to import pdfCropMargins.
+    has_pdfcropmargins = True
+    try:
+        from pdfCropMargins import crop  # This imports pdfCropMargins
+    except:
+        has_pdfcropmargins = False
+
+    if has_pdfcropmargins:
+        dlg.panel.m_staticText_pdfCropMargins.SetLabel(f'pdfCropMargins Status: Installed')
+    else:
+        dlg.panel.m_staticText_pdfCropMargins.SetLabel(f'pdfCropMargins Status: NOT Installed')
+
     dlg.ShowModal()
     dlg.Destroy()
 

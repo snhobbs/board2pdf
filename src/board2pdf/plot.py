@@ -38,6 +38,12 @@ if has_pymupdf:
     except:
         has_pymupdf = False
 
+# Try to import pdfCropMargins.
+has_pdfcropmargins = True
+try:
+    from pdfCropMargins import crop  # This imports pdfCropMargins
+except:
+    has_pdfcropmargins = False
 
 _logger = logging.getLogger(__name__)
 
@@ -238,18 +244,23 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color, transparency):
     return True
 
 def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float, template_use_popups: bool, template_name: str):
+                    scale_or_crop: dict, layer_scale: float, template_use_popups: bool, template_name: str):
     # I haven't found a way to scale the pdf and preserve the popup-menus.
     # For now, I'm taking the easy way out and handle the merging differently depending
     # on if scaling is used or not. At least the popup-menus are preserved when not using scaling.
     # https://github.com/pymupdf/PyMuPDF/discussions/2499
     # If popups aren't used, I'm using the with_scaling method to get rid of annotations
     if template_use_popups and layer_scale == 1.0:
-        return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name)
+        return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, scale_or_crop, template_name)
     else:
         return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, layer_scale)
 
-def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, template_name: str):
+def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, scale_or_crop: dict, template_name: str):
+    if(scale_or_crop['scaling_method'] == '1'):
+        merged_file = "merged_" + output_file
+    else:
+        merged_file = output_file
+
     try:
         output = None
         for filename in reversed(input_files):
@@ -323,12 +334,22 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
             toc = [[1, template_name, 1]]
             output.set_toc(toc)
 
-        output.save(os.path.join(output_folder, output_file)) # , garbage=2
+        output.save(os.path.join(output_folder, merged_file)) # , garbage=2
         output.close()
 
     except Exception:
-        io_file_error_msg(merge_pdf_pymupdf.__name__, output_file, output_folder)
+        io_file_error_msg(merge_pdf_pymupdf.__name__, merged_file, output_folder)
         return False
+
+    if(scale_or_crop['scaling_method'] == '1'):
+        output_doc_pathname, exit_code, stdout_str, stderr_str = crop(
+                             ["-p", "0", "-a", "-" + scale_or_crop['crop_whitespace'], "-o", os.path.join(output_folder, output_file), os.path.join(output_folder, merged_file)],
+                             string_io=True, quiet=False)
+
+        print("output_doc_pathname" + str(output_doc_pathname))
+        print("exit_code" + str(exit_code))
+        print("stdout_str" + str(stdout_str))
+        print("stderr_str" + str(stderr_str))
 
     return True
 
@@ -373,7 +394,7 @@ def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_
     return True
 
 def merge_pdf_pypdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    layer_scale: float, template_use_popups: bool, template_name: str):
+                    scale_or_crop: dict, layer_scale: float, template_use_popups: bool, template_name: str):
     try:
         page = None
         for filename in input_files:
@@ -530,6 +551,8 @@ class Template:
         self.name: str = name  # the template name
         self.mirrored: bool = template.get("mirrored", False)  # template is mirrored or not
         self.tented: bool = template.get("tented", False)  # template is tented or not
+        self.scale_or_crop: dict = { "scaling_method": template.get("scaling_method", "0"),
+                                     "crop_whitespace": template.get("crop_whitespace", "0") }
 
         frame_layer: str = template.get("frame", "")  # layer name of the frame layer
         popups: str = template.get("popups", "")  # setting saying if popups shall be taken from front, back or both
@@ -692,7 +715,6 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
     # Iterate over the templates
     for template in templates_list:
-        # msg_box("Now starting with template: " + template_name)
         # Plot layers to pdf files
         for layer_info in template.settings:
             progress += progress_step
@@ -781,7 +803,8 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
         assembly_file = f"{base_filename}_{template.name}.pdf"
 
-        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, layer_scale, template_use_popups, template.name):
+        print("template.scale_or_crop: " + str(template.scale_or_crop))
+        if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, template.scale_or_crop, layer_scale, template_use_popups, template.name):
             set_progress_status(100, "Failed when merging all layers of template " + template.name)
             return False
 

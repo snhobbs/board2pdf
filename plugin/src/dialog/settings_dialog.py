@@ -170,6 +170,10 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.disabledLayersSortOrderBox.Disable()
         self.m_button_layer_enable.Disable()
         self.m_staticText_layer_info.Disable()
+        
+        self.m_comboBox_scaling.SetSelection(0)
+        self.m_comboBox_scaling.Disable()
+        self.m_simplebook_scaling.ChangeSelection(0)
 
     def hide_layer_settings(self):
         self.m_textCtrl_color.Disable()
@@ -206,6 +210,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.disabledLayersSortOrderBox.Enable()
         self.m_button_layer_enable.Enable()
         self.m_staticText_layer_info.Enable()
+        self.m_comboBox_scaling.Enable()
 
     def show_layer_settings(self):
         self.m_textCtrl_color.Enable()
@@ -506,6 +511,21 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 tented = self.templates[item]["tented"]
                 self.m_checkBox_tent.SetValue(bool(tented))
 
+            # Update the comboBox where users selects cropping or scaling
+            if item in self.templates and "scaling_method" in self.templates[item]:
+                #scaling_method = self.templates[item]["scaling_method"]
+                #scaling_method_pos = self.m_comboBox_scaling.FindString(scaling_method)
+                scaling_method_pos = int(self.templates[item]["scaling_method"])
+                if scaling_method_pos != wx.NOT_FOUND:
+                    self.m_comboBox_scaling.SetSelection(scaling_method_pos)
+                    self.m_simplebook_scaling.ChangeSelection(scaling_method_pos)
+
+            # Set the cropping and scaling settings to saved settings
+            if item in self.templates and "crop_whitespace" in self.templates[item]:
+                self.m_textCtrl_crop_whitespace.ChangeValue(self.templates[item]["crop_whitespace"])
+            else:
+                self.m_textCtrl_crop_whitespace.ChangeValue("10")
+
     def OnLayerEdit(self, event):
         _log.debug("OnLayerEdit")
         self.OnSaveLayer(self)
@@ -556,6 +576,11 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_textCtrl_transparency.ChangeValue(str(int(transparency)) + "%")
         event.Skip()
 
+    def OnScalingChoiceChanged(self, event):
+        selected_item = self.m_comboBox_scaling.GetCurrentSelection()
+        print("Selection:", self.m_comboBox_scaling.GetValue())
+        self.m_simplebook_scaling.ChangeSelection(selected_item)
+
     def OnSaveLayer(self, event):
         if self.current_layer:
             def bool_str(value: bool):
@@ -602,6 +627,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                              "enabled_layers": enabled_layers,
                              "frame": frame_layer.split(' (')[0],  # Remove parenthesis if there is one
                              "popups": self.m_comboBox_popups.GetValue(),
+                             "scaling_method": str(self.m_comboBox_scaling.GetCurrentSelection()),
+                             "crop_whitespace": self.m_textCtrl_crop_whitespace.GetValue(),
                              "layers": self.layersColorDict,
                              "layers_transparency": self.layersTransparencyDict,
                              "layers_negative": self.layersNegativeDict,
@@ -633,6 +660,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_negative.SetValue(False)
         self.m_checkBox_footprint_values.SetValue(True)
         self.m_checkBox_reference_designators.SetValue(True)
+        self.m_textCtrl_crop_whitespace.SetValue("")
         self.layersSortOrderBox.Clear()
         self.disabledLayersSortOrderBox.Clear()
         self.hide_layer_settings()

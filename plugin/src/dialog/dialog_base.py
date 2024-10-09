@@ -463,6 +463,44 @@ class SettingsDialogPanel ( wx.Panel ):
 
         m_sizer_template.Add( layersSizer1, 1, wx.ALL|wx.EXPAND, 5 )
 
+        scaleSizer = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Scale and Crop" ), wx.VERTICAL )
+
+        m_comboBox_scalingChoices = [ u"No Scaling or Cropping", u"Crop" ]
+        self.m_comboBox_scaling = wx.ComboBox( scaleSizer.GetStaticBox(), wx.ID_ANY, u"No Scaling or Cropping", wx.DefaultPosition, wx.Size( 350,-1 ), m_comboBox_scalingChoices, 0 )
+        scaleSizer.Add( self.m_comboBox_scaling, 0, wx.ALL, 5 )
+
+        self.m_simplebook_scaling = wx.Simplebook( scaleSizer.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_panel_no_scaling = wx.Panel( self.m_simplebook_scaling, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+        self.m_simplebook_scaling.AddPage( self.m_panel_no_scaling, u"a page", False )
+        self.m_panel_crop = wx.Panel( self.m_simplebook_scaling, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+        fgSizer2 = wx.FlexGridSizer( 0, 2, 0, 0 )
+        fgSizer2.SetFlexibleDirection( wx.BOTH )
+        fgSizer2.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_staticText17 = wx.StaticText( self.m_panel_crop, wx.ID_ANY, u"Keep whitespace around board (in BP units)", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText17.Wrap( -1 )
+
+        fgSizer2.Add( self.m_staticText17, 0, wx.ALL, 5 )
+
+        self.m_textCtrl_crop_whitespace = wx.TextCtrl( self.m_panel_crop, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 50,-1 ), 0 )
+        fgSizer2.Add( self.m_textCtrl_crop_whitespace, 0, wx.ALL, 5 )
+
+
+        self.m_panel_crop.SetSizer( fgSizer2 )
+        self.m_panel_crop.Layout()
+        fgSizer2.Fit( self.m_panel_crop )
+        self.m_simplebook_scaling.AddPage( self.m_panel_crop, u"a page", False )
+
+        scaleSizer.Add( self.m_simplebook_scaling, 1, wx.EXPAND |wx.ALL, 5 )
+
+        self.m_staticText_pdfCropMargins = wx.StaticText( scaleSizer.GetStaticBox(), wx.ID_ANY, u"pdfCropMargins Status:", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_pdfCropMargins.Wrap( -1 )
+
+        scaleSizer.Add( self.m_staticText_pdfCropMargins, 0, wx.ALL, 5 )
+
+
+        m_sizer_template.Add( scaleSizer, 1, wx.EXPAND, 5 )
+
 
         sbSizer23.Add( m_sizer_template, 1, wx.EXPAND, 5 )
 
@@ -506,6 +544,7 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button_layer_disable.Bind( wx.EVT_BUTTON, self.OnLayerDisable )
         self.disabledLayersSortOrderBox.Bind( wx.EVT_LISTBOX_DCLICK, self.OnLayerEnable )
         self.m_button_layer_enable.Bind( wx.EVT_BUTTON, self.OnLayerEnable )
+        self.m_comboBox_scaling.Bind( wx.EVT_COMBOBOX, self.OnScalingChoiceChanged )
 
     def __del__( self ):
         pass
@@ -582,5 +621,8 @@ class SettingsDialogPanel ( wx.Panel ):
     def OnLayerEnable( self, event ):
         event.Skip()
 
+
+    def OnScalingChoiceChanged( self, event ):
+        event.Skip()
 
 
