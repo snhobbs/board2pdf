@@ -4,17 +4,29 @@ import os
 import wx
 import wx.grid
 import pcbnew
+import logging
 
 from . import dialog_base
+
+_log = logging.getLogger("board2pdf")
+
+def sanitize_template_name(item: str) -> str:
+    '''
+    remove any special characters and none ascii from the template names
+    '''
+    value = re.sub(b'[^A-Za-z0-9\-\+\ \_]+', b'', item.encode('ascii', errors='ignore'))
+
+    "Characters except for A-Z, a-z, 0-9, -, +, _ and ' ' will be ignored.",
+    return value.decode("ascii", errors="ignore")
 
 
 def pop_error(msg):
     wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
 
 class SettingsDialog(dialog_base.SettingsDialogBase):
-    def __init__(self, config, perform_export_func, load_saved_func, version):
+    def __init__(self, config, perform_export_func, load_saved_func, version, board):
         dialog_base.SettingsDialogBase.__init__(self, None)
-        self.panel = SettingsDialogPanel(self, config, perform_export_func, load_saved_func)
+        self.panel = SettingsDialogPanel(self, config, perform_export_func, load_saved_func, board=board)
         best_size = self.panel.BestSize
         # hack for some gtk themes that incorrectly calculate best size
         best_size.IncBy(dx=0, dy=30)
@@ -26,6 +38,7 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
             self.panel.m_comboBox_popups.Delete(pos)
             pos = self.panel.m_comboBox_popups.FindString("Back Layer")
             self.panel.m_comboBox_popups.Delete(pos)
+
 
     # hack for new wxFormBuilder generating code incompatible with old wxPython
     # noinspection PyMethodOverriding
@@ -39,7 +52,8 @@ class SettingsDialog(dialog_base.SettingsDialogBase):
 
 # Implementing settings_dialog
 class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
-    def __init__(self, parent, config, perform_export_func, load_saved_func):
+    def __init__(self, parent, config, perform_export_func, load_saved_func, board: pcbnew.BOARD):
+        self.board = board
         self.config = config
         self.perform_export_func = perform_export_func
         self.load_saved_func = load_saved_func
@@ -52,6 +66,12 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_color_shower.SetLabel("")
         self.hide_template_settings()
         self.hide_layer_settings()
+
+        self.layersColorDict = {}
+        self.layersTransparencyDict = {}
+        self.layersNegativeDict = {}
+        self.layersFootprintValuesDict = {}
+        self.layersReferenceDesignatorsDict = {}
 
         self.save_menu = wx.Menu()
         self.save_globally = self.save_menu.Append(
@@ -198,7 +218,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_staticText_layer_transparency.Enable()
 
     def OnExit(self, event):
-        self.GetParent().EndModal(wx.ID_CANCEL)
+        event.Skip()
+        # self.GetParent().EndModal(wx.ID_CANCEL)
+        #self.Destroy()
 
     def OnPerform(self, event):
         self.SaveTemplate()
@@ -230,7 +252,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         item = wx.GetTextFromUser(
             "Characters except for A-Z, a-z, 0-9, -, +, _ and ' ' will be ignored.",
             "Add new template")
-        item = re.sub('[^A-Za-z0-9\-\+ _]', '', item)
+        item = sanitize_template_name(item)
         if item == '':
             return
 
@@ -389,6 +411,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.SaveTemplate()
 
     def OnTemplateEdit(self, event):
+        _log.debug("OnTemplateEdit")
         self.OnSaveLayer(self)
         self.SaveTemplate()
 
@@ -401,13 +424,12 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.m_textCtrl_template_name.ChangeValue(item)
             self.current_template = item
 
-            board = pcbnew.GetBoard()
             layers = []
             layers_dict = dict()
             i = pcbnew.PCBNEW_LAYER_ID_START
             while i < pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT:
                 layer_std_name = pcbnew.BOARD.GetStandardLayerName(i)
-                layer_name = pcbnew.BOARD.GetLayerName(board, i)
+                layer_name = pcbnew.BOARD.GetLayerName(self.board, i)
                 layers_dict[layer_std_name] = layer_name
                 if layer_std_name == layer_name:
                     layers.append(layer_name)
@@ -485,6 +507,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 self.m_checkBox_tent.SetValue(bool(tented))
 
     def OnLayerEdit(self, event):
+        _log.debug("OnLayerEdit")
         self.OnSaveLayer(self)
         selection = self.layersSortOrderBox.Selection
         if selection != wx.NOT_FOUND:
@@ -512,7 +535,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def OnTemplateNameChange(self, event):
         template_name = self.m_textCtrl_template_name.GetValue()
-        item = re.sub('[^A-Za-z0-9\-\+ _]', '', template_name)
+        item = sanitize_template_name(item)
         if item != template_name:
             self.m_textCtrl_template_name.SetValue(item)
             return

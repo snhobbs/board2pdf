@@ -6,27 +6,39 @@ import sys
 import pcbnew
 import wx
 import pathlib
+import logging
 
+_log=logging.getLogger("board2pdf")
 
-if __name__ == "__main__":
-    # Circumvent the "scripts can't do relative imports because they are not
-    # packages" restriction by asserting dominance and making it a package!
-    dirname = os.path.dirname(os.path.abspath(__file__))
-    __package__ = os.path.basename(dirname)
-    sys.path.insert(0, os.path.dirname(dirname))
+dirname = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+_package = os.path.basename(dirname)
+
+try:
+    from . _version import __version__
+except ImportError:
+    # sys.path.insert(0, os.path.dirname(dirname))
+    sys.path.append(os.path.dirname(dirname))
+    # Pretend we are part of a module
+    # Avoids: ImportError: attempted relative import with no known parent package
+    __package__ = _package
     __import__(__package__)
+    _log.debug("Package: %s\tDir: %s", __package__, dirname)
 
 from . _version import __version__
 from . import plot
 from . import dialog
 from . import persistence
-
+_log.debug("File: %s\tVersion: %s", __file__, __version__)
 
 _board = None
-def get_board():
+def set_board(board: pcbnew.BOARD):
     global _board
+    assert isinstance(board, pcbnew.BOARD)
+    _board = board
+
+def get_board() -> pcbnew.BOARD:
     if _board is None:
-        _board = pcbnew.GetBoard()
+        set_board(pcbnew.GetBoard())
     return _board
 
 
@@ -84,7 +96,7 @@ def run_with_dialog():
         dialog_panel.ClearTemplateSettings()
         dialog_panel.hide_template_settings()
 
-    dlg = dialog.SettingsDialog(config, perform_export, load_saved, __version__)
+    dlg = dialog.SettingsDialog(config, perform_export, load_saved, version=__version__, board=get_board())
     try:
         icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
         icon = wx.Icon(icon_path)
@@ -106,15 +118,19 @@ def run_with_dialog():
     try:
         import pymupdf  # This imports PyMuPDF
 
-    except:
+    except ImportError:
         try:
             import fitz as pymupdf  # This imports PyMuPDF using old name
+            _log.info("pymupdf old version found")
 
-        except:
+        except ImportError:
             try:
                 import fitz_old as pymupdf # This imports PyMuPDF using temporary old name
+                _log.info("pymupdf found")
 
-            except:
+
+            except ImportError:
+                _log.info("pymupdf not found, using pypdf")
                 has_pymupdf = False
 
     # after pip uninstall PyMuPDF the import still works, but not `open()`
@@ -122,7 +138,8 @@ def run_with_dialog():
     if has_pymupdf:
         try:
             pymupdf.open()
-        except:
+        except Exception as e:
+            _log.error("pymupdf partially initialized, falling back on pypdf. Error: %s", str(e))
             has_pymupdf = False
 
     # If it was possible to import and open PyMuPdf, select pymupdf otherwise select pypdf.
@@ -134,9 +151,6 @@ def run_with_dialog():
         dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
     dlg.ShowModal()
-    # response = dlg.ShowModal()
-    # if response == wx.ID_CANCEL:
-
     dlg.Destroy()
 
 
@@ -152,15 +166,27 @@ class board2pdf(pcbnew.ActionPlugin):
         run_with_dialog()
 
 
+def main():
+    if not wx.App.Get():
+        _log.debug("No existing app found, creating App")
+        app = wx.App()
+    run_with_dialog()
+
+
 if __name__ == "__main__":
+    logging.basicConfig()
+    _log.setLevel(logging.DEBUG)
+    board = None
     try:
         board_path = pathlib.Path(sys.argv[1]).absolute()
         assert board_path.exists()
-        _board = pcbnew.LoadBoard(str(board_path))
+        board = pcbnew.LoadBoard(str(board_path))
     except IndexError:
-        pass
+        _log.info("No board path passed as argument, trying kicad environment")
+        board = pcbnew.GetBoard()
 
-    #run_with_dialog()
-    app = wx.App()
-    p = board2pdf()
-    p.Run()
+    if board is not None:
+        set_board(board)
+        main()
+    else:
+        _log.error("No board path passed or found in environment")
