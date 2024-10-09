@@ -343,7 +343,7 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
 
     if(scale_or_crop['scaling_method'] == '1'):
         output_doc_pathname, exit_code, stdout_str, stderr_str = crop(
-                             ["-p", "0", "-a", "-" + scale_or_crop['crop_whitespace'], "-o", os.path.join(output_folder, output_file), os.path.join(output_folder, merged_file)],
+                             ["-p", "0", "-a", "-" + scale_or_crop['crop_whitespace'], "-t", "250", "-o", os.path.join(output_folder, output_file), os.path.join(output_folder, merged_file)],
                              string_io=True, quiet=False)
 
         print("output_doc_pathname" + str(output_doc_pathname))
