@@ -530,6 +530,10 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button42.Bind( wx.EVT_BUTTON, self.OnPerform )
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
+        self.m_comboBox_frame.Bind( wx.EVT_COMBOBOX, self.SaveTemplate )
+        self.m_comboBox_popups.Bind( wx.EVT_COMBOBOX, self.SaveTemplate )
+        self.m_checkBox_mirror.Bind( wx.EVT_CHECKBOX, self.SaveTemplate )
+        self.m_checkBox_tent.Bind( wx.EVT_CHECKBOX, self.SaveTemplate )
         self.m_textCtrl_color.Bind( wx.EVT_TEXT, self.OnSaveLayer )
         self.m_button_pick_color.Bind( wx.EVT_BUTTON, self.OnPickColor )
         self.m_textCtrl_transparency.Bind( wx.EVT_KILL_FOCUS, self.OnTransparencyLostFocus )
@@ -591,6 +595,12 @@ class SettingsDialogPanel ( wx.Panel ):
 
     def OnTemplateNameChange( self, event ):
         event.Skip()
+
+    def SaveTemplate( self, event ):
+        event.Skip()
+
+
+
 
     def OnSaveLayer( self, event ):
         event.Skip()
