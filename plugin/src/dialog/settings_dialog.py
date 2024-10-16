@@ -108,18 +108,21 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.config._configfile = self.config.default_settings_file_path
         self.config.load()
         self.load_saved_func(self, self.config)
+        self.templates: dict = self.config.templates
         self.m_staticText_status.SetLabel('Status: default settings loaded')
 
     def OnLoadGlobal(self, event):
         self.config._configfile = self.config.global_settings_file_path
         self.config.load()
         self.load_saved_func(self, self.config)
+        self.templates: dict = self.config.templates
         self.m_staticText_status.SetLabel('Status: global settings loaded')
 
     def OnLoadLocal(self, event):
         self.config._configfile = self.config.local_settings_file_path
         self.config.load()
         self.load_saved_func(self, self.config)
+        self.templates: dict = self.config.templates
         self.m_staticText_status.SetLabel('Status: local settings loaded')
 
     def OnSaveSettings(self, event):
@@ -380,6 +383,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.layersSortOrderBox.Delete(selection)
             self.layersSortOrderBox.Insert(item, selection - 1)
             self.layersSortOrderBox.SetSelection(selection - 1)
+            self.SaveTemplate()
 
     def OnLayerSortOrderDown(self, event):
         selection = self.layersSortOrderBox.Selection
@@ -389,6 +393,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.layersSortOrderBox.Delete(selection)
             self.layersSortOrderBox.Insert(item, selection + 1)
             self.layersSortOrderBox.SetSelection(selection + 1)
+            self.SaveTemplate()
 
     def OnLayerDisable(self, event):
         selection = self.layersSortOrderBox.Selection
@@ -580,6 +585,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         selected_item = self.m_comboBox_scaling.GetCurrentSelection()
         print("Selection:", self.m_comboBox_scaling.GetValue())
         self.m_simplebook_scaling.ChangeSelection(selected_item)
+        self.SaveTemplate()
 
     def OnSaveLayer(self, event):
         if self.current_layer:
