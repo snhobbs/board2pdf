@@ -37,7 +37,7 @@ except FileExistsError:
     pass
 
 # Build the plugin
-#os.chdir(repo_path / "plugin")
+os.chdir(repo_path / "plugin")
 __file__ = repo_path / "plugin" / "pcm" / "build.py"
 build_script_path = repo_path / "plugin" / "pcm" / "build.py"
 print("Building Board2Pdf by executing", str(build_script_path))
