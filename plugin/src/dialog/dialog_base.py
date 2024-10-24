@@ -465,7 +465,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         scaleSizer = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Scale and Crop" ), wx.VERTICAL )
 
-        m_comboBox_scalingChoices = [ u"No Scaling or Cropping", u"Crop" ]
+        m_comboBox_scalingChoices = [ u"No Scaling or Cropping", u"Crop (with pdfCropMargins)", u"Scale To Fit (with pdfCropMargins)" ]
         self.m_comboBox_scaling = wx.ComboBox( scaleSizer.GetStaticBox(), wx.ID_ANY, u"No Scaling or Cropping", wx.DefaultPosition, wx.Size( 350,-1 ), m_comboBox_scalingChoices, 0 )
         scaleSizer.Add( self.m_comboBox_scaling, 0, wx.ALL, 5 )
 
@@ -473,6 +473,8 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_panel_no_scaling = wx.Panel( self.m_simplebook_scaling, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
         self.m_simplebook_scaling.AddPage( self.m_panel_no_scaling, u"a page", False )
         self.m_panel_crop = wx.Panel( self.m_simplebook_scaling, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+        gSizer6 = wx.GridSizer( 2, 1, 0, 0 )
+
         fgSizer2 = wx.FlexGridSizer( 0, 2, 0, 0 )
         fgSizer2.SetFlexibleDirection( wx.BOTH )
         fgSizer2.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
@@ -486,10 +488,46 @@ class SettingsDialogPanel ( wx.Panel ):
         fgSizer2.Add( self.m_textCtrl_crop_whitespace, 0, wx.ALL, 5 )
 
 
-        self.m_panel_crop.SetSizer( fgSizer2 )
+        gSizer6.Add( fgSizer2, 1, wx.EXPAND, 5 )
+
+        self.m_staticText171 = wx.StaticText( self.m_panel_crop, wx.ID_ANY, u"* Set 'Draw frame on layer' to 'None', or nothing will be cropped.", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText171.Wrap( -1 )
+
+        gSizer6.Add( self.m_staticText171, 0, wx.ALL, 5 )
+
+
+        self.m_panel_crop.SetSizer( gSizer6 )
         self.m_panel_crop.Layout()
-        fgSizer2.Fit( self.m_panel_crop )
+        gSizer6.Fit( self.m_panel_crop )
         self.m_simplebook_scaling.AddPage( self.m_panel_crop, u"a page", False )
+        self.m_panel_scale_to_fit = wx.Panel( self.m_simplebook_scaling, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+        gSizer8 = wx.GridSizer( 2, 1, 0, 0 )
+
+        fgSizer3 = wx.FlexGridSizer( 0, 2, 0, 0 )
+        fgSizer3.SetFlexibleDirection( wx.BOTH )
+        fgSizer3.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_staticText16 = wx.StaticText( self.m_panel_scale_to_fit, wx.ID_ANY, u"Keep whitespace around board (in BP units)", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText16.Wrap( -1 )
+
+        fgSizer3.Add( self.m_staticText16, 0, wx.ALL, 5 )
+
+        self.m_textCtrl_scale_whitespace = wx.TextCtrl( self.m_panel_scale_to_fit, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 50,-1 ), 0 )
+        fgSizer3.Add( self.m_textCtrl_scale_whitespace, 0, wx.ALL, 5 )
+
+
+        gSizer8.Add( fgSizer3, 1, wx.EXPAND, 5 )
+
+        self.m_staticText18 = wx.StaticText( self.m_panel_scale_to_fit, wx.ID_ANY, u"* If a frame layer is selected, that layer will not be scaled.", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText18.Wrap( -1 )
+
+        gSizer8.Add( self.m_staticText18, 0, wx.ALL, 5 )
+
+
+        self.m_panel_scale_to_fit.SetSizer( gSizer8 )
+        self.m_panel_scale_to_fit.Layout()
+        gSizer8.Fit( self.m_panel_scale_to_fit )
+        self.m_simplebook_scaling.AddPage( self.m_panel_scale_to_fit, u"a page", False )
 
         scaleSizer.Add( self.m_simplebook_scaling, 1, wx.EXPAND |wx.ALL, 5 )
 
