@@ -250,10 +250,12 @@ def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, 
     # on if scaling is used or not. At least the popup-menus are preserved when not using scaling.
     # https://github.com/pymupdf/PyMuPDF/discussions/2499
     # If popups aren't used, I'm using the with_scaling method to get rid of annotations
-    if template_use_popups and layer_scale == 1.0:
-        return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, scale_or_crop, template_name)
-    else:
-        return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, layer_scale)
+    if(scale_or_crop['scaling_method'] == '3'):
+        # If scaling_method = 3, use a different method
+        scaling_factor = float(scale_or_crop['scaling_factor'])
+        return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, scaling_factor)
+    
+    return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, scale_or_crop, template_name)
 
 def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, scale_or_crop: dict, template_name: str):
     if(scale_or_crop['scaling_method'] == '1' or scale_or_crop['scaling_method'] == '2'):
@@ -580,7 +582,8 @@ class Template:
         self.tented: bool = template.get("tented", False)  # template is tented or not
         self.scale_or_crop: dict = { "scaling_method": template.get("scaling_method", "0"),
                                      "crop_whitespace": template.get("crop_whitespace", "10"),
-                                     "scale_whitespace": template.get("scale_whitespace", "30") }
+                                     "scale_whitespace": template.get("scale_whitespace", "30"),
+                                     "scaling_factor": template.get("scaling_factor", "3.0") }
 
         frame_layer: str = template.get("frame", "")  # layer name of the frame layer
         popups: str = template.get("popups", "")  # setting saying if popups shall be taken from front, back or both

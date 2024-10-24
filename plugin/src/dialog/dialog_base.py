@@ -465,7 +465,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         scaleSizer = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Scale and Crop" ), wx.VERTICAL )
 
-        m_comboBox_scalingChoices = [ u"No Scaling or Cropping", u"Crop (with pdfCropMargins)", u"Scale To Fit (with pdfCropMargins)" ]
+        m_comboBox_scalingChoices = [ u"No Scaling or Cropping", u"Crop with pdfCropMargins", u"Scale To Fit with pdfCropMargins", u"Scale by factor" ]
         self.m_comboBox_scaling = wx.ComboBox( scaleSizer.GetStaticBox(), wx.ID_ANY, u"No Scaling or Cropping", wx.DefaultPosition, wx.Size( 350,-1 ), m_comboBox_scalingChoices, 0 )
         scaleSizer.Add( self.m_comboBox_scaling, 0, wx.ALL, 5 )
 
@@ -528,6 +528,39 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_panel_scale_to_fit.Layout()
         gSizer8.Fit( self.m_panel_scale_to_fit )
         self.m_simplebook_scaling.AddPage( self.m_panel_scale_to_fit, u"a page", False )
+        self.m_panel_scale_by_factor = wx.Panel( self.m_simplebook_scaling, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+        gSizer81 = wx.GridSizer( 3, 1, 0, 0 )
+
+        fgSizer4 = wx.FlexGridSizer( 0, 2, 0, 0 )
+        fgSizer4.SetFlexibleDirection( wx.BOTH )
+        fgSizer4.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_staticText19 = wx.StaticText( self.m_panel_scale_by_factor, wx.ID_ANY, u"Scaling Factor", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText19.Wrap( -1 )
+
+        fgSizer4.Add( self.m_staticText19, 0, wx.ALL, 5 )
+
+        self.m_textCtrl_scaling_factor = wx.TextCtrl( self.m_panel_scale_by_factor, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 50,-1 ), 0 )
+        fgSizer4.Add( self.m_textCtrl_scaling_factor, 0, wx.ALL, 5 )
+
+
+        gSizer81.Add( fgSizer4, 1, wx.EXPAND, 5 )
+
+        self.m_staticText20 = wx.StaticText( self.m_panel_scale_by_factor, wx.ID_ANY, u"* If a frame layer is selected, that layer will not be scaled.", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText20.Wrap( -1 )
+
+        gSizer81.Add( self.m_staticText20, 0, wx.ALL, 5 )
+
+        self.m_staticText21 = wx.StaticText( self.m_panel_scale_by_factor, wx.ID_ANY, u"* For best result, place the bord in the center", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText21.Wrap( -1 )
+
+        gSizer81.Add( self.m_staticText21, 0, wx.ALL, 5 )
+
+
+        self.m_panel_scale_by_factor.SetSizer( gSizer81 )
+        self.m_panel_scale_by_factor.Layout()
+        gSizer81.Fit( self.m_panel_scale_by_factor )
+        self.m_simplebook_scaling.AddPage( self.m_panel_scale_by_factor, u"a page", False )
 
         scaleSizer.Add( self.m_simplebook_scaling, 1, wx.EXPAND |wx.ALL, 5 )
 

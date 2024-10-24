@@ -531,11 +531,15 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             else:
                 self.m_textCtrl_crop_whitespace.ChangeValue("10")
 
-            # Set the cropping and scaling settings to saved settings
             if item in self.templates and "scale_whitespace" in self.templates[item]:
                 self.m_textCtrl_scale_whitespace.ChangeValue(self.templates[item]["scale_whitespace"])
             else:
                 self.m_textCtrl_scale_whitespace.ChangeValue("30")
+
+            if item in self.templates and "scaling_factor" in self.templates[item]:
+                self.m_textCtrl_scaling_factor.ChangeValue(self.templates[item]["scaling_factor"])
+            else:
+                self.m_textCtrl_scaling_factor.ChangeValue("3.0")
 
     def OnLayerEdit(self, event):
         _log.debug("OnLayerEdit")
@@ -642,6 +646,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                              "scaling_method": str(self.m_comboBox_scaling.GetCurrentSelection()),
                              "crop_whitespace": self.m_textCtrl_crop_whitespace.GetValue(),
                              "scale_whitespace": self.m_textCtrl_scale_whitespace.GetValue(),
+                             "scaling_factor": self.m_textCtrl_scaling_factor.GetValue(),
                              "layers": self.layersColorDict,
                              "layers_transparency": self.layersTransparencyDict,
                              "layers_negative": self.layersNegativeDict,
@@ -675,6 +680,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_reference_designators.SetValue(True)
         self.m_textCtrl_crop_whitespace.SetValue("")
         self.m_textCtrl_scale_whitespace.SetValue("")
+        self.m_textCtrl_scaling_factor.SetValue("")
         self.layersSortOrderBox.Clear()
         self.disabledLayersSortOrderBox.Clear()
         self.hide_layer_settings()
