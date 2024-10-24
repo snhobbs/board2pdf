@@ -243,7 +243,26 @@ def colorize_pdf_pypdf(folder, input_file, output_file, color, transparency):
 
     return True
 
-def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
+def create_blank_page(input_file_path: str, output_file_path: str):
+    try:
+        # Open input file and create a page with the same size
+        pdf_reader = PdfReader(input_file_path)
+        src_page: PageObject = pdf_reader.pages[0]
+        page = PageObject.create_blank_page(width=src_page.mediabox.width, height=src_page.mediabox.height)
+
+        # Create the output file with the page in it
+        output = PdfWriter()
+        output.add_page(page)
+        with open(output_file_path, "wb") as output_stream:
+            output.write(output_stream)
+
+    except:
+        io_file_error_msg(create_blank_page.__name__, input_file_path, output_file_path)
+        return False
+
+    return True
+
+def merge_and_scale_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
                     scale_or_crop: dict, layer_scale: float, template_use_popups: bool, template_name: str):
     # I haven't found a way to scale the pdf and preserve the popup-menus.
     # For now, I'm taking the easy way out and handle the merging differently depending
@@ -253,22 +272,60 @@ def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, 
     if(scale_or_crop['scaling_method'] == '3'):
         # If scaling_method = 3, use a different method
         scaling_factor = float(scale_or_crop['scaling_factor'])
-        return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, scaling_factor)
-    
-    return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, scale_or_crop, template_name)
+        return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, scaling_factor, False)
 
-def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, scale_or_crop: dict, template_name: str):
+    # If scaling_method is 1 or 2 the merged file is not the final file.
     if(scale_or_crop['scaling_method'] == '1' or scale_or_crop['scaling_method'] == '2'):
-        merged_file = "merged_" + output_file
+        merged_file_path = os.path.join(input_folder, "merged_" + output_file)
     else:
-        merged_file = output_file
+        merged_file_path = os.path.join(output_folder, output_file)
 
-    if(scale_or_crop['scaling_method'] == '2'):
+    if(scale_or_crop['scaling_method'] == '2' and frame_file != 'None'):
         # The frame layer should not be scaled, so don't merge this with the others.
-        print(str(input_files))
-        print("frame file:", frame_file)
         input_files.remove(frame_file)
 
+    # Merge input_files to output_file
+    return_value = merge_pdf_pymupdf(input_folder, input_files, merged_file_path, frame_file, template_name)
+    if(return_value == False):
+        return False
+
+    # If scaling_method is 1 or 2, the merged file shall be cropped
+    if(scale_or_crop['scaling_method'] == '1'):
+        whitespace = scale_or_crop['crop_whitespace']
+        cropped_file_path = os.path.join(output_folder, output_file)
+    elif(scale_or_crop['scaling_method'] == '2'):
+        whitespace = scale_or_crop['scale_whitespace']
+        cropped_file = "cropped_" + output_file
+        cropped_file_path = os.path.join(input_folder, cropped_file)
+
+    if(scale_or_crop['scaling_method'] == '1' or scale_or_crop['scaling_method'] == '2'):
+        # Crop the file
+        output_doc_pathname, exit_code, stdout_str, stderr_str = crop(
+                             ["-p", "0", "-a", "-" + whitespace, "-t", "250", "-A", "-o", cropped_file_path, merged_file_path],
+                             string_io=True, quiet=False)
+
+        if(exit_code):
+            exception_msg("Failed to crop file.\npdfCropMargins exitcode was: " + str(exit_code) + "\n\nstdout_str: " + str(stdout_str) + "\n\nstderr_str: " + str(stderr_str))
+            return False
+
+    if(scale_or_crop['scaling_method'] == '2'):
+        skip_first = False
+        # If no frame layer is selected, create a blank file with same size as the first original file        
+        if(frame_file == 'None'):
+            first_file = input_files[0]
+            frame_file = "blank_file.pdf"
+            create_blank_page(os.path.join(input_folder, first_file), os.path.join(input_folder, frame_file))
+            skip_first = True
+
+        # Scale the cropped file.
+        new_file_list = [cropped_file, frame_file]
+        scaled_file_path = os.path.join(output_folder, output_file)
+        
+        return merge_pdf_pymupdf_with_scaling(input_folder, new_file_list, output_folder, output_file, frame_file, template_name, 1.0, skip_first)
+
+    return True
+
+def merge_pdf_pymupdf(input_folder: str, input_files: list, output_file_path: str, frame_file: str, template_name: str):
     try:
         output = None
         for filename in reversed(input_files):
@@ -342,48 +399,17 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
             toc = [[1, template_name, 1]]
             output.set_toc(toc)
 
-        output.save(os.path.join(output_folder, merged_file)) # , garbage=2
+        output.save(output_file_path) # , garbage=2
         output.close()
 
     except Exception:
-        io_file_error_msg(merge_pdf_pymupdf.__name__, merged_file, output_folder)
+        io_file_error_msg(merge_pdf_pymupdf.__name__, output_file_path)
         return False
-
-    if(scale_or_crop['scaling_method'] == '1'):
-        whitespace = scale_or_crop['crop_whitespace']
-        cropped_file = output_file
-    elif(scale_or_crop['scaling_method'] == '2'):
-        whitespace = scale_or_crop['scale_whitespace']
-        cropped_file = "cropped_" + output_file
-
-    if(scale_or_crop['scaling_method'] == '1' or scale_or_crop['scaling_method'] == '2'):
-        output_doc_pathname, exit_code, stdout_str, stderr_str = crop(
-                             ["-p", "0", "-a", "-" + whitespace, "-t", "250", "-A", "-o", os.path.join(input_folder, cropped_file), os.path.join(output_folder, merged_file)],
-                             string_io=True, quiet=False)
-
-        print("output_doc_pathname" + str(output_doc_pathname))
-        print("exit_code" + str(exit_code))
-        print("stdout_str" + str(stdout_str))
-        print("stderr_str" + str(stderr_str))
-
-    if(scale_or_crop['scaling_method'] == '2'):
-        # Scale the cropped file.
-        new_file_list = [cropped_file, frame_file]
-        scaled_file = output_file
-        
-        return merge_pdf_pymupdf_with_scaling(input_folder, new_file_list, output_folder, scaled_file, frame_file, template_name, 1.0)
-        
-        
-        # Merge the scaled file with the frame file.
-        #already done while scaling
-        
-        
-        
 
     return True
 
 def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    template_name: str, layer_scale: float):
+                    template_name: str, layer_scale: float, skip_first: bool):
     try:
         output = pymupdf.open()
         page = None
@@ -400,11 +426,16 @@ def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_
                                             (page.rect.height + src[0].rect.height) / 2)
 
                     pos = cropbox if frame_file == filename else page.rect
-                    page.show_pdf_page(pos,  # select output rect
-                                       src,  # input document
-                                       overlay=False)
+                    try:
+                        page.show_pdf_page(pos,  # select output rect
+                                           src,  # input document
+                                           overlay=False)
+                    except ValueError:
+                        # This happens if the page is blank. Which it is if we've created a blank frame file.
+                        pass
+                        
             except Exception:
-                io_file_error_msg(merge_pdf_pymupdf.__name__, filename, input_folder)
+                io_file_error_msg(merge_pdf_pymupdf_with_scaling.__name__, filename, input_folder)
                 return False
 
         page.set_cropbox(cropbox)
@@ -417,7 +448,7 @@ def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_
         output.save(os.path.join(output_folder, output_file))
 
     except Exception:
-        io_file_error_msg(merge_pdf_pymupdf.__name__, output_file, output_folder)
+        io_file_error_msg(merge_pdf_pymupdf_with_scaling.__name__, output_file, output_folder)
         return False
 
     return True
@@ -657,7 +688,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         return False
 
     colorize_pdf = colorize_pdf_pymupdf if pymupdf_pdf else colorize_pdf_pypdf
-    merge_pdf = merge_pdf_pymupdf if pymupdf_merge else merge_pdf_pypdf
+    merge_pdf = merge_and_scale_pdf_pymupdf if pymupdf_merge else merge_pdf_pypdf
 
     os.chdir(os.path.dirname(board.GetFileName()))
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
@@ -833,6 +864,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         set_progress_status(progress, f"Merging all layers of template {template.name}")
 
         assembly_file = f"{base_filename}_{template.name}.pdf"
+        assembly_file = assembly_file.replace(' ', '_')
         
         print("frame file before calling merge:", frame_file)
 
