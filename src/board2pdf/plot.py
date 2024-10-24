@@ -119,24 +119,24 @@ def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, colo
             new_color = None
         else:
             new_color = color #tuple((float(0.0), float(1.0), float(1.0)))
-            
+
         if(path["fill"] == None):
             new_fill = None
         else:
             new_fill = color #tuple((float(1.0), float(0.0), float(1.0)))
-            
+
         if(path["fill_opacity"] == None):
             new_fill_opacity = None
         else:
             new_fill_opacity = opacity #float(0.5)
-            
+
         if(path["stroke_opacity"] == None):
             new_stroke_opacity = None
         else:
             new_stroke_opacity = opacity #float(0.5)
-            
+
         #pprint.pp(path)
-        
+
         # ------------------------------------
         # draw each entry of the 'items' list
         # ------------------------------------
@@ -168,7 +168,7 @@ def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, colo
                 #stroke_opacity=new_stroke_opacity,  # same value for both
                 fill_opacity=new_fill_opacity,  # opacity parameters
                 )
-        
+
         if new_stroke_opacity:
             shape.finish(
                 fill=new_fill,  # fill color
@@ -185,7 +185,7 @@ def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, colo
                 #fill_opacity=new_fill_opacity,  # opacity parameters
                 )
 
-        
+
     # all paths processed - commit the shape to its page
     shape.commit()
 
@@ -198,7 +198,7 @@ def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, colo
     #    pprint.pp(path)
 
     outpdf.save(os.path.join(folder, output_file), clean=True)
-    
+
     return True
 
 
@@ -254,7 +254,6 @@ def merge_pdf_pymupdf(input_folder: str, input_files: list, output_folder: str, 
         # If scaling_method = 3, use a different method
         scaling_factor = float(scale_or_crop['scaling_factor'])
         return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_folder, output_file, frame_file, template_name, scaling_factor)
-    
     return merge_pdf_pymupdf_without_scaling(input_folder, input_files, output_folder, output_file, frame_file, scale_or_crop, template_name)
 
 def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str, scale_or_crop: dict, template_name: str):
@@ -370,15 +369,10 @@ def merge_pdf_pymupdf_without_scaling(input_folder: str, input_files: list, outp
         # Scale the cropped file.
         new_file_list = [cropped_file, frame_file]
         scaled_file = output_file
-        
         return merge_pdf_pymupdf_with_scaling(input_folder, new_file_list, output_folder, scaled_file, frame_file, template_name, 1.0)
-        
-        
+
         # Merge the scaled file with the frame file.
         #already done while scaling
-        
-        
-        
 
     return True
 
@@ -510,7 +504,7 @@ class LayerInfo:
         self.id: int = layer_names[layer_name]
         self.color_hex: str = template["layers"].get(layer_name, self.std_color)  # color as '#rrggbb' hex string
         self.with_frame: bool = layer_name == frame_layer
-        
+
         try:
             self.transparency_value = int(template["layers_transparency"][layer_name])  # transparency as '0'-'100' string
         except KeyError:
@@ -549,7 +543,7 @@ class LayerInfo:
     def has_color(self) -> bool:
         """Checks if the layer color is not the standard color (=black)."""
         return self.color_hex != self.std_color
-        
+
     @property
     def has_transparency(self) -> bool:
         """Checks if the layer transparency is not the standard value (=0%)."""
@@ -744,8 +738,12 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     use_popups = False
     template_filelist = []
 
+    title_block = board.GetTitleBlock()
     # Iterate over the templates
-    for template in templates_list:
+    for page_count, template in enumerate(templates_list):
+        title_block.SetComment(0, f"board2pdf: {template.name} -- {page_count + 1}/{len(templates_list)}")
+        board.SetTitleBlock(title_block)
+        # msg_box("Now starting with template: " + template_name)
         # Plot layers to pdf files
         for layer_info in template.settings:
             progress += progress_step
@@ -833,9 +831,8 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         set_progress_status(progress, f"Merging all layers of template {template.name}")
 
         assembly_file = f"{base_filename}_{template.name}.pdf"
-        
-        print("frame file before calling merge:", frame_file)
 
+        print("frame file before calling merge:", frame_file)
         print("template.scale_or_crop: " + str(template.scale_or_crop))
         if not merge_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, template.scale_or_crop, layer_scale, template_use_popups, template.name):
             set_progress_status(100, "Failed when merging all layers of template " + template.name)
@@ -908,17 +905,3 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     msg_box(endmsg, 'All done!', wx.OK)
     return True
 
-
-def cli(board_filepath: str, configfile: str, **kwargs) -> bool:
-    try:
-        from . import persistence
-    except ImportError:
-        import persistence
-
-
-    board = pcbnew.LoadBoard(board_filepath)
-    config = persistence.Persistence(configfile)
-    config_vars = config.load()
-    # note: cli parameters override config.ini values
-    config_vars.update(kwargs)
-    return plot_pdfs(board, **config_vars)

@@ -42,6 +42,21 @@ def num_range(arg_type, min_val, max_val):
     return range_check
 
 
+def cli(board_filepath: str, configfile: str, **kwargs) -> bool:
+    import pcbnew
+    try:
+        from . import persistence
+    except ImportError:
+        import persistence
+
+    board = pcbnew.LoadBoard(board_filepath)
+    config = persistence.Persistence(configfile)
+    config_vars = config.load()
+    # note: cli parameters override config.ini values
+    config_vars.update(kwargs)
+    return plot.plot_pdfs(board, **config_vars)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Board2Pdf CLI.')
     parser.add_argument('kicad_pcb', type=shell_path(), help='.kicad_pcb file')
@@ -113,7 +128,7 @@ def main():
         optional['assembly_file_output'] = args.output
     _logger.info(f'{optional=}')
 
-    sys.exit(0 if plot.cli(pcb_path, ini_path, **optional) else 1)
+    sys.exit(0 if cli(pcb_path, ini_path, **optional) else 1)
 
 
 if __name__ == "__main__":
