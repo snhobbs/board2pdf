@@ -775,8 +775,11 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     use_popups = False
     template_filelist = []
 
+    title_block = board.GetTitleBlock()
     # Iterate over the templates
     for page_count, template in enumerate(templates_list):
+        title_block.SetComment(0, f"board2pdf: {template.name} -- {page_count + 1}/{len(templates_list)}")
+        board.SetTitleBlock(title_block)
         # msg_box("Now starting with template: " + template_name)
         # Plot layers to pdf files
         for layer_info in template.settings:
