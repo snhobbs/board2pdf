@@ -2,11 +2,13 @@
 
 import sys
 from io import BytesIO
-from typing import Any, List, Tuple, Union, cast
+from typing import Any, Dict, List, Literal, Tuple, Union, cast
 
 from ._utils import check_if_whitespace_only, logger_warning
 from .constants import ColorSpaces
-from .errors import PdfReadError
+from .constants import FilterTypes as FT
+from .constants import ImageAttributes as IA
+from .errors import EmptyImageDataError, PdfReadError
 from .generic import (
     ArrayObject,
     DecodedStreamObject,
@@ -15,26 +17,14 @@ from .generic import (
     NullObject,
 )
 
-try:
-    if sys.version_info[:2] >= (3, 8):
-        from typing import Literal
-    else:
-        # PEP 586 introduced typing.Literal with Python 3.8
-        # For older Python versions, the backport typing_extensions is necessary:
-        from typing_extensions import Literal
-except ImportError:
-    from .board2pdf_typing_extensions.src.typing_extensions import Literal
+if sys.version_info[:2] >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
+
 
 try:
-    if sys.version_info[:2] >= (3, 10):
-        from typing import TypeAlias
-    else:
-        from typing_extensions import TypeAlias
-except ImportError:
-    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
-
-try:
-    from PIL import Image
+    from PIL import Image, UnidentifiedImageError  # noqa: F401
 except ImportError:
     raise ImportError(
         "pillow is required to do image extraction. "
@@ -58,6 +48,7 @@ def _get_imagemode(
     Returns
         Image mode not taking into account mask(transparency)
         ColorInversion is required (like for some DeviceCMYK)
+
     """
     if depth > MAX_IMAGE_MODE_NESTING_DEPTH:
         raise PdfReadError(
@@ -78,9 +69,7 @@ def _get_imagemode(
         color_components = cast(int, icc_profile["/N"])
         color_space = icc_profile.get("/Alternate", "")
     elif color_space[0] == "/Indexed":
-        color_space = color_space[1]
-        if isinstance(color_space, IndirectObject):
-            color_space = color_space.get_object()
+        color_space = color_space[1].get_object()
         mode2, invert_color = _get_imagemode(
             color_space, color_components, prev_mode, depth + 1
         )
@@ -130,6 +119,44 @@ def _get_imagemode(
     return mode, mode == "CMYK"
 
 
+def bits2byte(data: bytes, size: Tuple[int, int], bits: int) -> bytes:
+    mask = (1 << bits) - 1
+    nbuff = bytearray(size[0] * size[1])
+    by = 0
+    bit = 8 - bits
+    for y in range(size[1]):
+        if bit != 8 - bits:
+            by += 1
+            bit = 8 - bits
+        for x in range(size[0]):
+            nbuff[y * size[0] + x] = (data[by] >> bit) & mask
+            bit -= bits
+            if bit < 0:
+                by += 1
+                bit = 8 - bits
+    return bytes(nbuff)
+
+
+def _extended_image_frombytes(
+    mode: str, size: Tuple[int, int], data: bytes
+) -> Image.Image:
+    try:
+        img = Image.frombytes(mode, size, data)
+    except ValueError as exc:
+        nb_pix = size[0] * size[1]
+        data_length = len(data)
+        if data_length == 0:
+            raise EmptyImageDataError(
+                "Data is 0 bytes, cannot process an image from empty data."
+            ) from exc
+        if data_length % nb_pix != 0:
+            raise exc
+        k = nb_pix * len(mode) / data_length
+        data = b"".join([bytes((x,) * int(k)) for x in data])
+        img = Image.frombytes(mode, size, data)
+    return img
+
+
 def _handle_flate(
     size: Tuple[int, int],
     data: bytes,
@@ -142,24 +169,6 @@ def _handle_flate(
     Process image encoded in flateEncode
     Returns img, image_format, extension, color inversion
     """
-
-    def bits2byte(data: bytes, size: Tuple[int, int], bits: int) -> bytes:
-        mask = (2 << bits) - 1
-        nbuff = bytearray(size[0] * size[1])
-        by = 0
-        bit = 8 - bits
-        for y in range(size[1]):
-            if (bit != 0) and (bit != 8 - bits):
-                by += 1
-                bit = 8 - bits
-            for x in range(size[0]):
-                nbuff[y * size[0] + x] = (data[by] >> bit) & mask
-                bit -= bits
-                if bit < 0:
-                    by += 1
-                    bit = 8 - bits
-        return bytes(nbuff)
-
     extension = ".png"  # mime_type = "image/png"
     image_format = "PNG"
     lookup: Any
@@ -173,7 +182,7 @@ def _handle_flate(
     elif mode == "4bits":
         mode = "P"
         data = bits2byte(data, size, 4)
-    img = Image.frombytes(mode, size, data)
+    img = _extended_image_frombytes(mode, size, data)
     if color_space == "/Indexed":
         from .generic import TextStringObject
 
@@ -201,14 +210,18 @@ def _handle_flate(
             if img.mode == "1":
                 # Two values ("high" and "low").
                 expected_count = 2 * nb
-                if len(lookup) != expected_count:
-                    if len(lookup) < expected_count:
-                        raise PdfReadError(
-                            f"Not enough lookup values: Expected {expected_count}, got {len(lookup)}."
+                actual_count = len(lookup)
+                if actual_count != expected_count:
+                    if actual_count < expected_count:
+                        logger_warning(
+                            f"Not enough lookup values: Expected {expected_count}, got {actual_count}.",
+                            __name__
                         )
-                    if not check_if_whitespace_only(lookup[expected_count:]):
-                        raise PdfReadError(
-                            f"Too many lookup values: Expected {expected_count}, got {len(lookup)}."
+                        lookup += bytes([0] * (expected_count - actual_count))
+                    elif not check_if_whitespace_only(lookup[expected_count:]):
+                        logger_warning(
+                            f"Too many lookup values: Expected {expected_count}, got {actual_count}.",
+                            __name__
                         )
                     lookup = lookup[:expected_count]
                 colors_arr = [lookup[:nb], lookup[nb:]]
@@ -281,13 +294,15 @@ def _handle_jpx(
     if img1.mode == "RGBA" and mode == "RGB":
         mode = "RGBA"
     # we need to convert to the good mode
-    try:
-        if img1.mode != mode:
-            img = Image.frombytes(mode, img1.size, img1.tobytes())
-        else:
-            img = img1
-    except OSError:
+    if img1.mode == mode or {img1.mode, mode} == {"L", "P"}:  # compare (unordered) sets
+        # L,P are indexed modes which should not be changed.
+        img = img1
+    elif {img1.mode, mode} == {"RGBA", "CMYK"}:
+        # RGBA / CMYK are 4bytes encoding where
+        # the encoding should be corrected
         img = Image.frombytes(mode, img1.size, img1.tobytes())
+    else:  # pragma: no cover
+        img = img1.convert(mode)
     # for CMYK conversion :
     # https://stcom/questions/38855022/conversion-from-cmyk-to-rgb-with-pillow-is-different-from-that-of-photoshop
     # not implemented for the moment as I need to get properly the ICC
@@ -295,3 +310,73 @@ def _handle_jpx(
         img = img.convert("RGB")
     image_format = "JPEG2000"
     return img, image_format, extension, invert_color
+
+
+def _apply_decode(
+    img: Image.Image,
+    x_object_obj: Dict[str, Any],
+    lfilters: FT,
+    color_space: Union[str, List[Any], Any],
+    invert_color: bool,
+) -> Image.Image:
+    # CMYK image and other colorspaces without decode
+    # requires reverting scale (cf p243,2§ last sentence)
+    decode = x_object_obj.get(
+        IA.DECODE,
+        ([1.0, 0.0] * len(img.getbands()))
+        if (
+            (img.mode == "CMYK" and lfilters in (FT.DCT_DECODE, FT.JPX_DECODE))
+            or (invert_color and img.mode == "L")
+        )
+        else None,
+    )
+    if (
+        isinstance(color_space, ArrayObject)
+        and color_space[0].get_object() == "/Indexed"
+    ):
+        decode = None  # decode is meanless of Indexed
+    if (
+        isinstance(color_space, ArrayObject)
+        and color_space[0].get_object() == "/Separation"
+    ):
+        decode = [1.0, 0.0] * len(img.getbands())
+    if decode is not None and not all(decode[i] == i % 2 for i in range(len(decode))):
+        lut: List[int] = []
+        for i in range(0, len(decode), 2):
+            dmin = decode[i]
+            dmax = decode[i + 1]
+            lut.extend(
+                round(255.0 * (j / 255.0 * (dmax - dmin) + dmin)) for j in range(256)
+            )
+        img = img.point(lut)
+    return img
+
+
+def _get_mode_and_invert_color(
+    x_object_obj: Dict[str, Any], colors: int, color_space: Union[str, List[Any], Any]
+) -> Tuple[mode_str_type, bool]:
+    if (
+        IA.COLOR_SPACE in x_object_obj
+        and x_object_obj[IA.COLOR_SPACE] == ColorSpaces.DEVICE_RGB
+    ):
+        # https://pillow.readthedocs.io/en/stable/handbook/concepts.html#modes
+        mode: mode_str_type = "RGB"
+    if x_object_obj.get("/BitsPerComponent", 8) < 8:
+        mode, invert_color = _get_imagemode(
+            f"{x_object_obj.get('/BitsPerComponent', 8)}bit", 0, ""
+        )
+    else:
+        mode, invert_color = _get_imagemode(
+            color_space,
+            2
+            if (
+                colors == 1
+                and (
+                    not isinstance(color_space, NullObject)
+                    and "Gray" not in color_space
+                )
+            )
+            else colors,
+            "",
+        )
+    return mode, invert_color

@@ -36,7 +36,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from io import DEFAULT_BUFFER_SIZE, BytesIO
+from io import DEFAULT_BUFFER_SIZE
 from os import SEEK_CUR
 from typing import (
     IO,
@@ -47,18 +47,14 @@ from typing import (
     Pattern,
     Tuple,
     Union,
-    cast,
     overload,
 )
 
-try:
-    if sys.version_info[:2] >= (3, 10):
-        # Python 3.10+: https://www.python.org/dev/peps/pep-0484/
-        from typing import TypeAlias
-    else:
-        from typing_extensions import TypeAlias
-except ImportError:
-    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
+if sys.version_info[:2] >= (3, 10):
+    # Python 3.10+: https://www.python.org/dev/peps/pep-0484/
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 from .errors import (
     STREAM_TRUNCATED_PREMATURELY,
@@ -75,11 +71,6 @@ CompressedTransformationMatrix: TypeAlias = Tuple[
 
 StreamType = IO[Any]
 StrByteType = Union[str, StreamType]
-
-DEPR_MSG_NO_REPLACEMENT = "{} is deprecated and will be removed in pypdf {}."
-DEPR_MSG_NO_REPLACEMENT_HAPPENED = "{} is deprecated and was removed in pypdf {}."
-DEPR_MSG = "{} is deprecated and will be removed in pypdf {}. Use {} instead."
-DEPR_MSG_HAPPENED = "{} is deprecated and was removed in pypdf {}. Use {} instead."
 
 
 def parse_iso8824_date(text: Optional[str]) -> Optional[datetime]:
@@ -108,7 +99,7 @@ def parse_iso8824_date(text: Optional[str]) -> Optional[datetime]:
         except ValueError:
             continue
         else:
-            if text[-5:] == "+0000":
+            if text.endswith("+0000"):
                 d = d.replace(tzinfo=timezone.utc)
             return d
     raise ValueError(f"Can not convert date: {orgtext}")
@@ -129,7 +120,7 @@ def _get_max_pdf_version_header(header1: str, header2: str) -> str:
     if header2 in versions:
         pdf_header_indices.append(versions.index(header2))
     if len(pdf_header_indices) == 0:
-        raise ValueError(f"neither {header1!r} nor {header2!r} are proper headers")
+        raise ValueError(f"Neither {header1!r} nor {header2!r} are proper headers")
     return versions[max(pdf_header_indices)]
 
 
@@ -145,6 +136,7 @@ def read_until_whitespace(stream: StreamType, maxchars: Optional[int] = None) ->
 
     Returns:
         The data which was read.
+
     """
     txt = b""
     while True:
@@ -166,6 +158,7 @@ def read_non_whitespace(stream: StreamType) -> bytes:
 
     Returns:
         The data which was read.
+
     """
     tok = stream.read(1)
     while tok in WHITESPACES:
@@ -183,6 +176,7 @@ def skip_over_whitespace(stream: StreamType) -> bool:
 
     Returns:
         True if more than one whitespace was skipped, otherwise return False.
+
     """
     tok = WHITESPACES[0]
     cnt = 0
@@ -201,6 +195,7 @@ def check_if_whitespace_only(value: bytes) -> bool:
 
     Returns:
         True if the value only has whitespace characters, otherwise return False.
+
     """
     for index in range(len(value)):
         current = value[index : index + 1]
@@ -215,6 +210,8 @@ def skip_over_comment(stream: StreamType) -> None:
     if tok == b"%":
         while tok not in (b"\n", b"\r"):
             tok = stream.read(1)
+            if tok == b"":
+                raise PdfStreamError("File ended unexpectedly.")
 
 
 def read_until_regex(stream: StreamType, regex: Pattern[bytes]) -> bytes:
@@ -227,6 +224,7 @@ def read_until_regex(stream: StreamType, regex: Pattern[bytes]) -> bytes:
 
     Returns:
         The read bytes.
+
     """
     name = b""
     while True:
@@ -255,6 +253,7 @@ def read_block_backwards(stream: StreamType, to_read: int) -> bytes:
 
     Returns:
         The data which was read.
+
     """
     if stream.tell() < to_read:
         raise PdfStreamError("Could not read malformed PDF file")
@@ -281,6 +280,7 @@ def read_previous_line(stream: StreamType) -> bytes:
 
     Returns:
         The data which was read.
+
     """
     line_content = []
     found_crlf = False
@@ -344,34 +344,6 @@ def mark_location(stream: StreamType) -> None:
     stream.seek(-radius, 1)
 
 
-B_CACHE: Dict[Union[str, bytes], bytes] = {}
-
-
-def b_(s: Union[str, bytes]) -> bytes:
-    if isinstance(s, bytes):
-        return s
-    bc = B_CACHE
-    if s in bc:
-        return bc[s]
-    try:
-        r = s.encode("latin-1")
-        if len(s) < 2:
-            bc[s] = r
-        return r
-    except Exception:
-        r = s.encode("utf-8")
-        if len(s) < 2:
-            bc[s] = r
-        return r
-
-
-def str_(b: Any) -> str:
-    if isinstance(b, bytes):
-        return b.decode("latin-1")
-    else:
-        return str(b)  # will return b.__str__() if defined
-
-
 @overload
 def ord_(b: str) -> int:
     ...
@@ -394,21 +366,8 @@ def ord_(b: Union[int, str, bytes]) -> Union[int, bytes]:
 
 
 WHITESPACES = (b" ", b"\n", b"\r", b"\t", b"\x00")
-WHITESPACES_AS_REGEXP = b"[ \n\r\t\x00]"
-
-
-def paeth_predictor(left: int, up: int, up_left: int) -> int:
-    p = left + up - up_left
-    dist_left = abs(p - left)
-    dist_up = abs(p - up)
-    dist_up_left = abs(p - up_left)
-
-    if dist_left <= dist_up and dist_left <= dist_up_left:
-        return left
-    elif dist_up <= dist_up_left:
-        return up
-    else:
-        return up_left
+WHITESPACES_AS_BYTES = b"".join(WHITESPACES)
+WHITESPACES_AS_REGEXP = b"[" + WHITESPACES_AS_BYTES + b"]"
 
 
 def deprecate(msg: str, stacklevel: int = 3) -> None:
@@ -421,22 +380,27 @@ def deprecation(msg: str) -> None:
 
 def deprecate_with_replacement(old_name: str, new_name: str, removed_in: str) -> None:
     """Raise an exception that a feature will be removed, but has a replacement."""
-    deprecate(DEPR_MSG.format(old_name, removed_in, new_name), 4)
+    deprecate(
+        f"{old_name} is deprecated and will be removed in pypdf {removed_in}. Use {new_name} instead.",
+        4,
+    )
 
 
 def deprecation_with_replacement(old_name: str, new_name: str, removed_in: str) -> None:
     """Raise an exception that a feature was already removed, but has a replacement."""
-    deprecation(DEPR_MSG_HAPPENED.format(old_name, removed_in, new_name))
+    deprecation(
+        f"{old_name} is deprecated and was removed in pypdf {removed_in}. Use {new_name} instead."
+    )
 
 
 def deprecate_no_replacement(name: str, removed_in: str) -> None:
     """Raise an exception that a feature will be removed without replacement."""
-    deprecate(DEPR_MSG_NO_REPLACEMENT.format(name, removed_in), 4)
+    deprecate(f"{name} is deprecated and will be removed in pypdf {removed_in}.", 4)
 
 
 def deprecation_no_replacement(name: str, removed_in: str) -> None:
     """Raise an exception that a feature was already removed without replacement."""
-    deprecation(DEPR_MSG_NO_REPLACEMENT_HAPPENED.format(name, removed_in))
+    deprecation(f"{name} is deprecated and was removed in pypdf {removed_in}.")
 
 
 def logger_error(msg: str, src: str) -> None:
@@ -481,6 +445,7 @@ def rename_kwargs(
         kwargs:
         aliases:
         fail:
+
     """
     for old_term, new_term in aliases.items():
         if old_term in kwargs:
@@ -514,80 +479,79 @@ def _human_readable_bytes(bytes: int) -> str:
         return f"{bytes / 10**9:.1f} GB"
 
 
+# The following class has been copied from Django:
+# https://github.com/django/django/blob/adae619426b6f50046b3daaa744db52989c9d6db/django/utils/functional.py#L51-L65
+#
+# Original license:
+#
+# ---------------------------------------------------------------------------------
+# Copyright (c) Django Software Foundation and individual contributors.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+#     1. Redistributions of source code must retain the above copyright notice,
+#        this list of conditions and the following disclaimer.
+#
+#     2. Redistributions in binary form must reproduce the above copyright
+#        notice, this list of conditions and the following disclaimer in the
+#        documentation and/or other materials provided with the distribution.
+#
+#     3. Neither the name of Django nor the names of its contributors may be used
+#        to endorse or promote products derived from this software without
+#        specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# ---------------------------------------------------------------------------------
+class classproperty:  # noqa: N801
+    """
+    Decorator that converts a method with a single cls argument into a property
+    that can be accessed directly from the class.
+    """
+
+    def __init__(self, method=None):  # type: ignore  # noqa: ANN001
+        self.fget = method
+
+    def __get__(self, instance, cls=None) -> Any:  # type: ignore  # noqa: ANN001
+        return self.fget(cls)
+
+    def getter(self, method):  # type: ignore  # noqa: ANN001, ANN202
+        self.fget = method
+        return self
+
+
 @dataclass
 class File:
     from .generic import IndirectObject
 
-    name: str
-    data: bytes
-    image: Optional[Any] = None  # optional ; direct image access
-    indirect_reference: Optional[IndirectObject] = None  # optional ; link to PdfObject
+    name: str = ""
+    """
+    Filename as identified within the PDF file.
+    """
+    data: bytes = b""
+    """
+    Data as bytes.
+    """
+    indirect_reference: Optional[IndirectObject] = None
+    """
+    Reference to the object storing the stream.
+    """
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name}, data: {_human_readable_bytes(len(self.data))})"
 
     def __repr__(self) -> str:
         return self.__str__()[:-1] + f", hash: {hash(self.data)})"
-
-
-@dataclass
-class ImageFile(File):
-    from .generic import IndirectObject
-
-    image: Optional[Any] = None  # optional ; direct PIL image access
-    indirect_reference: Optional[IndirectObject] = None  # optional ; link to PdfObject
-
-    def replace(self, new_image: Any, **kwargs: Any) -> None:
-        """
-        Replace the Image with a new PIL image.
-
-        Args:
-            new_image (PIL.Image.Image): The new PIL image to replace the existing image.
-            **kwargs: Additional keyword arguments to pass to `Image.Image.save()`.
-
-        Raises:
-            TypeError: If the image is inline or in a PdfReader.
-            TypeError: If the image does not belong to a PdfWriter.
-            TypeError: If `new_image` is not a PIL Image.
-
-        Note:
-            This method replaces the existing image with a new image.
-            It is not allowed for inline images or images within a PdfReader.
-            The `kwargs` parameter allows passing additional parameters
-            to `Image.Image.save()`, such as quality.
-        """
-        from PIL import Image
-
-        from ._reader import PdfReader
-
-        # to prevent circular import
-        from .filters import _xobj_to_image
-        from .generic import DictionaryObject, PdfObject
-
-        if self.indirect_reference is None:
-            raise TypeError("Can not update an inline image")
-        if not hasattr(self.indirect_reference.pdf, "_id_translated"):
-            raise TypeError("Can not update an image not belonging to a PdfWriter")
-        if not isinstance(new_image, Image.Image):
-            raise TypeError("new_image shall be a PIL Image")
-        b = BytesIO()
-        new_image.save(b, "PDF", **kwargs)
-        reader = PdfReader(b)
-        assert reader.pages[0].images[0].indirect_reference is not None
-        self.indirect_reference.pdf._objects[self.indirect_reference.idnum - 1] = (
-            reader.pages[0].images[0].indirect_reference.get_object()
-        )
-        cast(
-            PdfObject, self.indirect_reference.get_object()
-        ).indirect_reference = self.indirect_reference
-        # change the object attributes
-        extension, byte_stream, img = _xobj_to_image(
-            cast(DictionaryObject, self.indirect_reference.get_object())
-        )
-        assert extension is not None
-        self.name = self.name[: self.name.rfind(".")] + extension
-        self.data = byte_stream
-        self.image = img
 
 
 @functools.total_ordering

@@ -1,25 +1,13 @@
 """Helpers for working with PDF types."""
 
 import sys
-from typing import List, Union
+from typing import List, Literal, Union
 
-try:
-    if sys.version_info[:2] >= (3, 8):
-        # Python 3.8+: https://peps.python.org/pep-0586
-        from typing import Literal
-    else:
-        from typing_extensions import Literal
-except ImportError:
-    from .board2pdf_typing_extensions.src.typing_extensions import Literal
-
-try:
-    if sys.version_info[:2] >= (3, 10):
-        # Python 3.10+: https://www.python.org/dev/peps/pep-0484/
-        from typing import TypeAlias
-    else:
-        from typing_extensions import TypeAlias
-except ImportError:
-    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
+if sys.version_info[:2] >= (3, 10):
+    # Python 3.10+: https://www.python.org/dev/peps/pep-0484
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 from .generic._base import NameObject, NullObject, NumberObject
 from .generic._data_structures import ArrayObject, Destination
@@ -28,7 +16,7 @@ from .generic._outline import OutlineItem
 BorderArrayType: TypeAlias = List[Union[NameObject, NumberObject, ArrayObject]]
 OutlineItemType: TypeAlias = Union[OutlineItem, Destination]
 FitType: TypeAlias = Literal[
-    "/Fit", "/XYZ", "/FitH", "/FitV", "/FitR", "/FitB", "/FitBH", "/FitBV"
+    "/XYZ", "/Fit", "/FitH", "/FitV", "/FitR", "/FitB", "/FitBH", "/FitBV"
 ]
 # Those go with the FitType: They specify values for the fit
 ZoomArgType: TypeAlias = Union[NumberObject, NullObject, float]
@@ -67,21 +55,23 @@ AnnotationSubtype: TypeAlias = Literal[
     "/Polygon",
     "/PolyLine",
     "/Highlight",
-    "/Unterline",
+    "/Underline",
     "/Squiggly",
     "/StrikeOut",
-    "/Stamp",
     "/Caret",
+    "/Stamp",
     "/Ink",
     "/Popup",
     "/FileAttachment",
     "/Sound",
     "/Movie",
-    "/Widget",
     "/Screen",
+    "/Widget",
     "/PrinterMark",
     "/TrapNet",
     "/Watermark",
     "/3D",
     "/Redact",
+    "/Projection",
+    "/RichMedia",
 ]

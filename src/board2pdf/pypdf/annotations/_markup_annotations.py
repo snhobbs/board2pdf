@@ -1,7 +1,9 @@
 import sys
 from abc import ABC
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
+from .._utils import deprecate_with_replacement
+from ..constants import AnnotationFlag
 from ..generic import ArrayObject, DictionaryObject
 from ..generic._base import (
     BooleanObject,
@@ -10,20 +12,17 @@ from ..generic._base import (
     NumberObject,
     TextStringObject,
 )
-from ..generic._fit import DEFAULT_FIT, Fit
 from ..generic._rectangle import RectangleObject
 from ..generic._utils import hex_to_rgb
 from ._base import NO_FLAGS, AnnotationDictionary
 
-try:
-    if sys.version_info[:2] >= (3, 10):
-        from typing import TypeAlias
-    else:
-        # PEP 613 introduced typing.TypeAlias with Python 3.10
-        # For older Python versions, the backport typing_extensions is necessary:
-        from typing_extensions import TypeAlias
-except ImportError:
-    from ..board2pdf_typing_extensions.src.typing_extensions import TypeAlias
+if sys.version_info[:2] >= (3, 10):
+    from typing import TypeAlias
+else:
+    # PEP 613 introduced typing.TypeAlias with Python 3.10
+    # For older Python versions, the backport typing_extensions is necessary:
+    from typing_extensions import TypeAlias
+
 
 Vertex: TypeAlias = Tuple[float, float]
 
@@ -47,11 +46,12 @@ class MarkupAnnotation(AnnotationDictionary, ABC):
     Args:
         title_bar: Text to be displayed in the title bar of the annotation;
             by convention this is the name of the author
+
     """
 
     def __init__(self, *, title_bar: Optional[str] = None):
         if title_bar is not None:
-            self[NameObject("T")] = TextStringObject(title_bar)
+            self[NameObject("/T")] = TextStringObject(title_bar)
 
 
 class Text(MarkupAnnotation):
@@ -64,6 +64,7 @@ class Text(MarkupAnnotation):
         text: The text that is added to the document
         open:
         flags:
+
     """
 
     def __init__(
@@ -76,7 +77,6 @@ class Text(MarkupAnnotation):
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
-        super()
         self[NameObject("/Subtype")] = NameObject("/Text")
         self[NameObject("/Rect")] = RectangleObject(rect)
         self[NameObject("/Contents")] = TextStringObject(text)
@@ -105,12 +105,17 @@ class FreeText(MarkupAnnotation):
         self[NameObject("/Subtype")] = NameObject("/FreeText")
         self[NameObject("/Rect")] = RectangleObject(rect)
 
+        # Table 225 of the 1.7 reference ("CSS2 style attributes used in rich text strings")
         font_str = "font: "
-        if bold is True:
-            font_str = f"{font_str}bold "
-        if italic is True:
+        if italic:
             font_str = f"{font_str}italic "
-        font_str = f"{font_str}{font} {font_size}"
+        else:
+            font_str = f"{font_str}normal "
+        if bold:
+            font_str = f"{font_str}bold "
+        else:
+            font_str = f"{font_str}normal "
+        font_str = f"{font_str}{font_size} {font}"
         font_str = f"{font_str};text-align:left;color:#{font_color}"
 
         default_appearance_string = ""
@@ -210,9 +215,13 @@ class Rectangle(MarkupAnnotation):
         self,
         rect: Union[RectangleObject, Tuple[float, float, float, float]],
         *,
-        interiour_color: Optional[str] = None,
+        interior_color: Optional[str] = None,
         **kwargs: Any,
     ):
+        if "interiour_color" in kwargs:
+            deprecate_with_replacement("interiour_color", "interior_color", "6.0.0")
+            interior_color = kwargs["interiour_color"]
+            del kwargs["interiour_color"]
         super().__init__(**kwargs)
         self.update(
             {
@@ -222,9 +231,9 @@ class Rectangle(MarkupAnnotation):
             }
         )
 
-        if interiour_color:
+        if interior_color:
             self[NameObject("/IC")] = ArrayObject(
-                [FloatObject(n) for n in hex_to_rgb(interiour_color)]
+                [FloatObject(n) for n in hex_to_rgb(interior_color)]
             )
 
 
@@ -235,6 +244,7 @@ class Highlight(MarkupAnnotation):
         rect: Union[RectangleObject, Tuple[float, float, float, float]],
         quad_points: ArrayObject,
         highlight_color: str = "ff0000",
+        printing: bool = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -248,6 +258,8 @@ class Highlight(MarkupAnnotation):
                 ),
             }
         )
+        if printing:
+            self.flags = AnnotationFlag.PRINT
 
 
 class Ellipse(MarkupAnnotation):
@@ -255,10 +267,15 @@ class Ellipse(MarkupAnnotation):
         self,
         rect: Union[RectangleObject, Tuple[float, float, float, float]],
         *,
-        interiour_color: Optional[str] = None,
+        interior_color: Optional[str] = None,
         **kwargs: Any,
     ):
+        if "interiour_color" in kwargs:
+            deprecate_with_replacement("interiour_color", "interior_color", "6.0.0")
+            interior_color = kwargs["interiour_color"]
+            del kwargs["interiour_color"]
         super().__init__(**kwargs)
+
         self.update(
             {
                 NameObject("/Type"): NameObject("/Annot"),
@@ -267,9 +284,9 @@ class Ellipse(MarkupAnnotation):
             }
         )
 
-        if interiour_color:
+        if interior_color:
             self[NameObject("/IC")] = ArrayObject(
-                [FloatObject(n) for n in hex_to_rgb(interiour_color)]
+                [FloatObject(n) for n in hex_to_rgb(interior_color)]
             )
 
 
@@ -296,67 +313,3 @@ class Polygon(MarkupAnnotation):
                 NameObject("/Rect"): RectangleObject(_get_bounding_rectangle(vertices)),
             }
         )
-
-
-class Link(MarkupAnnotation):
-    def __init__(
-        self,
-        *,
-        rect: Union[RectangleObject, Tuple[float, float, float, float]],
-        border: Optional[ArrayObject] = None,
-        url: Optional[str] = None,
-        target_page_index: Optional[int] = None,
-        fit: Fit = DEFAULT_FIT,
-        **kwargs: Any,
-    ):
-        super().__init__(**kwargs)
-        if TYPE_CHECKING:
-            from ..types import BorderArrayType
-
-        is_external = url is not None
-        is_internal = target_page_index is not None
-        if not is_external and not is_internal:
-            raise ValueError(
-                "Either 'url' or 'target_page_index' have to be provided. Both were None."
-            )
-        if is_external and is_internal:
-            raise ValueError(
-                "Either 'url' or 'target_page_index' have to be provided. "
-                f"url={url}, target_page_index={target_page_index}"
-            )
-
-        border_arr: BorderArrayType
-        if border is not None:
-            border_arr = [NumberObject(n) for n in border[:3]]
-            if len(border) == 4:
-                dash_pattern = ArrayObject([NumberObject(n) for n in border[3]])
-                border_arr.append(dash_pattern)
-        else:
-            border_arr = [NumberObject(0)] * 3
-
-        self.update(
-            {
-                NameObject("/Type"): NameObject("/Annot"),
-                NameObject("/Subtype"): NameObject("/Link"),
-                NameObject("/Rect"): RectangleObject(rect),
-                NameObject("/Border"): ArrayObject(border_arr),
-            }
-        )
-        if is_external:
-            self[NameObject("/A")] = DictionaryObject(
-                {
-                    NameObject("/S"): NameObject("/URI"),
-                    NameObject("/Type"): NameObject("/Action"),
-                    NameObject("/URI"): TextStringObject(url),
-                }
-            )
-        if is_internal:
-            # This needs to be updated later!
-            dest_deferred = DictionaryObject(
-                {
-                    "target_page_index": NumberObject(target_page_index),
-                    "fit": NameObject(fit.fit_type),
-                    "fit_args": fit.fit_args,
-                }
-            )
-            self[NameObject("/Dest")] = dest_deferred
