@@ -34,10 +34,13 @@ from math import log10
 from struct import iter_unpack
 from typing import Any, Callable, ClassVar, Dict, Optional, Sequence, Union, cast
 
-if sys.version_info[:2] >= (3, 10):
-    from typing import TypeGuard
-else:
-    from typing_extensions import TypeGuard  # PEP 647
+try:
+    if sys.version_info[:2] >= (3, 10):
+        from typing import TypeGuard  # PEP 647
+    else:
+        from typing_extensions import TypeGuard
+except ImportError:
+    from ..board2pdf_typing_extensions.src.typing_extensions import TypeGuard
 
 from .._codecs import _pdfdoc_encoding_rev
 from .._protocols import PdfObjectProtocol, PdfWriterProtocol

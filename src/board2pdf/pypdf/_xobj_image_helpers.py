@@ -17,11 +17,13 @@ from .generic import (
     NullObject,
 )
 
-if sys.version_info[:2] >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
-
+try:
+    if sys.version_info[:2] >= (3, 10):
+        from typing import TypeAlias
+    else:
+        from typing_extensions import TypeAlias
+except ImportError:
+    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
 
 try:
     from PIL import Image, UnidentifiedImageError  # noqa: F401

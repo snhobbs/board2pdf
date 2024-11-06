@@ -92,10 +92,13 @@ from ._image_inline import (
 )
 from ._utils import read_hex_string_from_stream, read_string_from_stream
 
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
+try:
+    if sys.version_info[:2] >= (3, 11):
+        from typing import Self 
+    else:
+        from typing_extensions import Self
+except ImportError:
+    from ..board2pdf_typing_extensions.src.typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 NumberSigns = b"+-"

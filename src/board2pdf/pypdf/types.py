@@ -3,11 +3,14 @@
 import sys
 from typing import List, Literal, Union
 
-if sys.version_info[:2] >= (3, 10):
+try:
+    if sys.version_info[:2] >= (3, 10):
     # Python 3.10+: https://www.python.org/dev/peps/pep-0484
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
+        from typing import TypeAlias
+    else:
+        from typing_extensions import TypeAlias
+except ImportError:
+    from .board2pdf_typing_extensions.src.typing_extensions import TypeAlias
 
 from .generic._base import NameObject, NullObject, NumberObject
 from .generic._data_structures import ArrayObject, Destination
