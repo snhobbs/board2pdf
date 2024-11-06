@@ -64,8 +64,6 @@ def parse_args():
                         help=f'Path to `board2pdf.config.ini` to use')
     parser.add_argument('--log', default='NOTSET', choices=_log_levels.keys(), required=False,
                         help='Enables logging with given log-level')
-    parser.add_argument('--scale', default=None, type=num_range(float, 1.0, 10.0), required=False,
-                        help='Scale non-frame layers')
     parser.add_argument('--merge', default=None, choices=_pdf_libs, required=False,
                         help='PDF merge processor library')
     parser.add_argument('--colorize', default=None, choices=_pdf_libs, required=False,
@@ -116,8 +114,6 @@ def main():
     _logger.info(f'{ini_path=}')
 
     optional = {}
-    if args.scale:
-        optional['layer_scale'] = args.scale
     if args.colorize:
         optional['colorize_lib'] = args.colorize
     if args.merge:
