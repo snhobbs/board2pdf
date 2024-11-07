@@ -38,7 +38,6 @@ class Persistence:
         self.del_temp_files: bool = False
         self.del_single_page_files: bool = False
         self.assembly_file_extension: str = "__Assembly"
-        self.layer_scale: float = 1.0
         
         self.default_settings_file_path: str = ''
         self.global_settings_file_path: str = ''
