@@ -39,7 +39,7 @@ class Persistence:
         self.del_temp_files: bool = False
         self.del_single_page_files: bool = False
         self.assembly_file_extension: str = "__Assembly"
-        self.page_info: str = 'Board2Pdf: ${template_name} - ${page_nr}/${total_pages}'
+        self.page_info: str = 'Board2Pdf: ${template_name} - Page ${page_nr}/${total_pages}'
         self.info_variable: str = '4'
         
         self.default_settings_file_path: str = ''

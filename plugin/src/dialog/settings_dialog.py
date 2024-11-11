@@ -574,7 +574,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def OnTemplateNameChange(self, event):
         template_name = self.m_textCtrl_template_name.GetValue()
-        item = sanitize_template_name(item)
+        item = sanitize_template_name(template_name)
         if item != template_name:
             self.m_textCtrl_template_name.SetValue(item)
             return
@@ -597,7 +597,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def OnScalingChoiceChanged(self, event):
         selected_item = self.m_comboBox_scaling.GetCurrentSelection()
-        print("Selection:", self.m_comboBox_scaling.GetValue())
         self.m_simplebook_scaling.ChangeSelection(selected_item)
         self.SaveTemplate()
 
@@ -624,7 +623,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.Layout()
         self.templatesSortOrderBox.SetItems(tmp)
 
-    def SaveTemplate(self):
+    def SaveTemplate(self, event=None):
         template_name = self.m_textCtrl_template_name.GetValue()
         if template_name:
             # Check if selected frame layer is enabled. Otherwise, add it to the bottom of the enabled list.
