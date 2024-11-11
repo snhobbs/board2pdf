@@ -79,8 +79,9 @@ def run_with_dialog():
                           dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
                           dialog_panel.m_checkBox_create_svg.IsChecked(),
                           dialog_panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel,
-                          layer_scale=config.layer_scale,
-                          assembly_file_extension=config.assembly_file_extension)
+                          assembly_file_extension=config.assembly_file_extension,
+                          page_info=dialog_panel.m_textCtrl_page_info.GetValue(),
+                          info_variable=str(dialog_panel.m_comboBox_info_variable.GetCurrentSelection()))
         dialog_panel.m_progress.SetValue(100)
         dialog_panel.Refresh()
         dialog_panel.Update()
@@ -93,6 +94,12 @@ def run_with_dialog():
         dialog_panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
         dialog_panel.m_checkBox_create_svg.SetValue(config.create_svg)
         dialog_panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
+        dialog_panel.m_textCtrl_page_info.SetValue(config.page_info)
+        if not config.info_variable:
+            info_variable_int = 0
+        else:
+            info_variable_int = int(config.info_variable)
+        dlg.panel.m_comboBox_info_variable.SetSelection(info_variable_int)
         dialog_panel.ClearTemplateSettings()
         dialog_panel.hide_template_settings()
 
@@ -111,6 +118,12 @@ def run_with_dialog():
     dlg.panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
     dlg.panel.m_checkBox_create_svg.SetValue(config.create_svg)
     dlg.panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
+    dlg.panel.m_textCtrl_page_info.SetValue(config.page_info)
+    if not config.info_variable:
+        info_variable_int = 0
+    else:
+        info_variable_int = int(config.info_variable)
+    dlg.panel.m_comboBox_info_variable.SetSelection(info_variable_int)
     dlg.panel.m_staticText_status.SetLabel(f'Status: loaded {configfile_name} settings')
 
     # Check if able to import PyMuPDF.

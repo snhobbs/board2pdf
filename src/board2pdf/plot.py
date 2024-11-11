@@ -715,6 +715,8 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
     colorize_lib: str = kwargs.pop('colorize_lib', '')
     merge_lib: str = kwargs.pop('merge_lib', '')
+    page_info: str = kwargs.pop('page_info', '')
+    info_variable: str = kwargs.pop('info_variable', '')
 
     if dlg is None:
         use_pymupdf = has_pymupdf or create_svg
@@ -854,9 +856,19 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     template_filelist = []
 
     title_block = board.GetTitleBlock()
+    info_variable_int = int(info_variable)
+    if(info_variable_int>=1 and info_variable_int<=9):
+        previous_comment = title_block.GetComment(info_variable_int-1)
+    
     # Iterate over the templates
     for page_count, template in enumerate(templates_list):
-        title_block.SetComment(0, f"board2pdf: {template.name} -- {page_count + 1}/{len(templates_list)}")
+        #page_info = f"board2pdf: {template.name} -- {page_count + 1}/{len(templates_list)}"
+        #page_info = "Board2Pdf: ${template_name} -- ${page_nr}/${total_pages}"
+        page_info_tmp = page_info.replace("${template_name}", template.name)
+        page_info_tmp = page_info_tmp.replace("${page_nr}", str(page_count + 1))
+        page_info_tmp = page_info_tmp.replace("${total_pages}", str(len(templates_list)))
+        if(info_variable_int>=1 and info_variable_int<=9):
+            title_block.SetComment(info_variable_int-1, page_info_tmp)
         board.SetTitleBlock(title_block)
         # msg_box("Now starting with template: " + template_name)
         # Plot layers to pdf files
@@ -953,6 +965,9 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         template_filelist.append(assembly_file)
         # Set use_popups to True if any template has popups
         use_popups = use_popups or template_use_popups
+
+    if(info_variable_int>=1 and info_variable_int<=9):
+        title_block.SetComment(info_variable_int-1, previous_comment)
 
     # Add all generated pdfs to one file
     progress += progress_step

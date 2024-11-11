@@ -208,6 +208,23 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer6.Add( bSizer22, 1, wx.EXPAND, 5 )
 
+        bSizer23 = wx.BoxSizer( wx.HORIZONTAL )
+
+        self.m_staticText22 = wx.StaticText( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Add page info:", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText22.Wrap( -1 )
+
+        bSizer23.Add( self.m_staticText22, 0, wx.ALL, 5 )
+
+        self.m_textCtrl_page_info = wx.TextCtrl( sbSizer6.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 250,-1 ), 0 )
+        bSizer23.Add( self.m_textCtrl_page_info, 0, wx.ALL, 5 )
+
+        m_comboBox_info_variableChoices = [ u"Nowhere", u"In Comment 1", u"In Comment 2", u"In Comment 3", u"In Comment 4", u"In Comment 5", u"In Comment 6", u"In Comment 7", u"In Comment 8", u"In Comment 9" ]
+        self.m_comboBox_info_variable = wx.ComboBox( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Nowhere", wx.DefaultPosition, wx.DefaultSize, m_comboBox_info_variableChoices, 0 )
+        bSizer23.Add( self.m_comboBox_info_variable, 0, wx.ALL, 5 )
+
+
+        sbSizer6.Add( bSizer23, 1, wx.EXPAND, 5 )
+
         bSizer39 = wx.BoxSizer( wx.HORIZONTAL )
 
         self.saveSettingsBtn = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Save settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )

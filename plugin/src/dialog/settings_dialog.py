@@ -139,6 +139,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.config.create_svg = self.m_checkBox_create_svg.IsChecked()
         self.config.del_temp_files = self.m_checkBox_delete_temp_files.IsChecked()
         self.config.del_single_page_files = self.m_checkBox_delete_single_page_files.IsChecked()
+        self.config.page_info = self.m_textCtrl_page_info.GetValue()
+        self.config.info_variable = str(self.m_comboBox_info_variable.GetCurrentSelection())
         self.config.save(self.config.global_settings_file_path)
 
         self.m_staticText_status.SetLabel('Status: settings saved globally')
@@ -152,6 +154,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.config.create_svg = self.m_checkBox_create_svg.IsChecked()
         self.config.del_temp_files = self.m_checkBox_delete_temp_files.IsChecked()
         self.config.del_single_page_files = self.m_checkBox_delete_single_page_files.IsChecked()
+        self.config.page_info = self.m_textCtrl_page_info.GetValue()
+        self.config.info_variable = str(self.m_comboBox_info_variable.GetCurrentSelection())
         self.config.save(self.config.local_settings_file_path)
 
         self.m_staticText_status.SetLabel('Status: settings saved locally')
