@@ -13,8 +13,7 @@ found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from With
 When loaded the plugin looks like this. Here the user can configure how the pdf shall look.
 ![Screenshot](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/screenshot.png "Screenshot")
 
-This plugin ONLY works with the KiCad 6.0 and later. It does NOT work with KiCad 5.1.x or earlier versions. Take the leap!
-You won\'t regret it.
+This plugin ONLY works with the KiCad 6.0 and later. It does NOT work with KiCad 5.1.x or earlier versions.
 
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
@@ -25,21 +24,21 @@ Install and then Apply Changes.
 
 If you only want to use the CLI (use Board2Pdf from the command line) you can also install Board2Pdf using pip: `pip install board2pdf`. Then you can use the Board2Pdf CLI by calling board2pdf just like any other application installed from pip.
 
-For instructions on manual installation,
-see [Wiki - Installation](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Installation)
+For instructions on manual installation from the repo, see [Wiki - Installation](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Installation)
 
 Also, see Dependencies below.
 
 ## Dependencies
 
-For basic functionality Board2Pdf uses [pypdf](https://github.com/py-pdf/pypdf) which is included when installing
-Board2Pdf. You don’t need to install any dependencies if this functionality is enough for you.
+For basic functionality Board2Pdf uses [pypdf](https://github.com/py-pdf/pypdf) which is included when installing Board2Pdf. You don’t need to install any dependencies if this functionality is enough for you.
 
-If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the pdf files about ten times faster.
+If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the pdf files faster. It also enables you to convert the output file to SVG, and it has better support for bookmarks (table of content).
+
+Board2Pdf uses [pdfCropMargins](https://github.com/abarker/pdfCropMargins) for some of the crop and scaling options. pdfCropMargins includes PyMuPDF so if you choose to install pdfCropMargins you don't have to install PyMuPDF.
 
 More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 
-## Problem with Ubuntu and possibly other Linux distros
+## Problem with Ubuntu and some other Linux distros
 
 When PyMuPDF (fitz) is installed with pip, KiCad crashes with a segmentation fault when Board2Pdf is loaded. Board2Pdf loads when the PCB Editor loads, so the crash happens directly when the PCB Editor is started. If this happens to you, you have two options:
 1. Uninstall PyMuPDF using `python -m pip uninstall --upgrade PyMuPDF` or `pip uninstall --upgrade PyMuPDF` and use pypdf instead.
@@ -56,7 +55,7 @@ More information can be found in the [Wiki - Usage GUI](https://gitlab.com/denne
 
 ## Usage - CLI
 
-Board2Pdf can be executed from the command line using board2pdf-cli.py. 
+Board2Pdf can be executed from the command line using `python board2pdf-cli.py {PROJECT}.kicad_pcb`. If installed using pip install the binary can be executed using `board2pdf {PROJECT}.kicad_pcb`.
 
 More information can be found in the [Wiki - Usage CLI](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Usage---CLI).
 
@@ -71,9 +70,11 @@ If you find a bug, please add an issue in the GitLab project.
 
 If you make some improvements, please issue a pull request. All help is appreciated!
 
+Read DEVELOPMENT.md for information on how to build Board2Pdf.
+
 ## Authors and acknowledgment
 
-This script is written by Albin Dennevi, with contributions from others. If you need to come in contact with me please use the KiCad forum as described under Support. But for bugs and feature requests, please add an issue in GitLab.
+This script is written by Albin Dennevi, with contributions from [others](https://gitlab.com/dennevi/Board2Pdf/-/graphs/main?ref_type=heads). If you need to come in contact with me please use the KiCad forum as described under Support. But for bugs and feature requests, please add an issue in GitLab.
 
 Credit goes to qu1ck, the author of the [InteractiveHtmlBom](https://github.com/openscopeproject/InteractiveHtmlBom)
 plugin. I used the GUI of this project as a starting point when making the GUI for this project.
@@ -85,6 +86,4 @@ This plugin is licensed under the open-source GNU GPL license, version 3.0 or la
 ## Project status
 
 This project is considered to be finished. When serious bugs are reported I will try my best to fix them, but don\'t
-expect to much progress in adding features from my side.
-
-
+expect too much progress in adding features from my side.
