@@ -64,14 +64,14 @@ else:
     verstr = "1.0.0"
 
 # Update download URL
-md["versions"][0].update(
-    {
-        "version": verstr,
-        "download_url": "https://gitlab.com/dennevi/kicad-plugins-releases/-/raw/main/Board2Pdf/releases/Board2Pdf_v{0}.zip".format(
-            verstr
-        ),
-    }
-)
+#md["versions"][0].update(
+#    {
+#        "version": verstr,
+#        "download_url": "https://gitlab.com/dennevi/kicad-plugins-releases/-/raw/main/Board2Pdf/releases/Board2Pdf_v{0}.zip".format(
+#            verstr
+#        ),
+#    }
+#)
 
 # Update metadata.json
 with metadata.open("w") as of:

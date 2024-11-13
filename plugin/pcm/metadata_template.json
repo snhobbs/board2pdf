@@ -30,9 +30,15 @@
   ],
   "versions": [
     {
-      "version": "1.7.3",
+      "version": "1.8.0",
       "status": "stable",
-      "kicad_version": "6.0"
+      "kicad_version": "6.0",
+	  "kicad_version_max": "9.0",
+	  "platforms": [
+	    "linux",
+	    "macos",
+	    "windows"
+	  ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 [project]
 name = "board2pdf"
-version = "1.7.3"
+version = "1.8.0"
 description='KiCAD Gerber PDF Generator'
 authors = [{name = "Albin Dennevi"}]
 license = {text = "GNU GPLv3"}
