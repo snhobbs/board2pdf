@@ -189,6 +189,9 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_radio_pypdf = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"pypdf (slow)", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer21.Add( self.m_radio_pypdf, 0, wx.ALL, 5 )
 
+        self.m_radio_kicad = wx.RadioButton( sbSizer6.GetStaticBox(), wx.ID_ANY, u"KiCad (fastest)", wx.DefaultPosition, wx.DefaultSize, 0 )
+        bSizer21.Add( self.m_radio_kicad, 0, wx.ALL, 5 )
+
 
         sbSizer6.Add( bSizer21, 1, wx.EXPAND, 5 )
 

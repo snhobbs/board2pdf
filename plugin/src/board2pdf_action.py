@@ -155,12 +155,21 @@ def run_with_dialog():
             _log.error("pymupdf partially initialized, falling back on pypdf. Error: %s", str(e))
             has_pymupdf = False
 
-    # If it was possible to import and open PyMuPdf, select pymupdf otherwise select pypdf.
+    if pcbnew.Version()[0:3] == "6.0":
+        dlg.panel.m_radio_kicad.Disable()
+        # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
+        if has_pymupdf:
+            dlg.panel.m_radio_merge_pymupdf.SetValue(True)
+        else:
+            dlg.panel.m_radio_merge_pypdf.SetValue(True)
+    else:
+        # Set KiCad as default engine for coloring
+        dlg.panel.m_radio_kicad.SetValue(True)
+
+    # If it was possible to import and open PyMuPdf, select pymupdf for merging otherwise select pypdf.
     if has_pymupdf:
-        dlg.panel.m_radio_pymupdf.SetValue(True)
         dlg.panel.m_radio_merge_pymupdf.SetValue(True)
     else:
-        dlg.panel.m_radio_pypdf.SetValue(True)
         dlg.panel.m_radio_merge_pypdf.SetValue(True)
 
     # Check if able to import pdfCropMargins.

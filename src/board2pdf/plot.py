@@ -7,6 +7,7 @@ import re
 import traceback
 import tempfile
 import logging
+import json
 from pathlib import Path
 
 try:
@@ -661,6 +662,15 @@ class LayerInfo:
         return rgb
 
     @property
+    def color_rgb_int(self) -> tuple[int, int, int]:
+        """Return (red, green, blue) in float between 0-1."""
+        value = self.color_hex.lstrip('#')
+        lv = len(value)
+        rgb = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+        rgb = (rgb[0], rgb[1], rgb[2])
+        return rgb
+
+    @property
     def transparency(self) -> int:
         """Return 0-100 in str."""
         value = self.transparency_value
@@ -705,10 +715,100 @@ class Template:
         """number of process steps for this template"""
         return len(self.settings) + sum([layer.has_color for layer in self.settings])
 
+    @property
+    def steps_without_coloring(self) -> int:
+        """number of process steps for this template"""
+        return len(self.settings)
+
     def __repr__(self):
         var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
         return f'{self.__class__.__name__}:{{ {var_str} }}'
 
+def create_kicad_color_template(template_settings, template_file_path: str) -> bool:
+    layer_color_name = {
+        "F.Cu" : "f",
+        "In1.Cu" : "in1",
+        "In2.Cu" : "in2",
+        "In3.Cu" : "in3",
+        "In4.Cu" : "in4",
+        "In5.Cu" : "in5",
+        "In6.Cu" : "in6",
+        "In7.Cu" : "in7",
+        "In8.Cu" : "in8",
+        "In9.Cu" : "in9",
+        "In10.Cu" : "in10",
+        "In11.Cu" : "in11",
+        "In12.Cu" : "in12",
+        "In13.Cu" : "in13",
+        "In14.Cu" : "in14",
+        "In15.Cu" : "in15",
+        "In16.Cu" : "in16",
+        "In17.Cu" : "in17",
+        "In18.Cu" : "in18",
+        "In19.Cu" : "in19",
+        "In20.Cu" : "in20",
+        "In21.Cu" : "in21",
+        "In22.Cu" : "in22",
+        "In23.Cu" : "in23",
+        "In24.Cu" : "in24",
+        "In25.Cu" : "in25",
+        "In26.Cu" : "in26",
+        "In27.Cu" : "in27",
+        "In28.Cu" : "in28",
+        "In29.Cu" : "in29",
+        "In30.Cu" : "in30",
+        "B.Cu" : "b",
+        "B.Adhesive" : "b_adhes",
+        "F.Adhesive" : "f_adhes",
+        "B.Paste" : "b_paste",
+        "F.Paste" : "f_paste",
+        "B.Silkscreen" : "b_silks",
+        "F.Silkscreen" : "f_silks",
+        "B.Mask" : "b_mask",
+        "F.Mask" : "f_mask",
+        "User.Drawings" : "dwgs_user",
+        "User.Comments" : "cmts_user",
+        "User.Eco1" : "eco1_user",
+        "User.Eco2" : "eco2_user",
+        "Edge.Cuts" : "edge_cuts",
+        "Margin" : "margin",
+        "B.Courtyard" : "b_crtyd",
+        "F.Courtyard" : "f_crtyd",
+        "B.Fab" : "b_fab",
+        "F.Fab" : "f_fab",
+        "User.1" : "user_1",
+        "User.2" : "user_2",
+        "User.3" : "user_3",
+        "User.4" : "user_4",
+        "User.5" : "user_5",
+        "User.6" : "user_6",
+        "User.7" : "user_7",
+        "User.8" : "user_8",
+        "User.9" : "user_9",
+        "Rescue" : ""
+    }
+
+    copper_dict = {}
+    layers_dict = {}
+    for layer_info in template_settings:
+        color_string = "rgb(" + str(layer_info.color_rgb_int[0]) + ", " + str(layer_info.color_rgb_int[1]) + ", " + str(layer_info.color_rgb_int[2]) + ")"
+        if pcbnew.IsCopperLayer(layer_info.id):
+            copper_dict[layer_color_name[layer_info.name]] = color_string
+        else:
+            layers_dict[layer_color_name[layer_info.name]] = color_string
+        
+        # If this is the frame layer then set "worksheet" to this color as well.
+        # This doesn't work in KiCad 7.0. Was fixed in KiCad 8.0. See https://gitlab.com/kicad/code/kicad/-/commit/077159ac130d276af043695afbf186f0565035e9
+        if layer_info.with_frame:
+            layers_dict["worksheet"] = color_string
+        
+    layers_dict["copper"] = copper_dict
+    color_template = { "board" : layers_dict, "meta" : { "name" : "Board2Pdf Template", "version" : 5 } }
+    
+    with open(template_file_path, 'w') as f:
+        json.dump(color_template, f, ensure_ascii=True, indent=4, sort_keys=True)
+    
+    return True
 
 def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
                  dlg=None, **kwargs) -> bool:
@@ -719,8 +819,16 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     info_variable: str = kwargs.pop('info_variable', '')
 
     if dlg is None:
-        use_pymupdf = has_pymupdf or create_svg
-        pymupdf_pdf = has_pymupdf and colorize_lib != 'pypdf'
+        if(colorize_lib == 'pypdf'):
+            pymupdf_color = False
+            kicad_color = False
+        elif(colorize_lib == 'pymupdf' or colorize_lib == 'fitz'):
+            pymupdf_color = True
+            kicad_color = False
+        else:
+            pymupdf_color = False
+            kicad_color = True
+        
         pymupdf_merge = has_pymupdf and merge_lib != 'pypdf'
 
         def set_progress_status(progress: int, status: str):
@@ -730,9 +838,9 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             print(f"{caption}: {text}")
 
     elif isinstance(dlg, wx.Panel):
-        pymupdf_pdf = dlg.m_radio_pymupdf.GetValue()
+        pymupdf_color = dlg.m_radio_pymupdf.GetValue()
+        kicad_color = dlg.m_radio_kicad.GetValue()
         pymupdf_merge = dlg.m_radio_merge_pymupdf.GetValue()
-        use_pymupdf = pymupdf_pdf or pymupdf_merge or create_svg
 
         def set_progress_status(progress: int, status: str):
             dlg.m_staticText_status.SetLabel(f'Status: {status}')
@@ -746,7 +854,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         print(f"Error: Unknown dialog type {type(dlg)}", file=sys.stderr)
         return False
 
-    if use_pymupdf and not has_pymupdf:
+    if (pymupdf_color or pymupdf_merge or create_svg) and not has_pymupdf:
         msg_box(
             "PyMuPdf wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com",
             'Error', wx.OK | wx.ICON_ERROR)
@@ -768,7 +876,9 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             set_progress_status(100, "Failed to load pdfCropMargins.")
             return False
 
-    colorize_pdf = colorize_pdf_pymupdf if pymupdf_pdf else colorize_pdf_pypdf
+    # colorize_pdf function points to colorize_pdf_pymupdf if pymupdf_color is true, else it points to colorize_pdf_pypdf
+    # This function is only used if kicad_color is False
+    colorize_pdf = colorize_pdf_pymupdf if pymupdf_color else colorize_pdf_pypdf
 
     os.chdir(os.path.dirname(board.GetFileName()))
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
@@ -821,11 +931,13 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         if t in templates:
             temp = Template(t, templates[t], layer_names)
             _logger.debug(temp)
-            steps += 1 + temp.steps
+            if kicad_color:
+                steps += 1 + temp.steps_without_coloring
+            else:
+                steps += 1 + temp.steps
             templates_list.append(temp)
     progress_step: float = 95 / steps
 
-    """
     [
         ["Greyscale Top", False,
             [
@@ -834,7 +946,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             ]
         ],
     ]
-    """
+
     try:
         # Set General Options:
         plot_options.SetPlotInvisibleText(False)
@@ -862,8 +974,20 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     
     # Iterate over the templates
     for page_count, template in enumerate(templates_list):
-        #page_info = f"board2pdf: {template.name} -- {page_count + 1}/{len(templates_list)}"
-        #page_info = "Board2Pdf: ${template_name} -- ${page_nr}/${total_pages}"
+        if kicad_color:
+            sm = pcbnew.GetSettingsManager()
+            template_file_path = os.path.join(sm.GetColorSettingsPath(), "board2pdf.json")
+
+            if not create_kicad_color_template(template.settings, template_file_path):
+                set_progress_status(100, f"Failed to create color template for template {template.name}")
+                return False
+
+            plot_controller.SetColorMode(True)
+            sm.ReloadColorSettings()
+            cs = sm.GetColorSettings("board2pdf")
+            plot_options.SetColorSettings(cs)
+            plot_options.SetBlackAndWhite(False)        
+        
         page_info_tmp = page_info.replace("${template_name}", template.name)
         page_info_tmp = page_info_tmp.replace("${page_nr}", str(page_count + 1))
         page_info_tmp = page_info_tmp.replace("${total_pages}", str(len(templates_list)))
@@ -929,7 +1053,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             ln = layer_info.name.replace('.', '_')
             input_file = f"{base_filename}-{ln}.pdf"
             output_file = f"{base_filename}-{ln}-colored.pdf"
-            if layer_info.has_color or layer_info.has_transparency:
+            if not kicad_color and ( layer_info.has_color or layer_info.has_transparency ):
                 progress += progress_step
                 set_progress_status(progress, f"Coloring {layer_info.name} for template {template.name}")
 
@@ -966,13 +1090,25 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         # Set use_popups to True if any template has popups
         use_popups = use_popups or template_use_popups
 
+    """
+    if kicad_color:
+        # Delete Board2Pdf color template
+        try:
+            os.remove(template_file_path)
+        except:
+            msg_box(f"Delete color template file failed\n\n" + traceback.format_exc(), 'Error',
+                    wx.OK | wx.ICON_ERROR)
+            set_progress_status(100, "Failed to delete color template file")
+            return False
+        sm = pcbnew.GetSettingsManager()
+        sm.ReloadColorSettings()
+    """
     if(info_variable_int>=1 and info_variable_int<=9):
         title_block.SetComment(info_variable_int-1, previous_comment)
 
     # Add all generated pdfs to one file
     progress += progress_step
     set_progress_status(progress, "Adding all templates to a single file")
-
 
     if not create_pdf_from_pages(output_dir, template_filelist, output_dir, final_assembly_file, use_popups):
         set_progress_status(100, "Failed when adding all templates to a single file")

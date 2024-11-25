@@ -14,7 +14,8 @@ except ImportError:
 _logger = logging.getLogger(__name__)
 _log_levels = {'NOTSET': logging.NOTSET, 'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARN': logging.WARN,
                'ERROR': logging.ERROR, 'FATAL': logging.FATAL}
-_pdf_libs = ['pypdf', 'fitz']
+_pdf_libs_merge = ['pypdf', 'pymupdf']
+_pdf_libs_color = ['kicad', 'pypdf', 'pymupdf']
 
 
 def shell_path(abspath: bool = True, exists: bool = True):
@@ -64,9 +65,9 @@ def parse_args():
                         help=f'Path to `board2pdf.config.ini` to use')
     parser.add_argument('--log', default='NOTSET', choices=_log_levels.keys(), required=False,
                         help='Enables logging with given log-level')
-    parser.add_argument('--merge', default=None, choices=_pdf_libs, required=False,
+    parser.add_argument('--merge', default=None, choices=_pdf_libs_merge, required=False,
                         help='PDF merge processor library')
-    parser.add_argument('--colorize', default=None, choices=_pdf_libs, required=False,
+    parser.add_argument('--colorize', default=None, choices=_pdf_libs_color, required=False,
                         help='PDF colorize processor library')
     parser.add_argument('--ext', default=None, required=False,
                         help='File extension to use for the merged PDF. Default is `__Assembly`.')
