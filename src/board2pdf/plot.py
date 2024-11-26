@@ -1090,7 +1090,6 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
         # Set use_popups to True if any template has popups
         use_popups = use_popups or template_use_popups
 
-    """
     if kicad_color:
         # Delete Board2Pdf color template
         try:
@@ -1102,7 +1101,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
             return False
         sm = pcbnew.GetSettingsManager()
         sm.ReloadColorSettings()
-    """
+
     if(info_variable_int>=1 and info_variable_int<=9):
         title_block.SetComment(info_variable_int-1, previous_comment)
 
