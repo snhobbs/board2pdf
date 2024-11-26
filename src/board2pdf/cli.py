@@ -15,7 +15,7 @@ _logger = logging.getLogger(__name__)
 _log_levels = {'NOTSET': logging.NOTSET, 'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARN': logging.WARN,
                'ERROR': logging.ERROR, 'FATAL': logging.FATAL}
 _pdf_libs_merge = ['pypdf', 'pymupdf']
-_pdf_libs_color = ['kicad', 'pypdf', 'pymupdf']
+_pdf_libs_color = ['pypdf', 'pymupdf']
 
 
 def shell_path(abspath: bool = True, exists: bool = True):

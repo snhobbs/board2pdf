@@ -819,16 +819,16 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
     info_variable: str = kwargs.pop('info_variable', '')
 
     if dlg is None:
-        if(colorize_lib == 'pypdf'):
+        if(colorize_lib == 'kicad'):
             pymupdf_color = False
-            kicad_color = False
+            kicad_color = True
         elif(colorize_lib == 'pymupdf' or colorize_lib == 'fitz'):
             pymupdf_color = True
             kicad_color = False
         else:
             pymupdf_color = False
-            kicad_color = True
-        
+            kicad_color = False
+
         pymupdf_merge = has_pymupdf and merge_lib != 'pypdf'
 
         def set_progress_status(progress: int, status: str):

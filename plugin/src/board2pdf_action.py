@@ -156,7 +156,10 @@ def run_with_dialog():
             has_pymupdf = False
 
     if pcbnew.Version()[0:3] == "6.0":
+        # KiCad 6.0 has no support for color. 7.0 has support, but the drawing sheet (frame) is always the same color.
         dlg.panel.m_radio_kicad.Disable()
+
+    if ( pcbnew.Version()[0:3] == "6.0" or pcbnew.Version()[0:3] == "7.0" ):
         # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
         if has_pymupdf:
             dlg.panel.m_radio_merge_pymupdf.SetValue(True)
