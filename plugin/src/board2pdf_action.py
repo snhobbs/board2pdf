@@ -74,11 +74,13 @@ def run_with_dialog():
     config.local_settings_file_path = local_configfile
 
     def perform_export(dialog_panel):
-        plot.plot_pdfs(board, dialog_panel.outputDirPicker.Path, config.templates,
-                          dialog_panel.templatesSortOrderBox.GetItems(),
-                          dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
-                          dialog_panel.m_checkBox_create_svg.IsChecked(),
-                          dialog_panel.m_checkBox_delete_single_page_files.IsChecked(), dialog_panel,
+        plot.plot_pdfs(board, dialog_panel,
+                          output_path=dialog_panel.outputDirPicker.Path,
+                          templates=config.templates,
+                          enabled_templates=dialog_panel.templatesSortOrderBox.GetItems(),
+                          create_svg=dialog_panel.m_checkBox_create_svg.IsChecked(),
+                          del_temp_files=dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
+                          del_single_page_files=dialog_panel.m_checkBox_delete_single_page_files.IsChecked(),
                           assembly_file_extension=config.assembly_file_extension,
                           page_info=dialog_panel.m_textCtrl_page_info.GetValue(),
                           info_variable=str(dialog_panel.m_comboBox_info_variable.GetCurrentSelection()))

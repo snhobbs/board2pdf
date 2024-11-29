@@ -810,13 +810,18 @@ def create_kicad_color_template(template_settings, template_file_path: str) -> b
     
     return True
 
-def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, create_svg, del_single_page_files,
-                 dlg=None, **kwargs) -> bool:
+def plot_pdfs(board, dlg=None, **kwargs) -> bool:
+    output_path: str = kwargs.pop('output_path', 'plot')
+    templates: list = kwargs.pop('templates', [])
+    enabled_templates: list = kwargs.pop('enabled_templates', [])
+    create_svg: bool = kwargs.pop('create_svg', False)
+    del_temp_files: bool = kwargs.pop('del_temp_files', True)
+    del_single_page_files: bool = kwargs.pop('del_single_page_files', True)
     asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
     colorize_lib: str = kwargs.pop('colorize_lib', '')
     merge_lib: str = kwargs.pop('merge_lib', '')
     page_info: str = kwargs.pop('page_info', '')
-    info_variable: str = kwargs.pop('info_variable', '')
+    info_variable: str = kwargs.pop('info_variable', '0')
 
     if dlg is None:
         if(colorize_lib == 'kicad'):
@@ -969,6 +974,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
 
     title_block = board.GetTitleBlock()
     info_variable_int = int(info_variable)
+
     if(info_variable_int>=1 and info_variable_int<=9):
         previous_comment = title_block.GetComment(info_variable_int-1)
     
@@ -1036,7 +1042,7 @@ def plot_pdfs(board, output_path, templates, enabled_templates, del_temp_files, 
                 if pcbnew.Version()[0:3] == "6.0":
                     plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
                 else:
-                    plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, "", template.name)
+                    plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name, template.name)
                 plot_controller.PlotLayer()
             except:
                 msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)

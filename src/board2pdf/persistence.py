@@ -32,12 +32,12 @@ class Persistence:
         self._configfile: str = configfile
 
         self.templates: dict = {}
-        self.output_path: str = ''
+        self.output_path: str = 'plot'
         self.enabled_templates: list = []
         self.disabled_templates: list = []
         self.create_svg: bool = False
-        self.del_temp_files: bool = False
-        self.del_single_page_files: bool = False
+        self.del_temp_files: bool = True
+        self.del_single_page_files: bool = True
         self.assembly_file_extension: str = "__Assembly"
         self.page_info: str = 'Board2Pdf: ${template_name} - Page ${page_nr}/${total_pages}'
         self.info_variable: str = '4'
