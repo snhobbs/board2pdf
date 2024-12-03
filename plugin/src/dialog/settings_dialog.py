@@ -7,6 +7,7 @@ import pcbnew
 import logging
 
 from . import dialog_base
+from .. import persistence
 
 _log = logging.getLogger("board2pdf")
 
@@ -105,22 +106,34 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.loadSettingsBtn.PopupMenu(self.load_menu, pos)
 
     def OnLoadDefault(self, event):
-        self.config._configfile = self.config.default_settings_file_path
-        self.config.load()
+        config_tmp = persistence.Persistence(self.config.default_settings_file_path)
+        config_tmp.load()
+        config_tmp.default_settings_file_path = self.config.default_settings_file_path
+        config_tmp.global_settings_file_path = self.config.global_settings_file_path
+        config_tmp.local_settings_file_path = self.config.local_settings_file_path
+        self.config = config_tmp
         self.load_saved_func(self, self.config)
         self.templates: dict = self.config.templates
         self.m_staticText_status.SetLabel('Status: default settings loaded')
 
     def OnLoadGlobal(self, event):
-        self.config._configfile = self.config.global_settings_file_path
-        self.config.load()
+        config_tmp = persistence.Persistence(self.config.global_settings_file_path)
+        config_tmp.load()
+        config_tmp.default_settings_file_path = self.config.default_settings_file_path
+        config_tmp.global_settings_file_path = self.config.global_settings_file_path
+        config_tmp.local_settings_file_path = self.config.local_settings_file_path
+        self.config = config_tmp
         self.load_saved_func(self, self.config)
         self.templates: dict = self.config.templates
         self.m_staticText_status.SetLabel('Status: global settings loaded')
 
     def OnLoadLocal(self, event):
-        self.config._configfile = self.config.local_settings_file_path
-        self.config.load()
+        config_tmp = persistence.Persistence(self.config.local_settings_file_path)
+        config_tmp.load()
+        config_tmp.default_settings_file_path = self.config.default_settings_file_path
+        config_tmp.global_settings_file_path = self.config.global_settings_file_path
+        config_tmp.local_settings_file_path = self.config.local_settings_file_path
+        self.config = config_tmp
         self.load_saved_func(self, self.config)
         self.templates: dict = self.config.templates
         self.m_staticText_status.SetLabel('Status: local settings loaded')
