@@ -193,7 +193,6 @@ def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, colo
     # all paths processed - commit the shape to its page
     shape.commit()
 
-    print("New page")
     page = outpdf[0]
     paths = page.get_drawings()  # extract existing drawings
 
@@ -720,6 +719,13 @@ class Template:
         """number of process steps for this template"""
         return len(self.settings)
 
+    @property
+    def has_transparency(self) -> bool:
+        for layer_info in self.settings:
+            if layer_info.has_transparency:
+                return True
+        return False
+
     def __repr__(self):
         var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
         return f'{self.__class__.__name__}:{{ {var_str} }}'
@@ -930,18 +936,32 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
 
     steps: int = 2  # number of process steps
     templates_list: list[Template] = []
+    warn_about_transparancy = False
     for t in enabled_templates:
         # {  "Test-template": {"mirrored": true, "enabled_layers": "B.Fab,B.Mask,Edge.Cuts,F.Adhesive", "frame": "In4.Cu",
         #          "layers": {"B.Fab": "#000012", "B.Mask": "#000045"}}  }
         if t in templates:
             temp = Template(t, templates[t], layer_names)
             _logger.debug(temp)
+
+            # If not using PyMuPdf, check if any layers are transparant
+            if not pymupdf_color:
+                if temp.has_transparency:
+                    warn_about_transparancy = True
+
+            # Count how many steps it will take to complete this operation
             if kicad_color:
                 steps += 1 + temp.steps_without_coloring
             else:
                 steps += 1 + temp.steps
+
+            # Build list of templates that shall be used
             templates_list.append(temp)
     progress_step: float = 95 / steps
+
+    if warn_about_transparancy:
+        msg_box("One or more layers have transparency set. Transparancy only works when using PyMuPDF for coloring.",
+                'Warning', wx.OK | wx.ICON_WARNING)
 
     [
         ["Greyscale Top", False,
