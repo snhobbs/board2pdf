@@ -963,15 +963,6 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
         msg_box("One or more layers have transparency set. Transparancy only works when using PyMuPDF for coloring.",
                 'Warning', wx.OK | wx.ICON_WARNING)
 
-    [
-        ["Greyscale Top", False,
-            [
-             ("F_Cu", pcbnew.F_Cu, "#F0F0F0", False, True, True, True),
-             ("F_Paste", pcbnew.F_Paste, "#C4C4C4", False, False, True, True),
-            ]
-        ],
-    ]
-
     try:
         # Set General Options:
         plot_options.SetPlotInvisibleText(False)
