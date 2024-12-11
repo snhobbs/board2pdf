@@ -76,7 +76,7 @@ def run_with_dialog():
     def perform_export(dialog_panel):
         plot.plot_pdfs(board, dialog_panel,
                           output_path=dialog_panel.outputDirPicker.Path,
-                          templates=config.templates,
+                          templates=dialog_panel.config.templates,
                           enabled_templates=dialog_panel.templatesSortOrderBox.GetItems(),
                           create_svg=dialog_panel.m_checkBox_create_svg.IsChecked(),
                           del_temp_files=dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
