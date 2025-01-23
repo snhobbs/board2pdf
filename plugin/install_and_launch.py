@@ -13,12 +13,12 @@ import shutil
 import importlib
 from pathlib import Path
 
-# This is the path to where the plugin is installed for KiCad 8.0.
+# This is the path to where the plugin is installed for KiCad 9.0.
 if os.name == 'nt': # If running Windows
-    installed_path = Path(os.path.expanduser('~/Documents/KiCad/8.0/3rdparty/plugins/com_gitlab_dennevi_Board2Pdf')).absolute()
+    installed_path = Path(os.path.expanduser('~/Documents/KiCad/9.0/3rdparty/plugins/com_gitlab_dennevi_Board2Pdf')).absolute()
 else: # If running Linux
-    installed_path = Path(os.path.expanduser('~/.local/share/kicad/8.0/3rdparty/plugins/com_gitlab_dennevi_Board2Pdf/')).absolute()
-#installed_path = Path("C:\\Users\\denne\\Documents\\KiCad\\8.0\\3rdparty\\plugins\\com_gitlab_dennevi_Board2Pdf").absolute()
+    installed_path = Path(os.path.expanduser('~/.local/share/kicad/9.0/3rdparty/plugins/com_gitlab_dennevi_Board2Pdf/')).absolute()
+#installed_path = Path("C:\\Users\\denne\\Documents\\KiCad\\9.0\\3rdparty\\plugins\\com_gitlab_dennevi_Board2Pdf").absolute()
 
 repo_path = Path(board2pdf_path).absolute()
 #repo_path = Path("C:\\git\\other-repos\\Board2Pdf").absolute()

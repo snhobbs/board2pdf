@@ -68,6 +68,9 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.hide_template_settings()
         self.hide_layer_settings()
 
+        if (int(pcbnew.Version()[0:1]) >= 9):
+            self.m_checkBox_tent.Show(False)
+
         self.layersColorDict = {}
         self.layersTransparencyDict = {}
         self.layersNegativeDict = {}
