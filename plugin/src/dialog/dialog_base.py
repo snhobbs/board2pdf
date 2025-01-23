@@ -386,10 +386,10 @@ class SettingsDialogPanel ( wx.Panel ):
         gSizer3.Add( self.m_checkBox_negative, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
         self.m_checkBox_reference_designators = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot references", wx.DefaultPosition, wx.DefaultSize, 0 )
-        gSizer3.Add( self.m_checkBox_reference_designators, 0, wx.ALL, 5 )
+        gSizer3.Add( self.m_checkBox_reference_designators, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
         self.m_checkBox_footprint_values = wx.CheckBox( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Plot fp values", wx.DefaultPosition, wx.DefaultSize, 0 )
-        gSizer3.Add( self.m_checkBox_footprint_values, 0, wx.ALL, 5 )
+        gSizer3.Add( self.m_checkBox_footprint_values, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
         sbSizer611.Add( gSizer3, 1, wx.EXPAND, 5 )
