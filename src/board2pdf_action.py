@@ -1,35 +1,28 @@
-# from __future__ import absolute_import
-
 import os
 import shutil
 import sys
-import pcbnew
 import wx
 import pathlib
 import logging
+import tempfile
+from pathlib import Path
+
+from kipy import KiCad
+from kipy.board import BoardLayer
+from kipy.util.board_layer import canonical_name, is_copper_layer
 
 _log=logging.getLogger("board2pdf")
 
 dirname = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 _package = os.path.basename(dirname)
 
-try:
-    from . _version import __version__
-except ImportError:
-    # sys.path.insert(0, os.path.dirname(dirname))
-    sys.path.append(os.path.dirname(dirname))
-    # Pretend we are part of a module
-    # Avoids: ImportError: attempted relative import with no known parent package
-    __package__ = _package
-    __import__(__package__)
-    _log.debug("Package: %s\tDir: %s", __package__, dirname)
-
-from . _version import __version__
-from . import plot
-from . import dialog
-from . import persistence
+from _version import __version__
+import plot
+import dialog
+import persistence
 _log.debug("File: %s\tVersion: %s", __file__, __version__)
 
+"""
 _board = None
 def set_board(board: pcbnew.BOARD):
     global _board
@@ -40,16 +33,20 @@ def get_board() -> pcbnew.BOARD:
     if _board is None:
         set_board(pcbnew.GetBoard())
     return _board
-
+"""
 
 def run_with_dialog():
-    board = get_board()
-    pcb_file_name = board.GetFileName()
+    kicad = KiCad()
+    board = kicad.get_board()
+    pcb_file_name = os.path.splitext(board.document.board_filename)[0]
+    print("pcb_file_name:", pcb_file_name)
     board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
-    pcb_file_dir = os.path.dirname(os.path.abspath(pcb_file_name))
+    print("board2pdf_dir:", board2pdf_dir)
+    project_path = board.document.project.path #os.path.dirname(board.document.project.path)
+    print("project_path:", project_path)
     default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
     global_configfile = os.path.join(board2pdf_dir, "board2pdf.config.ini")
-    local_configfile = os.path.join(pcb_file_dir, "board2pdf.config.ini")
+    local_configfile = os.path.join(project_path, "board2pdf.config.ini")
 
     # Not sure it this is needed any more.
     if not pcb_file_name:
@@ -73,9 +70,44 @@ def run_with_dialog():
     config.global_settings_file_path = global_configfile
     config.local_settings_file_path = local_configfile
 
+    # Create dictionary with all layers, including their names, user names and if it's in use or not.
+    layers_dict = {}
+    for layer in BoardLayer.values():
+        layer_std_name = canonical_name(layer)
+        if(layer_std_name != 'Unknown'):
+            layers_dict[layer_std_name] = { 'user_name' : '', 'in_use' : False, 'is_copper_layer' : is_copper_layer(layer)}
+
+    stackup = board.get_stackup()
+    for layer in stackup.layers:
+        layer_std_name = canonical_name(layer.layer)
+        layer_user_name = layer.user_name
+        if(layer_std_name != 'Unknown'):
+            layers_dict[layer_std_name]['in_use'] = True
+            if(layer_user_name != layer_std_name):
+                layers_dict[layer_std_name]['user_name'] = layer_user_name
+    
+    #for layer, value in layers_dict.items():
+    #    print(layer, value['user_name'], value['in_use'], value['is_copper_layer'])
+
     def perform_export(dialog_panel):
-        plot.plot_pdfs(board, dialog_panel,
+        if dialog_panel.m_checkBox_delete_temp_files.IsChecked():
+            # in case the files are deleted: use the OS temp directory
+            temp_dir = tempfile.mkdtemp()
+        else:
+            temp_dir = os.path.abspath(os.path.join(project_path, "temp"))
+
+        # Create the directory if it doesn't exist already
+        os.makedirs(temp_dir, exist_ok=True)
+
+        pcb_file_path = os.path.join(temp_dir, "pcb-file.kicad_pcb")
+        print("pcb_file_path:", pcb_file_path)
+
+        # Save the pcb to temp dir
+        board.save_as(pcb_file_path, True, False)
+
+        plot.plot_pdfs(project_path, pcb_file_path, pcb_file_name, temp_dir, dialog_panel,
                           output_path=dialog_panel.outputDirPicker.Path,
+                          layers_dict=layers_dict,
                           templates=dialog_panel.config.templates,
                           enabled_templates=dialog_panel.templatesSortOrderBox.GetItems(),
                           create_svg=dialog_panel.m_checkBox_create_svg.IsChecked(),
@@ -101,7 +133,7 @@ def run_with_dialog():
         dialog_panel.ClearTemplateSettings()
         dialog_panel.hide_template_settings()
 
-    dlg = dialog.SettingsDialog(config, perform_export, load_saved, version=__version__, board=get_board())
+    dlg = dialog.SettingsDialog(config, perform_export, load_saved, layers_dict, version=__version__)
     try:
         icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
         icon = wx.Icon(icon_path)
@@ -153,19 +185,27 @@ def run_with_dialog():
             _log.error("pymupdf partially initialized, falling back on pypdf. Error: %s", str(e))
             has_pymupdf = False
 
-    if pcbnew.Version()[0:3] == "6.0":
-        # KiCad 6.0 has no support for color. 7.0 has support, but the drawing sheet (frame) is always the same color.
-        dlg.panel.m_radio_kicad.Disable()
+    #if pcbnew.Version()[0:3] == "6.0":
+    #    # KiCad 6.0 has no support for color. 7.0 has support, but the drawing sheet (frame) is always the same color.
+    #    dlg.panel.m_radio_kicad.Disable()
 
-    if ( pcbnew.Version()[0:3] == "6.0" or pcbnew.Version()[0:3] == "7.0" ):
-        # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
-        if has_pymupdf:
-            dlg.panel.m_radio_merge_pymupdf.SetValue(True)
-        else:
-            dlg.panel.m_radio_merge_pypdf.SetValue(True)
-    else:
-        # Set KiCad as default engine for coloring
-        dlg.panel.m_radio_kicad.SetValue(True)
+    #if ( pcbnew.Version()[0:3] == "6.0" or pcbnew.Version()[0:3] == "7.0" ):
+    #    # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
+    #    if has_pymupdf:
+    #        dlg.panel.m_radio_merge_pymupdf.SetValue(True)
+    #    else:
+    #        dlg.panel.m_radio_merge_pypdf.SetValue(True)
+    #else:
+    #    # Set KiCad as default engine for coloring
+    #   dlg.panel.m_radio_kicad.SetValue(True)
+    
+    # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
+    #if has_pymupdf:
+    #    dlg.panel.m_radio_pymupdf.SetValue(True)
+    #else:
+    #    dlg.panel.m_radio_pypdf.SetValue(True)
+    
+    dlg.panel.m_radio_kicad.SetValue(True)
 
     # If it was possible to import and open PyMuPdf, select pymupdf for merging otherwise select pypdf.
     if has_pymupdf:
@@ -185,10 +225,21 @@ def run_with_dialog():
     else:
         dlg.panel.m_staticText_pdfCropMargins.SetLabel(f'pdfCropMargins Status: NOT Installed')
 
+    dlg.panel.m_filePicker_kicad_cli.Path = kicad.get_kicad_binary_path('kicad-cli')
+
     dlg.ShowModal()
     dlg.Destroy()
 
+if __name__ == "__main__":
+    app = wx.App()
+    #rt = RoundTracks()
+    #rt.ShowModal()
+    run_with_dialog()
+    app.MainLoop()
+    #rt.Destroy()
 
+
+"""
 class board2pdf(pcbnew.ActionPlugin):
     def defaults(self):
         self.name = f"Board2Pdf\nversion {__version__}"
@@ -225,3 +276,4 @@ if __name__ == "__main__":
         main()
     else:
         _log.error("No board path passed or found in environment")
+"""

@@ -3,11 +3,11 @@ import re
 import os
 import wx
 import wx.grid
-import pcbnew
+#import pcbnew
 import logging
 
 from . import dialog_base
-from .. import persistence
+import persistence
 
 _log = logging.getLogger("board2pdf")
 
@@ -25,39 +25,22 @@ def pop_error(msg):
     wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
 
 class SettingsDialog(dialog_base.SettingsDialogBase):
-    def __init__(self, config, perform_export_func, load_saved_func, version, board):
+    def __init__(self, config, perform_export_func, load_saved_func, layers_dict, version):
         dialog_base.SettingsDialogBase.__init__(self, None)
-        self.panel = SettingsDialogPanel(self, config, perform_export_func, load_saved_func, board=board)
+        self.panel = SettingsDialogPanel(self, config, perform_export_func, load_saved_func, layers_dict)
         best_size = self.panel.BestSize
         # hack for some gtk themes that incorrectly calculate best size
         best_size.IncBy(dx=0, dy=30)
         self.SetClientSize(best_size)
         self.SetTitle('Board2Pdf %s' % version)
-        if (int(pcbnew.Version()[0:1]) < 8):
-            # If KiCad version < 8, no support for exporting property popups on just Front or Back layer
-            pos = self.panel.m_comboBox_popups.FindString("Front Layer")
-            self.panel.m_comboBox_popups.Delete(pos)
-            pos = self.panel.m_comboBox_popups.FindString("Back Layer")
-            self.panel.m_comboBox_popups.Delete(pos)
-
-
-    # hack for new wxFormBuilder generating code incompatible with old wxPython
-    # noinspection PyMethodOverriding
-    def SetSizeHints(self, sz1, sz2):
-        try:
-            # wxPython 4
-            super(SettingsDialog, self).SetSizeHints(sz1, sz2)
-        except TypeError:
-            # wxPython 3
-            self.SetSizeHintsSz(sz1, sz2)
 
 # Implementing settings_dialog
 class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
-    def __init__(self, parent, config, perform_export_func, load_saved_func, board: pcbnew.BOARD):
-        self.board = board
+    def __init__(self, parent, config, perform_export_func, load_saved_func, layers_dict):
         self.config = config
         self.perform_export_func = perform_export_func
         self.load_saved_func = load_saved_func
+        self.layers_dict = layers_dict
         self.templates: dict = config.templates
         self.current_template: str = ""
         self.current_layer: str = ""
@@ -67,9 +50,6 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_color_shower.SetLabel("")
         self.hide_template_settings()
         self.hide_layer_settings()
-
-        if (int(pcbnew.Version()[0:1]) >= 9):
-            self.m_checkBox_tent.Show(False)
 
         self.layersColorDict = {}
         self.layersTransparencyDict = {}
@@ -454,18 +434,8 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             self.m_textCtrl_template_name.ChangeValue(item)
             self.current_template = item
 
-            layers = []
-            layers_dict = dict()
-            i = pcbnew.PCBNEW_LAYER_ID_START
-            while i < pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT:
-                layer_std_name = pcbnew.BOARD.GetStandardLayerName(i)
-                layer_name = pcbnew.BOARD.GetLayerName(self.board, i)
-                layers_dict[layer_std_name] = layer_name
-                if layer_std_name == layer_name:
-                    layers.append(layer_name)
-                else:
-                    layers.append(layer_std_name + " (" + layer_name + ")")
-                i += 1
+            #for layer, value in layers_dict.items():
+            #    print(layer, value['user_name'], value['in_use'])
 
             # Set enabled layers, if there are any in this template already
             if item in self.templates and "enabled_layers" in self.templates[item]:
@@ -473,19 +443,28 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 enabled_layers = [l for l in enabled_layers if l != '']  # removes empty entries
                 # Add the layer name within parenthesis if the layer name is not the standard layer name
                 for i, layer_name in enumerate(enabled_layers):
-                    if layers_dict[layer_name] != layer_name:
-                        enabled_layers[i] = layer_name + " (" + layers_dict[layer_name] + ")"
+                    if self.layers_dict[layer_name]['user_name'] != "":
+                        enabled_layers[i] = layer_name + " (" + self.layers_dict[layer_name]['user_name'] + ")"
                 # Add all enabled layers to the enabled layers sort box.
                 if enabled_layers:
                     self.layersSortOrderBox.SetItems(enabled_layers)
 
             # Update the listbox with disabled layers
             # Add all layers not in the enabled list
-            for l in layers:
-                # Remove the name within the parenthesis if there is one, before searching for the name
-                layer_name = l.split(' (')[0]
-                if self.layersSortOrderBox.FindString(layer_name) == wx.NOT_FOUND:
-                    self.disabledLayersSortOrderBox.Append(l)
+            #for l in layers:
+            #    # Remove the name within the parenthesis if there is one, before searching for the name
+            #    layer_name = l.split(' (')[0]
+            #    if self.layersSortOrderBox.FindString(layer_name) == wx.NOT_FOUND:
+            #        self.disabledLayersSortOrderBox.Append(l)
+
+            for layer_name, value in self.layers_dict.items():
+                if value['user_name'] != "":
+                    full_layer_name = layer_name + " (" + value['user_name'] + ")"
+                else:
+                    full_layer_name = layer_name
+                
+                if self.layersSortOrderBox.FindString(full_layer_name) == wx.NOT_FOUND:
+                    self.disabledLayersSortOrderBox.Append(full_layer_name)
 
             # Create dictionary with all layers and their settings
             if item in self.templates:
@@ -502,15 +481,20 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 self.layersReferenceDesignatorsDict = {}
 
             # Update the comboBox where user can select one layer to plot the "frame"
-            layers.insert(0, "None")
-            self.m_comboBox_frame.SetItems(layers)
+            self.m_comboBox_frame.Append(['None'])
+            for layer_name, value in self.layers_dict.items():
+                if value['user_name'] != "":
+                    self.m_comboBox_frame.Append([layer_name + " (" + value['user_name'] + ")"])
+                else:
+                    self.m_comboBox_frame.Append([layer_name])
+
             self.m_comboBox_frame.SetSelection(0)
             # Check the saved template to see if there is a saved choice
             if item in self.templates and "frame" in self.templates[item]:
                 saved_frame = self.templates[item]["frame"]
                 if saved_frame and saved_frame != "None":
-                    if layers_dict[saved_frame] != saved_frame:
-                        saved_frame += " (" + layers_dict[saved_frame] + ")"
+                    if self.layers_dict[saved_frame]['user_name'] != "":
+                        saved_frame += " (" + self.layers_dict[saved_frame]['user_name'] + ")"
                     saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
                     if saved_frame_pos != wx.NOT_FOUND:
                         self.m_comboBox_frame.SetSelection(saved_frame_pos)
@@ -520,8 +504,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                 saved_popups = self.templates[item]["popups"]
             else:
                 saved_popups = "Both Layers"
-            if int(pcbnew.Version()[0:1]) < 8 and (saved_popups == "Front Layer" or saved_popups == "Back Layer"):
-                saved_popups = "Both Layers"
+
             saved_popups_pos = self.m_comboBox_popups.FindString(saved_popups)
             if saved_popups_pos != wx.NOT_FOUND:
                 self.m_comboBox_popups.SetSelection(saved_popups_pos)

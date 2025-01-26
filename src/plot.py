@@ -1,13 +1,14 @@
 import os
 import shutil
 import sys
-import pcbnew
+#import pcbnew
 import wx
 import re
 import traceback
-import tempfile
 import logging
 import json
+import subprocess
+import platform
 from pathlib import Path
 
 try:
@@ -601,9 +602,8 @@ class LayerInfo:
     std_color = "#000000"
     std_transparency = 0
 
-    def __init__(self, layer_names: dict, layer_name: str, template: dict, frame_layer: str, popups: str):
+    def __init__(self, layer_name: str, template: dict, frame_layer: str, popups: str):
         self.name: str = layer_name
-        self.id: int = layer_names[layer_name]
         self.color_hex: str = template["layers"].get(layer_name, self.std_color)  # color as '#rrggbb' hex string
         self.with_frame: bool = layer_name == frame_layer
 
@@ -681,7 +681,7 @@ class LayerInfo:
 
 
 class Template:
-    def __init__(self, name: str, template: dict, layer_names: dict):
+    def __init__(self, name: str, template: dict):
         self.name: str = name  # the template name
         self.mirrored: bool = template.get("mirrored", False)  # template is mirrored or not
         self.tented: bool = template.get("tented", False)  # template is tented or not
@@ -706,7 +706,7 @@ class Template:
                     else:
                         layer_popups: str  = "None"
                     # Prepend to settings
-                    layer_info = LayerInfo(layer_names, el, template, frame_layer, layer_popups)
+                    layer_info = LayerInfo(el, template, frame_layer, layer_popups)
                     self.settings.insert(0, layer_info)
 
     @property
@@ -730,7 +730,7 @@ class Template:
         var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
         return f'{self.__class__.__name__}:{{ {var_str} }}'
 
-def create_kicad_color_template(template_settings, template_file_path: str) -> bool:
+def create_kicad_color_template(template_settings, template_file_path: str, layers_dict: dict, msg_box) -> bool:
     layer_color_name = {
         "F.Cu" : "f",
         "In1.Cu" : "in1",
@@ -795,29 +795,36 @@ def create_kicad_color_template(template_settings, template_file_path: str) -> b
     }
 
     copper_dict = {}
-    layers_dict = {}
+    template_dict = {}
     for layer_info in template_settings:
         color_string = "rgb(" + str(layer_info.color_rgb_int[0]) + ", " + str(layer_info.color_rgb_int[1]) + ", " + str(layer_info.color_rgb_int[2]) + ")"
-        if pcbnew.IsCopperLayer(layer_info.id):
+        #if pcbnew.IsCopperLayer(layer_info.id):
+        if layers_dict[layer_info.name]['is_copper_layer']:
             copper_dict[layer_color_name[layer_info.name]] = color_string
         else:
-            layers_dict[layer_color_name[layer_info.name]] = color_string
+            template_dict[layer_color_name[layer_info.name]] = color_string
         
         # If this is the frame layer then set "worksheet" to this color as well.
-        # This doesn't work in KiCad 7.0. Was fixed in KiCad 8.0. See https://gitlab.com/kicad/code/kicad/-/commit/077159ac130d276af043695afbf186f0565035e9
         if layer_info.with_frame:
-            layers_dict["worksheet"] = color_string
+            template_dict["worksheet"] = color_string
         
-    layers_dict["copper"] = copper_dict
-    color_template = { "board" : layers_dict, "meta" : { "name" : "Board2Pdf Template", "version" : 5 } }
+    template_dict["copper"] = copper_dict
+    color_template = { "board" : template_dict, "meta" : { "name" : "Board2Pdf-Template", "version" : 5 } }
     
-    with open(template_file_path, 'w') as f:
-        json.dump(color_template, f, ensure_ascii=True, indent=4, sort_keys=True)
+    # Check if we're able to write to the output file.
+    try:
+        with open(template_file_path, 'w') as f:
+            json.dump(color_template, f, ensure_ascii=True, indent=4, sort_keys=True)
+    except:
+        msg_box("The color template file is not writeable. Perhaps it's open in another application?\n\n"
+                + template_file_path, 'Error', wx.OK | wx.ICON_ERROR)
+        return False
     
     return True
 
-def plot_pdfs(board, dlg=None, **kwargs) -> bool:
+def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_dir: str, dlg=None, **kwargs) -> bool:
     output_path: str = kwargs.pop('output_path', 'plot')
+    layers_dict: dict = kwargs.pop('layers_dict', {})
     templates: list = kwargs.pop('templates', [])
     enabled_templates: list = kwargs.pop('enabled_templates', [])
     create_svg: bool = kwargs.pop('create_svg', False)
@@ -891,21 +898,16 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
     # This function is only used if kicad_color is False
     colorize_pdf = colorize_pdf_pymupdf if pymupdf_color else colorize_pdf_pypdf
 
-    os.chdir(os.path.dirname(board.GetFileName()))
+    os.chdir(project_path)
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
-    if del_temp_files:
-        # in case the files are deleted: use the OS temp directory
-        temp_dir = tempfile.mkdtemp()
-    else:
-        temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
     progress = 5
     set_progress_status(progress, "Started plotting...")
 
-    plot_controller = pcbnew.PLOT_CONTROLLER(board)
-    plot_options = plot_controller.GetPlotOptions()
+    #plot_controller = pcbnew.PLOT_CONTROLLER(board)
+    #plot_options = plot_controller.GetPlotOptions()
 
-    base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
+    #base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
     final_assembly_file = base_filename + asy_file_extension + ".pdf"
     final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
 
@@ -927,12 +929,13 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
         set_progress_status(100, "Failed to write to output file.")
         return False
 
-    plot_options.SetOutputDirectory(temp_dir)
+    #plot_options.SetOutputDirectory(temp_dir)
+    os.chdir(temp_dir)
 
     # Build a dict to translate layer names to layerID
-    layer_names = {}
-    for i in range(pcbnew.PCBNEW_LAYER_ID_START, pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT):
-        layer_names[board.GetStandardLayerName(i)] = i
+    #layer_names = {}
+    #for i in range(pcbnew.PCBNEW_LAYER_ID_START, pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT):
+    #    layer_names[board.GetStandardLayerName(i)] = i
 
     steps: int = 2  # number of process steps
     templates_list: list[Template] = []
@@ -941,7 +944,7 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
         # {  "Test-template": {"mirrored": true, "enabled_layers": "B.Fab,B.Mask,Edge.Cuts,F.Adhesive", "frame": "In4.Cu",
         #          "layers": {"B.Fab": "#000012", "B.Mask": "#000045"}}  }
         if t in templates:
-            temp = Template(t, templates[t], layer_names)
+            temp = Template(t, templates[t])
             _logger.debug(temp)
 
             # If not using PyMuPdf, check if any layers are transparant
@@ -963,90 +966,92 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
         msg_box("One or more layers have transparency set. Transparancy only works when using PyMuPDF for coloring.",
                 'Warning', wx.OK | wx.ICON_WARNING)
 
+    """
     try:
         # Set General Options:
         plot_options.SetPlotInvisibleText(False)
-        # plot_options.SetPlotPadsOnSilkLayer(False);
         plot_options.SetUseAuxOrigin(False)
         plot_options.SetScale(1.0)
         plot_options.SetAutoScale(False)
-        # plot_options.SetPlotMode(PLOT_MODE)
-        # plot_options.SetLineWidth(2000)
-        if pcbnew.Version()[0:3] == "6.0":
-            # This method is only available on V6, not V6.99/V7
-            plot_options.SetExcludeEdgeLayer(True)
     except:
         msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
         set_progress_status(100, "Failed to set plot_options")
         return False
+    """
+    
+    if kicad_color:
+        #template_file_path = os.path.join(r'C:\Users\denne\AppData\Roaming\kicad\9.0\colors', "board2pdf.json")
+        if platform.system() == 'Windows':
+            template_file_path = os.path.join(os.getenv('APPDATA'), "kicad", "9.0", "colors", "board2pdf.json")
+        elif platform.system() == 'Linux':
+            template_file_path = os.path.join(os.getenv('HOME'), ".config", "kicad", "9.0", "colors", "board2pdf.json")
+        else: # MacOS
+            template_file_path = os.path.join(os.getenv('HOME'), "Library", "Preferences", "kicad", "9.0", "colors", "board2pdf.json")
 
     use_popups = False
     template_filelist = []
 
-    title_block = board.GetTitleBlock()
-    info_variable_int = int(info_variable)
+    #title_block = board.GetTitleBlock()
+    #info_variable_int = int(info_variable)
 
-    if(info_variable_int>=1 and info_variable_int<=9):
-        previous_comment = title_block.GetComment(info_variable_int-1)
+    #if(info_variable_int>=1 and info_variable_int<=9):
+    #    previous_comment = title_block.GetComment(info_variable_int-1)
     
     # Iterate over the templates
     for page_count, template in enumerate(templates_list):
         if kicad_color:
-            sm = pcbnew.GetSettingsManager()
-            template_file_path = os.path.join(sm.GetColorSettingsPath(), "board2pdf.json")
-
-            if not create_kicad_color_template(template.settings, template_file_path):
+            #sm = pcbnew.GetSettingsManager()
+            #template_file_path = os.path.join(sm.GetColorSettingsPath(), "board2pdf.json")
+            
+            if not create_kicad_color_template(template.settings, template_file_path, layers_dict, msg_box):
                 set_progress_status(100, f"Failed to create color template for template {template.name}")
                 return False
 
-            plot_controller.SetColorMode(True)
-            sm.ReloadColorSettings()
-            cs = sm.GetColorSettings("board2pdf")
-            plot_options.SetColorSettings(cs)
-            plot_options.SetBlackAndWhite(False)        
+            #plot_controller.SetColorMode(True)
+            #sm.ReloadColorSettings()
+            #cs = sm.GetColorSettings("board2pdf")
+            #plot_options.SetColorSettings(cs)
+            #plot_options.SetBlackAndWhite(False)
         
-        page_info_tmp = page_info.replace("${template_name}", template.name)
-        page_info_tmp = page_info_tmp.replace("${page_nr}", str(page_count + 1))
-        page_info_tmp = page_info_tmp.replace("${total_pages}", str(len(templates_list)))
-        if(info_variable_int>=1 and info_variable_int<=9):
-            title_block.SetComment(info_variable_int-1, page_info_tmp)
-        board.SetTitleBlock(title_block)
+        #page_info_tmp = page_info.replace("${template_name}", template.name)
+        #page_info_tmp = page_info_tmp.replace("${page_nr}", str(page_count + 1))
+        #page_info_tmp = page_info_tmp.replace("${total_pages}", str(len(templates_list)))
+        #if(info_variable_int>=1 and info_variable_int<=9):
+        #    title_block.SetComment(info_variable_int-1, page_info_tmp)
+        #board.SetTitleBlock(title_block)
+        
+        
         # msg_box("Now starting with template: " + template_name)
         # Plot layers to pdf files
         for layer_info in template.settings:
             progress += progress_step
             set_progress_status(progress, f"Plotting {layer_info.name} for template {template.name}")
 
-            if pcbnew.Version()[0:3] == "6.0":
-                if pcbnew.IsCopperLayer(layer_info.id):  # Should probably do this on mask layers as well
-                    plot_options.SetDrillMarksType(
-                        2)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
-                else:
-                    plot_options.SetDrillMarksType(
-                        0)  # NO_DRILL_SHAPE = 0, SMALL_DRILL_SHAPE = 1, FULL_DRILL_SHAPE  = 2
-            else:  # API changed in V6.99/V7
-                try:
-                    if pcbnew.IsCopperLayer(layer_info.id):  # Should probably do this on mask layers as well
-                        plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_FULL_DRILL_SHAPE)
-                    else:
-                        plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
-                except:
-                    msg_box(
-                        "Unable to set Drill Marks type.\n\nIf you're using a V6.99 build from before Dec 07 2022 then update to a newer build.\n\n" + traceback.format_exc(),
-                        'Error', wx.OK | wx.ICON_ERROR)
-                    set_progress_status(100, "Failed to set Drill Marks type")
-
-                    return False
-
+            """
             try:
+                if pcbnew.IsCopperLayer(layer_info.id):  # Should probably do this on mask layers as well
+                    plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_FULL_DRILL_SHAPE)
+                else:
+                    plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
+            except:
+                msg_box(
+                    "Unable to set Drill Marks type.\n\nIf you're using a V6.99 build from before Dec 07 2022 then update to a newer build.\n\n" + traceback.format_exc(),
+                    'Error', wx.OK | wx.ICON_ERROR)
+                set_progress_status(100, "Failed to set Drill Marks type")
+
+                return False
+            """
+            
+            """
+            try:
+                
                 plot_options.SetPlotFrameRef(layer_info.with_frame)
                 plot_options.SetNegative(layer_info.negative)
                 plot_options.SetPlotValue(layer_info.footprint_value)
                 plot_options.SetPlotReference(layer_info.reference_designator)
                 plot_options.SetMirror(template.mirrored)
-                if int(pcbnew.Version()[0:1]) < 9:
-                    plot_options.SetPlotViaOnMaskLayer(template.tented)
-                if int(pcbnew.Version()[0:1]) >= 8:
+                plot_options.SetPlotViaOnMaskLayer(template.tented)
+                if int(pcbnew.Version()[0:1]) >= 8:                    
                     plot_options.m_PDFFrontFPPropertyPopups = layer_info.front_popups
                     plot_options.m_PDFBackFPPropertyPopups = layer_info.back_popups
 
@@ -1056,12 +1061,43 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
                 else:
                     plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name, template.name)
                 plot_controller.PlotLayer()
+                
+                
             except:
                 msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
                 set_progress_status(100, "Failed to set plot_options or plot_controller")
                 return False
-
-        plot_controller.ClosePlot()
+            """
+            
+            #board_path = os.path.join(project_path, base_filename + ".kicad_pcb")
+            output_pdf_name = f"{base_filename}-{layer_info.name.replace('.', '_')}.pdf"
+            
+            # Delete pdf file if it already exists
+            if os.path.exists(output_pdf_name):
+                os.remove(output_pdf_name)
+                print("Deleted:", output_pdf_name)
+            
+            #cli_path = os.path.join(r"C:/Program Files/KiCad/9.0/bin/", "kicad-cli.exe")
+            #print("cli_path:", cli_path)
+            
+            #subprocess.call([r'C:\Temp\a b c\Notepad.exe', r'C:\test.txt'])
+            
+            #cli_command = "C:\\Program\ Files\\KiCad\\9.0\\bin\\kicad-cli.exe" #str(Path(
+            #cli_command += " -o " + output_pdf_name
+            #cli_command += " -l " + layer_info.name
+            #cli_command += " " + pcb_file_path
+            
+            #cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "pcb", "export", "pdf", "-o", output_pdf_name, "-l", layer_info.name, "--black-and-white", pcb_file_path]
+            cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "pcb", "export", "pdf", "-o", output_pdf_name, "-l", layer_info.name, "--theme", "Board2Pdf-Template", pcb_file_path]
+            
+            print("Executing:", str(cli_command))
+            
+            return_code = subprocess.call(cli_command, shell=True)
+            print("return_code:", return_code)
+            
+        #plot_controller.ClosePlot()
+        
+        
 
         template_use_popups = False
         frame_file = 'None'
@@ -1110,6 +1146,7 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
 
     if kicad_color:
         # Delete Board2Pdf color template
+        """
         try:
             os.remove(template_file_path)
         except:
@@ -1117,11 +1154,9 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
                     wx.OK | wx.ICON_ERROR)
             set_progress_status(100, "Failed to delete color template file")
             return False
-        sm = pcbnew.GetSettingsManager()
-        sm.ReloadColorSettings()
-
-    if(info_variable_int>=1 and info_variable_int<=9):
-        title_block.SetComment(info_variable_int-1, previous_comment)
+        """
+    #if(info_variable_int>=1 and info_variable_int<=9):
+    #    title_block.SetComment(info_variable_int-1, previous_comment)
 
     # Add all generated pdfs to one file
     progress += progress_step
@@ -1148,6 +1183,7 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
             template_pdf.close()
 
     # Delete temp files if setting says so
+    """
     if del_temp_files:
         try:
             shutil.rmtree(temp_dir)
@@ -1156,7 +1192,7 @@ def plot_pdfs(board, dlg=None, **kwargs) -> bool:
                     wx.OK | wx.ICON_ERROR)
             set_progress_status(100, "Failed to delete temp files")
             return False
-
+    """
     # Delete single page files if setting says so
     if del_single_page_files:
         for template_file in template_filelist:

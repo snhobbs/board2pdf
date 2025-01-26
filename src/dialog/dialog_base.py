@@ -228,6 +228,22 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer6.Add( bSizer23, 1, wx.EXPAND, 5 )
 
+        fgSizer5 = wx.FlexGridSizer( 0, 2, 0, 0 )
+        fgSizer5.AddGrowableCol( 1 )
+        fgSizer5.SetFlexibleDirection( wx.BOTH )
+        fgSizer5.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_staticText23 = wx.StaticText( sbSizer6.GetStaticBox(), wx.ID_ANY, u"KiCad CLI", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText23.Wrap( -1 )
+
+        fgSizer5.Add( self.m_staticText23, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+
+        self.m_filePicker_kicad_cli = wx.FilePickerCtrl( sbSizer6.GetStaticBox(), wx.ID_ANY, wx.EmptyString, u"Select a file", u"*.*", wx.DefaultPosition, wx.DefaultSize, wx.FLP_DEFAULT_STYLE )
+        fgSizer5.Add( self.m_filePicker_kicad_cli, 1, wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, 5 )
+
+
+        sbSizer6.Add( fgSizer5, 1, wx.EXPAND, 5 )
+
         bSizer39 = wx.BoxSizer( wx.HORIZONTAL )
 
         self.saveSettingsBtn = wx.Button( sbSizer6.GetStaticBox(), wx.ID_ANY, u"Save settings", wx.DefaultPosition, wx.DefaultSize, 0|wx.BORDER_DEFAULT )
@@ -349,10 +365,8 @@ class SettingsDialogPanel ( wx.Panel ):
 
         gSizer2.Add( self.m_color_shower, 0, wx.ALL, 5 )
 
-        self.m_button_pick_color = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.Size( 70,-1 ), 0 )
-
-        self.m_button_pick_color.SetBitmapMargins( wx.Size( 2,-1 ) )
-        gSizer2.Add( self.m_button_pick_color, 0, wx.ALIGN_RIGHT|wx.ALL, 5 )
+        self.m_button_pick_color = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer2.Add( self.m_button_pick_color, 0, wx.ALL, 5 )
 
 
         sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
