@@ -730,7 +730,7 @@ class Template:
         var_str = ', '.join(f"{key}: {value}" for key, value in vars(self).items())
         return f'{self.__class__.__name__}:{{ {var_str} }}'
 
-def create_kicad_color_template(template_settings, template_file_path: str, layers_dict: dict, msg_box) -> bool:
+def create_kicad_color_template(template_settings, template_file_path: str, layers_dict: dict) -> bool:
     layer_color_name = {
         "F.Cu" : "f",
         "In1.Cu" : "in1",
@@ -816,8 +816,77 @@ def create_kicad_color_template(template_settings, template_file_path: str, laye
         with open(template_file_path, 'w') as f:
             json.dump(color_template, f, ensure_ascii=True, indent=4, sort_keys=True)
     except:
-        msg_box("The color template file is not writeable. Perhaps it's open in another application?\n\n"
+        exception_msg("The color template file is not writeable. Perhaps it's open in another application?\n\n"
                 + template_file_path, 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+    
+    return True
+
+def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str):
+    # Template:{ name: Black And White TOP, mirrored: False, tented: False, scale_or_crop: {'scaling_method': '0', 'crop_whitespace': '10', 'scale_whitespace': '30', 'scaling_factor': '3.0'}, settings: [
+    #  LayerInfo:{ name: F.Cu, color_hex: #F0F0F0, with_frame: False, transparency_value: 0, negative: False, footprint_value: True, reference_designator: True, front_popups: False, back_popups: False },
+    #  LayerInfo:{ name: F.Paste, color_hex: #C4C4C4, with_frame: False, transparency_value: 0, negative: False, footprint_value: True, reference_designator: True, front_popups: False, back_popups: False },
+    # ]
+    
+    jobs_list = []
+    for layer_info in template.settings:
+        settings_dict = {}
+        settings_dict["back_fp_property_popups"] = layer_info.back_popups
+        settings_dict["black_and_white"] = False
+        settings_dict["color_theme"] = "Board2Pdf"
+        settings_dict["description"] = ""
+        settings_dict["drawing_sheet"] = ""
+        if layers_dict[layer_info.name]['is_copper_layer']:
+            settings_dict["drill_shape"] = "full"
+        else:
+            settings_dict["drill_shape"] = "none" # "full/small/none"
+        settings_dict["front_fp_property_popups"] = layer_info.front_popups
+        settings_dict["layers"] = [layer_info.name]
+        settings_dict["layers_to_include_on_all_layers"] = []
+        settings_dict["mirror"] = template.mirrored
+        settings_dict["negative"] = layer_info.negative
+        settings_dict["output_filename"] = layer_info.name
+        settings_dict["pdf_gen_mode"] = "one-page-per-layer-one-file"
+        settings_dict["pdf_metadata"] = True
+        settings_dict["plot_drawing_sheet"] = layer_info.with_frame
+        settings_dict["plot_footprint_values"] = layer_info.footprint_value
+        settings_dict["plot_invisible_text"] = False
+        settings_dict["plot_pad_numbers"] = False
+        settings_dict["plot_ref_des"] = layer_info.reference_designator
+        settings_dict["single_document"] = False
+        settings_dict["sketch_pads_on_fab_layers"] = False
+        settings_dict["use_drill_origin"] = False
+
+        job_dict = {}
+        job_dict["description"] = "Plot " + layer_info.name
+        job_dict["id"] = os.urandom(4).hex()+"-"+os.urandom(2).hex()+"-"+os.urandom(2).hex()+"-"+os.urandom(2).hex()+"-"+os.urandom(6).hex()
+        job_dict["settings"] = settings_dict
+        job_dict["type"] = "pcb_export_pdf"
+
+        jobs_list.append(job_dict)
+
+    outputs_dict = {}
+    outputs_dict["description"] = "Generate " + template.name
+    outputs_dict["id"] = os.urandom(4).hex()+"-"+os.urandom(2).hex()+"-"+os.urandom(2).hex()+"-"+os.urandom(2).hex()+"-"+os.urandom(6).hex()
+    outputs_dict["only"] = []
+    outputs_dict["settings"] = { "output_path": "." }
+    outputs_dict["type"] = "folder"
+
+    jobsets_dict = {}
+    jobsets_dict["jobs"] = jobs_list
+    jobsets_dict["meta"] = { "version": 1 }
+    jobsets_dict["outputs"] = [ outputs_dict ]
+
+    # Create the path for the jobset file
+    jobset_file_path = os.path.join(template_dir, "jobset.kicad_jobset")
+
+    # Check if we're able to write to the output file.
+    try:
+        with open(jobset_file_path, 'w') as f:
+            json.dump(jobsets_dict, f, ensure_ascii=True, indent=2, sort_keys=False)
+    except:
+        exception_msg("The jobsets file is not writeable. Perhaps it's open in another application?\n\n"
+                + jobset_file_path, 'Error', wx.OK | wx.ICON_ERROR)
         return False
     
     return True
@@ -1003,7 +1072,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
             #sm = pcbnew.GetSettingsManager()
             #template_file_path = os.path.join(sm.GetColorSettingsPath(), "board2pdf.json")
             
-            if not create_kicad_color_template(template.settings, template_file_path, layers_dict, msg_box):
+            if not create_kicad_color_template(template.settings, template_file_path, layers_dict):
                 set_progress_status(100, f"Failed to create color template for template {template.name}")
                 return False
 
@@ -1022,83 +1091,24 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         
         
         # msg_box("Now starting with template: " + template_name)
+        # Create jobset file
+        template_dir = os.path.join(temp_dir, template.name.replace(' ', '_'))
+        os.makedirs(template_dir, exist_ok=True)
+        create_kicad_jobset(template, layers_dict, template_dir)
+
         # Plot layers to pdf files
-        for layer_info in template.settings:
-            progress += progress_step
-            set_progress_status(progress, f"Plotting {layer_info.name} for template {template.name}")
-
-            """
-            try:
-                if pcbnew.IsCopperLayer(layer_info.id):  # Should probably do this on mask layers as well
-                    plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_FULL_DRILL_SHAPE)
-                else:
-                    plot_options.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
-            except:
-                msg_box(
-                    "Unable to set Drill Marks type.\n\nIf you're using a V6.99 build from before Dec 07 2022 then update to a newer build.\n\n" + traceback.format_exc(),
-                    'Error', wx.OK | wx.ICON_ERROR)
-                set_progress_status(100, "Failed to set Drill Marks type")
-
-                return False
-            """
-            
-            """
-            try:
-                
-                plot_options.SetPlotFrameRef(layer_info.with_frame)
-                plot_options.SetNegative(layer_info.negative)
-                plot_options.SetPlotValue(layer_info.footprint_value)
-                plot_options.SetPlotReference(layer_info.reference_designator)
-                plot_options.SetMirror(template.mirrored)
-                plot_options.SetPlotViaOnMaskLayer(template.tented)
-                if int(pcbnew.Version()[0:1]) >= 8:                    
-                    plot_options.m_PDFFrontFPPropertyPopups = layer_info.front_popups
-                    plot_options.m_PDFBackFPPropertyPopups = layer_info.back_popups
-
-                plot_controller.SetLayer(layer_info.id)
-                if pcbnew.Version()[0:3] == "6.0":
-                    plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name)
-                else:
-                    plot_controller.OpenPlotfile(layer_info.name, pcbnew.PLOT_FORMAT_PDF, template.name, template.name)
-                plot_controller.PlotLayer()
-                
-                
-            except:
-                msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-                set_progress_status(100, "Failed to set plot_options or plot_controller")
-                return False
-            """
-            
-            #board_path = os.path.join(project_path, base_filename + ".kicad_pcb")
-            output_pdf_name = f"{base_filename}-{layer_info.name.replace('.', '_')}.pdf"
-            
-            # Delete pdf file if it already exists
-            if os.path.exists(output_pdf_name):
-                os.remove(output_pdf_name)
-                print("Deleted:", output_pdf_name)
-            
-            #cli_path = os.path.join(r"C:/Program Files/KiCad/9.0/bin/", "kicad-cli.exe")
-            #print("cli_path:", cli_path)
-            
-            #subprocess.call([r'C:\Temp\a b c\Notepad.exe', r'C:\test.txt'])
-            
-            #cli_command = "C:\\Program\ Files\\KiCad\\9.0\\bin\\kicad-cli.exe" #str(Path(
-            #cli_command += " -o " + output_pdf_name
-            #cli_command += " -l " + layer_info.name
-            #cli_command += " " + pcb_file_path
-            
-            #cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "pcb", "export", "pdf", "-o", output_pdf_name, "-l", layer_info.name, "--black-and-white", pcb_file_path]
-            cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "pcb", "export", "pdf", "-o", output_pdf_name, "-l", layer_info.name, "--theme", "Board2Pdf-Template", pcb_file_path]
-            
-            print("Executing:", str(cli_command))
-            
-            return_code = subprocess.call(cli_command, shell=True)
-            print("return_code:", return_code)
-            
-        #plot_controller.ClosePlot()
+        os.chdir(template_dir)
+        cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "jobset", "run", "-f", "jobset.kicad_jobset", pcb_file_path]
         
+        print("Executing:", str(cli_command))
         
+        return_code = subprocess.call(cli_command, shell=True)
+        print("return_code:", return_code)
 
+        #    for layer_info in template.settings:
+        #        progress += progress_step
+        #        set_progress_status(progress, f"Plotting {layer_info.name} for template {template.name}")
+        
         template_use_popups = False
         frame_file = 'None'
         filelist = []

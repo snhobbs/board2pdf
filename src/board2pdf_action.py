@@ -4,6 +4,7 @@ import sys
 import wx
 import pathlib
 import logging
+import traceback
 import tempfile
 from pathlib import Path
 
@@ -35,9 +36,22 @@ def get_board() -> pcbnew.BOARD:
     return _board
 """
 
+def exception_msg(info: str, tb=True):
+    msg = f"{info}\n\n" + (
+        traceback.format_exc() if tb else '')
+    try:
+        wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
+    except wx._core.PyNoAppError:
+        print(f'Error: {msg}', file=sys.stderr)
+
 def run_with_dialog():
     kicad = KiCad()
-    board = kicad.get_board()
+    try:
+        board = kicad.get_board()
+    except:
+        exception_msg("Could not connect to KiCad and get pcb")
+        return
+    
     pcb_file_name = os.path.splitext(board.document.board_filename)[0]
     print("pcb_file_name:", pcb_file_name)
     board2pdf_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,11 +61,6 @@ def run_with_dialog():
     default_configfile = os.path.join(board2pdf_dir, "default_config.ini")
     global_configfile = os.path.join(board2pdf_dir, "board2pdf.config.ini")
     local_configfile = os.path.join(project_path, "board2pdf.config.ini")
-
-    # Not sure it this is needed any more.
-    if not pcb_file_name:
-        wx.MessageBox('Please save the board file before plotting the pdf.')
-        return
 
     # If local config.ini file doesn't exist, use global. If global doesn't exist, use default.
     if os.path.exists(local_configfile):
@@ -74,7 +83,7 @@ def run_with_dialog():
     layers_dict = {}
     for layer in BoardLayer.values():
         layer_std_name = canonical_name(layer)
-        if(layer_std_name != 'Unknown'):
+        if(layer_std_name != 'Unknown' and layer_std_name != 'Rescue'):
             layers_dict[layer_std_name] = { 'user_name' : '', 'in_use' : False, 'is_copper_layer' : is_copper_layer(layer)}
 
     stackup = board.get_stackup()
@@ -103,7 +112,11 @@ def run_with_dialog():
         print("pcb_file_path:", pcb_file_path)
 
         # Save the pcb to temp dir
-        board.save_as(pcb_file_path, True, False)
+        try:
+            board.save_as(pcb_file_path, True, False)
+        except:
+            exception_msg("Could not save pcb to temporary path")
+            return
 
         plot.plot_pdfs(project_path, pcb_file_path, pcb_file_name, temp_dir, dialog_panel,
                           output_path=dialog_panel.outputDirPicker.Path,
