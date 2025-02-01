@@ -1,13 +1,15 @@
 import os
 import shutil
 import sys
+import re
 #import pcbnew
 import wx
-import re
+import wx.stc
 import traceback
 import logging
 import json
 import subprocess
+#from subprocess import PIPE, run
 import platform
 from pathlib import Path
 
@@ -891,6 +893,21 @@ def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str):
     
     return True
 
+class DebugDialog(wx.Dialog):
+    def __init__(self, parent, title, text):
+        super(DebugDialog, self).__init__(parent, title=title, size=(520, 550))
+        pnl = wx.Panel(self)
+        #vbox = wx.BoxSizer(wx.VERTICAL)
+
+        sb = wx.StaticBox(pnl)
+        sbs = wx.StaticBoxSizer(sb, orient=wx.VERTICAL)
+        m_styledTextCtrl = wx.stc.StyledTextCtrl(pnl, size=wx.Size(500, 500))
+        sbs.Add(m_styledTextCtrl)
+        m_styledTextCtrl.SetText(text)
+
+    def OnClose(self, e):
+        self.Destroy()
+
 def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_dir: str, dlg=None, **kwargs) -> bool:
     output_path: str = kwargs.pop('output_path', 'plot')
     layers_dict: dict = kwargs.pop('layers_dict', {})
@@ -1099,11 +1116,22 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         # Plot layers to pdf files
         os.chdir(template_dir)
         cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "jobset", "run", "-f", "jobset.kicad_jobset", pcb_file_path]
-        
-        print("Executing:", str(cli_command))
-        
-        return_code = subprocess.call(cli_command, shell=True)
-        print("return_code:", return_code)
+        result = subprocess.run(cli_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        return_code = result.returncode
+
+        if return_code != 0:
+            # Create text to show in DebugDialog
+            cmd_output = "Executed command: " + " ".join(str(x) for x in cli_command) + "\n\n" + result.stdout + "\n\n" + result.stderr + "\n\nReturn code: " + str(return_code)
+
+            # Remove ANSI escape sequences
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            cmd_output = ansi_escape.sub('', cmd_output)
+
+            # Open DebugDialog
+            cdDialog = DebugDialog(None, title='Failed to plot!', text=cmd_output)
+            cdDialog.ShowModal()
+            cdDialog.Destroy()
+            return False
 
         #    for layer_info in template.settings:
         #        progress += progress_step
