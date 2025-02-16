@@ -158,13 +158,20 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def hide_template_settings(self):
         self.m_textCtrl_template_name.Disable()
-        self.m_comboBox_frame.Disable()
         self.m_checkBox_mirror.Disable()
         self.m_checkBox_tent.Disable()
         self.m_staticText_template_name.Disable()
-        self.m_staticText_frame_layer.Disable()
         self.m_staticText_popups.Disable()
         self.m_comboBox_popups.Disable()
+
+        self.m_staticText_frame_layer.Disable()
+        self.m_comboBox_frame.Disable()
+        self.m_staticText_template_file.Disable()
+        self.m_radio_template_board2pdf.Disable()
+        self.m_radio_template_project.Disable()
+        self.m_radio_template_file.Disable()
+        self.m_staticText_choose_template_file.Disable()
+        self.m_filePicker_template_file.Disable()
 
         self.layersSortOrderBox.Disable()
         self.m_button_layer_up.Disable()
@@ -188,6 +195,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_staticText_layer_color.Disable()
         self.m_textCtrl_color.ChangeValue("")
         self.m_staticText_layer_transparency.Disable()
+        self.m_staticText_layer_transparency_percent.Disable()
         self.m_textCtrl_transparency.ChangeValue("")
         self.m_color_shower.SetBackgroundColour(wx.NullColour)
         self.m_color_shower.SetForegroundColour(wx.NullColour)
@@ -198,13 +206,18 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
     def show_template_settings(self):
         self.m_textCtrl_template_name.Enable()
-        self.m_comboBox_frame.Enable()
         self.m_checkBox_mirror.Enable()
         self.m_checkBox_tent.Enable()
         self.m_staticText_template_name.Enable()
-        self.m_staticText_frame_layer.Enable()
         self.m_staticText_popups.Enable()
         self.m_comboBox_popups.Enable()
+        
+        self.m_staticText_frame_layer.Enable()
+        self.m_comboBox_frame.Enable()
+        self.m_staticText_template_file.Enable()
+        self.m_radio_template_board2pdf.Enable()
+        self.m_radio_template_project.Enable()
+        self.m_radio_template_file.Enable()
 
         self.layersSortOrderBox.Enable()
         self.m_button_layer_up.Enable()
@@ -224,6 +237,7 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
         self.m_checkBox_footprint_values.Enable()
         self.m_staticText_layer_color.Enable()
         self.m_staticText_layer_transparency.Enable()
+        self.m_staticText_layer_transparency_percent.Enable()
 
     def OnExit(self, event):
         event.Skip()
@@ -498,6 +512,29 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
                     saved_frame_pos = self.m_comboBox_frame.FindString(saved_frame)
                     if saved_frame_pos != wx.NOT_FOUND:
                         self.m_comboBox_frame.SetSelection(saved_frame_pos)
+            
+            # Check the saved template to see if there is a choosen place to take the drawing sheet template from
+            if item in self.templates and "drawing_sheet" in self.templates[item]:
+                saved_drawing_sheet_choice = self.templates[item]["drawing_sheet"]
+                if saved_drawing_sheet_choice == 'file':
+                    self.m_radio_template_file.SetValue(True)
+                    self.m_staticText_choose_template_file.Enable()
+                    self.m_filePicker_template_file.Enable()
+                elif saved_drawing_sheet_choice == 'project':
+                    self.m_radio_template_project.SetValue(True)
+                    self.m_staticText_choose_template_file.Disable()
+                    self.m_filePicker_template_file.Disable()
+                else:
+                    self.m_radio_template_board2pdf.SetValue(True)
+                    self.m_staticText_choose_template_file.Disable()
+                    self.m_filePicker_template_file.Disable()
+            else:
+                self.m_radio_template_board2pdf.SetValue(True)
+
+            # Update the filepath for the choosen drawing sheet file
+            if item in self.templates and "drawing_sheet_file" in self.templates[item]:
+                saved_drawing_sheet_filepath = self.templates[item]["drawing_sheet_file"]
+                self.m_filePicker_template_file.Path = saved_drawing_sheet_filepath
 
             # Update the comboBox where user can select from which layer to take the popup menus
             if item in self.templates and "popups" in self.templates[item]:
@@ -585,6 +622,15 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
 
         self.SaveTemplate()
 
+    def OnTemplateChoiceChanged(self, event):
+        if(self.m_radio_template_file.GetValue()):
+            self.m_staticText_choose_template_file.Enable()
+            self.m_filePicker_template_file.Enable()
+        else:
+            self.m_staticText_choose_template_file.Disable()
+            self.m_filePicker_template_file.Disable()
+        self.SaveTemplate()
+
     def OnTransparencyLostFocus(self, event):
         transparency = re.sub('[^0-9]', '', self.m_textCtrl_transparency.GetValue())
         if not transparency:
@@ -638,12 +684,21 @@ class SettingsDialogPanel(dialog_base.SettingsDialogPanel):
             # Remove the name within the parenthesis if there is one
             for i, layer_name in enumerate(enabled_layers_list):
                 enabled_layers_list[i] = layer_name.split(' (')[0]
-
             enabled_layers = ','.join(enabled_layers_list)
+
+            if(self.m_radio_template_file.GetValue()):
+                drawing_sheet_choice = 'file'
+            elif(self.m_radio_template_project.GetValue()):
+                drawing_sheet_choice = 'project'
+            else:
+                drawing_sheet_choice = 'board2pdf'
+
             this_template = {"mirrored": self.m_checkBox_mirror.IsChecked(),
                              "tented": self.m_checkBox_tent.IsChecked(),
                              "enabled_layers": enabled_layers,
                              "frame": frame_layer.split(' (')[0],  # Remove parenthesis if there is one
+                             "drawing_sheet": drawing_sheet_choice,
+                             "drawing_sheet_file": self.m_filePicker_template_file.Path,
                              "popups": self.m_comboBox_popups.GetValue(),
                              "scaling_method": str(self.m_comboBox_scaling.GetCurrentSelection()),
                              "crop_whitespace": self.m_textCtrl_crop_whitespace.GetValue(),

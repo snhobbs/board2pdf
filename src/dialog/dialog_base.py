@@ -34,7 +34,7 @@ class SettingsDialogBase ( wx.Dialog ):
 
 class SettingsDialogPanel ( wx.Panel ):
 
-    def __init__( self, parent, id = wx.ID_ANY, pos = wx.DefaultPosition, size = wx.Size( 900,760 ), style = wx.TAB_TRAVERSAL, name = wx.EmptyString ):
+    def __init__( self, parent, id = wx.ID_ANY, pos = wx.DefaultPosition, size = wx.Size( 988,760 ), style = wx.TAB_TRAVERSAL, name = wx.EmptyString ):
         wx.Panel.__init__ ( self, parent, id = id, pos = pos, size = size, style = style, name = name )
 
         bSizer20 = wx.BoxSizer( wx.HORIZONTAL )
@@ -306,7 +306,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         sbSizer61 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Template Properties" ), wx.VERTICAL )
 
-        gSizer1 = wx.GridSizer( 4, 2, 0, 0 )
+        gSizer1 = wx.GridSizer( 3, 2, 0, 0 )
 
         self.m_staticText_template_name = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Template name", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_template_name.Wrap( -1 )
@@ -315,15 +315,6 @@ class SettingsDialogPanel ( wx.Panel ):
 
         self.m_textCtrl_template_name = wx.TextCtrl( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), 0 )
         gSizer1.Add( self.m_textCtrl_template_name, 0, wx.ALL|wx.EXPAND, 5 )
-
-        self.m_staticText_frame_layer = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Draw frame on layer", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText_frame_layer.Wrap( -1 )
-
-        gSizer1.Add( self.m_staticText_frame_layer, 0, wx.ALL, 5 )
-
-        m_comboBox_frameChoices = []
-        self.m_comboBox_frame = wx.ComboBox( sbSizer61.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), m_comboBox_frameChoices, 0 )
-        gSizer1.Add( self.m_comboBox_frame, 0, wx.ALL|wx.EXPAND, 5 )
 
         self.m_staticText_popups = wx.StaticText( sbSizer61.GetStaticBox(), wx.ID_ANY, u"Property Popups", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_popups.Wrap( -1 )
@@ -341,14 +332,68 @@ class SettingsDialogPanel ( wx.Panel ):
         gSizer1.Add( self.m_checkBox_tent, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
-        sbSizer61.Add( gSizer1, 1, wx.EXPAND, 5 )
+        sbSizer61.Add( gSizer1, 0, wx.EXPAND, 5 )
 
 
         m_sizer_template.Add( sbSizer61, 0, wx.ALL|wx.EXPAND, 5 )
 
+        sbSizer11 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Drawing Sheet" ), wx.VERTICAL )
+
+        gSizer10 = wx.GridSizer( 0, 2, 0, 0 )
+
+        self.m_staticText_frame_layer = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Layer for fram and title block", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_frame_layer.Wrap( -1 )
+
+        gSizer10.Add( self.m_staticText_frame_layer, 0, wx.ALL, 5 )
+
+        m_comboBox_frameChoices = []
+        self.m_comboBox_frame = wx.ComboBox( sbSizer11.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 190,-1 ), m_comboBox_frameChoices, 0 )
+        gSizer10.Add( self.m_comboBox_frame, 0, wx.ALL|wx.EXPAND, 5 )
+
+
+        sbSizer11.Add( gSizer10, 0, wx.EXPAND, 5 )
+
+        gSizer11 = wx.GridSizer( 0, 4, 0, 0 )
+
+        self.m_staticText_template_file = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Template file", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_template_file.Wrap( -1 )
+
+        gSizer11.Add( self.m_staticText_template_file, 0, wx.ALL, 5 )
+
+        self.m_radio_template_board2pdf = wx.RadioButton( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Board2Pdf", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer11.Add( self.m_radio_template_board2pdf, 0, wx.ALL, 5 )
+
+        self.m_radio_template_project = wx.RadioButton( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Project defined", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer11.Add( self.m_radio_template_project, 0, wx.ALL, 5 )
+
+        self.m_radio_template_file = wx.RadioButton( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Choose file", wx.DefaultPosition, wx.DefaultSize, 0 )
+        gSizer11.Add( self.m_radio_template_file, 0, wx.ALL, 5 )
+
+
+        sbSizer11.Add( gSizer11, 0, wx.EXPAND, 5 )
+
+        fgSizer7 = wx.FlexGridSizer( 0, 2, 0, 0 )
+        fgSizer7.AddGrowableCol( 1 )
+        fgSizer7.SetFlexibleDirection( wx.BOTH )
+        fgSizer7.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_staticText_choose_template_file = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Choose template file", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_choose_template_file.Wrap( -1 )
+
+        fgSizer7.Add( self.m_staticText_choose_template_file, 0, wx.ALL, 5 )
+
+        self.m_filePicker_template_file = wx.FilePickerCtrl( sbSizer11.GetStaticBox(), wx.ID_ANY, wx.EmptyString, u"Select a file", u"*.*", wx.DefaultPosition, wx.DefaultSize, wx.FLP_DEFAULT_STYLE )
+        fgSizer7.Add( self.m_filePicker_template_file, 1, wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, 5 )
+
+
+        sbSizer11.Add( fgSizer7, 0, wx.EXPAND, 5 )
+
+
+        m_sizer_template.Add( sbSizer11, 0, wx.ALL|wx.EXPAND, 5 )
+
         sbSizer611 = wx.StaticBoxSizer( wx.StaticBox( sbSizer23.GetStaticBox(), wx.ID_ANY, u"Layer Properties" ), wx.VERTICAL )
 
-        gSizer2 = wx.GridSizer( 0, 4, 0, 0 )
+        gSizer2 = wx.GridSizer( 2, 4, 0, 0 )
 
         self.m_staticText_layer_color = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Layer color", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_layer_color.Wrap( -1 )
@@ -368,31 +413,21 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button_pick_color = wx.Button( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Pick Color", wx.DefaultPosition, wx.DefaultSize, 0 )
         gSizer2.Add( self.m_button_pick_color, 0, wx.ALL, 5 )
 
-
-        sbSizer611.Add( gSizer2, 1, wx.EXPAND, 5 )
-
-        gSizer4 = wx.GridSizer( 0, 2, 0, 0 )
-
-        self.m_staticText_layer_transparency = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Transparency (needs PyMuPdf)", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_layer_transparency = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"Transparency", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_layer_transparency.Wrap( -1 )
 
-        gSizer4.Add( self.m_staticText_layer_transparency, 0, wx.ALL, 5 )
-
-        gSizer5 = wx.GridSizer( 0, 2, 0, 0 )
+        gSizer2.Add( self.m_staticText_layer_transparency, 0, wx.ALL, 5 )
 
         self.m_textCtrl_transparency = wx.TextCtrl( sbSizer611.GetStaticBox(), wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size( 80,-1 ), 0 )
-        gSizer5.Add( self.m_textCtrl_transparency, 0, wx.ALL, 5 )
+        gSizer2.Add( self.m_textCtrl_transparency, 0, wx.ALL, 5 )
 
-        self.m_staticText14 = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"0% – 100%", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText14.Wrap( -1 )
+        self.m_staticText_layer_transparency_percent = wx.StaticText( sbSizer611.GetStaticBox(), wx.ID_ANY, u"0% – 100%", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_layer_transparency_percent.Wrap( -1 )
 
-        gSizer5.Add( self.m_staticText14, 0, wx.ALL, 5 )
-
-
-        gSizer4.Add( gSizer5, 1, wx.EXPAND, 5 )
+        gSizer2.Add( self.m_staticText_layer_transparency_percent, 0, wx.ALL, 5 )
 
 
-        sbSizer611.Add( gSizer4, 1, wx.EXPAND, 5 )
+        sbSizer611.Add( gSizer2, 0, wx.EXPAND, 5 )
 
         gSizer3 = wx.GridSizer( 0, 3, 0, 0 )
 
@@ -406,7 +441,7 @@ class SettingsDialogPanel ( wx.Panel ):
         gSizer3.Add( self.m_checkBox_footprint_values, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
-        sbSizer611.Add( gSizer3, 1, wx.EXPAND, 5 )
+        sbSizer611.Add( gSizer3, 0, wx.EXPAND, 5 )
 
 
         m_sizer_template.Add( sbSizer611, 0, wx.ALL|wx.EXPAND, 5 )
@@ -604,7 +639,7 @@ class SettingsDialogPanel ( wx.Panel ):
         scaleSizer.Add( self.m_staticText_pdfCropMargins, 0, wx.ALL, 5 )
 
 
-        m_sizer_template.Add( scaleSizer, 1, wx.EXPAND, 5 )
+        m_sizer_template.Add( scaleSizer, 1, wx.ALL|wx.EXPAND, 5 )
 
 
         sbSizer23.Add( m_sizer_template, 1, wx.EXPAND, 5 )
@@ -635,10 +670,13 @@ class SettingsDialogPanel ( wx.Panel ):
         self.m_button42.Bind( wx.EVT_BUTTON, self.OnPerform )
         self.m_button43.Bind( wx.EVT_BUTTON, self.OnExit )
         self.m_textCtrl_template_name.Bind( wx.EVT_TEXT, self.OnTemplateNameChange )
-        self.m_comboBox_frame.Bind( wx.EVT_COMBOBOX, self.SaveTemplate )
         self.m_comboBox_popups.Bind( wx.EVT_COMBOBOX, self.SaveTemplate )
         self.m_checkBox_mirror.Bind( wx.EVT_CHECKBOX, self.SaveTemplate )
         self.m_checkBox_tent.Bind( wx.EVT_CHECKBOX, self.SaveTemplate )
+        self.m_comboBox_frame.Bind( wx.EVT_COMBOBOX, self.SaveTemplate )
+        self.m_radio_template_board2pdf.Bind( wx.EVT_RADIOBUTTON, self.OnTemplateChoiceChanged )
+        self.m_radio_template_project.Bind( wx.EVT_RADIOBUTTON, self.OnTemplateChoiceChanged )
+        self.m_radio_template_file.Bind( wx.EVT_RADIOBUTTON, self.OnTemplateChoiceChanged )
         self.m_textCtrl_color.Bind( wx.EVT_TEXT, self.OnSaveLayer )
         self.m_button_pick_color.Bind( wx.EVT_BUTTON, self.OnPickColor )
         self.m_textCtrl_transparency.Bind( wx.EVT_KILL_FOCUS, self.OnTransparencyLostFocus )
@@ -704,6 +742,11 @@ class SettingsDialogPanel ( wx.Panel ):
     def SaveTemplate( self, event ):
         event.Skip()
 
+
+
+
+    def OnTemplateChoiceChanged( self, event ):
+        event.Skip()
 
 
 
