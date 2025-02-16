@@ -835,7 +835,7 @@ def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str):
         settings_dict = {}
         settings_dict["back_fp_property_popups"] = layer_info.back_popups
         settings_dict["black_and_white"] = False
-        settings_dict["color_theme"] = "Board2Pdf"
+        settings_dict["color_theme"] = "Board2Pdf-Template"
         settings_dict["description"] = ""
         settings_dict["drawing_sheet"] = ""
         if layers_dict[layer_info.name]['is_copper_layer']:
@@ -891,6 +891,37 @@ def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str):
                 + jobset_file_path, 'Error', wx.OK | wx.ICON_ERROR)
         return False
     
+    return True
+
+def set_variables_in_project_file(pro_file_path: str, template_name: str, page: int, total_pages: int) -> bool:
+    try:
+        # Open the file and read the JSON data
+        with open(pro_file_path, 'r') as file:
+            data = json.load(file)
+
+        # Check if 'text_variables' exists, if not, create it
+        if 'text_variables' not in data:
+            data['text_variables'] = {}
+
+        # Update variables
+        data['text_variables']['B2P_TEMPLATENAME'] = template_name
+        data['text_variables']['B2P_PAGE'] = str(page)
+        data['text_variables']['B2P_TOTAL'] = str(total_pages)
+
+        # Write the updated JSON back to the file
+        with open(pro_file_path, 'w') as file:
+            json.dump(data, file, indent=2)
+
+    except FileNotFoundError:
+        exception_msg(f"Error when updating variables: The file {pro_file_path} does not exist.", 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+    except json.JSONDecodeError:
+        exception_msg(f"Error when updating variables: Failed to decode JSON from the file.", 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+    except Exception as e:
+        exception_msg(f"Error when updating variables: An unexpected error occurred: {e}", 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+
     return True
 
 class DebugDialog(wx.Dialog):
@@ -1066,13 +1097,13 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
     """
     
     if kicad_color:
-        #template_file_path = os.path.join(r'C:\Users\denne\AppData\Roaming\kicad\9.0\colors', "board2pdf.json")
+        #template_file_path = os.path.join(r'C:\Users\denne\AppData\Roaming\kicad\9.0\colors', "Board2Pdf-Template.json")
         if platform.system() == 'Windows':
-            template_file_path = os.path.join(os.getenv('APPDATA'), "kicad", "9.0", "colors", "board2pdf.json")
+            template_file_path = os.path.join(os.getenv('APPDATA'), "kicad", "9.0", "colors", "Board2Pdf-Template.json")
         elif platform.system() == 'Linux':
-            template_file_path = os.path.join(os.getenv('HOME'), ".config", "kicad", "9.0", "colors", "board2pdf.json")
+            template_file_path = os.path.join(os.getenv('HOME'), ".config", "kicad", "9.0", "colors", "Board2Pdf-Template.json")
         else: # MacOS
-            template_file_path = os.path.join(os.getenv('HOME'), "Library", "Preferences", "kicad", "9.0", "colors", "board2pdf.json")
+            template_file_path = os.path.join(os.getenv('HOME'), "Library", "Preferences", "kicad", "9.0", "colors", "Board2Pdf-Template.json")
 
     use_popups = False
     template_filelist = []
@@ -1107,14 +1138,18 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         #board.SetTitleBlock(title_block)
         
         
-        # msg_box("Now starting with template: " + template_name)
         # Create jobset file
         template_dir = os.path.join(temp_dir, template.name.replace(' ', '_'))
         os.makedirs(template_dir, exist_ok=True)
         create_kicad_jobset(template, layers_dict, template_dir)
 
+        # Set variables in kicad project file
+        pro_file_path = os.path.join(Path(pcb_file_path).parent.resolve(), base_filename+".kicad_pro")
+        set_variables_in_project_file(pro_file_path, template.name, page_count+1, len(templates_list))
+
         # Plot layers to pdf files
         os.chdir(template_dir)
+        print("template_dir:", template_dir)
         cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "jobset", "run", "-f", "jobset.kicad_jobset", pcb_file_path]
         result = subprocess.run(cli_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         return_code = result.returncode
@@ -1137,6 +1172,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         #        progress += progress_step
         #        set_progress_status(progress, f"Plotting {layer_info.name} for template {template.name}")
         
+        """
         template_use_popups = False
         frame_file = 'None'
         filelist = []
@@ -1166,6 +1202,23 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
 
             # Set template_use_popups to True if any layer has popups
             template_use_popups = template_use_popups or layer_info.front_popups or layer_info.back_popups
+        """
+
+        # Build list of plotted pdfs
+        filelist = []
+        frame_file = 'None'
+        template_use_popups = False
+        for layer_info in template.settings:
+            # Add the file to the list
+            filename = os.path.join(layer_info.name, base_filename+".pdf")
+            filelist.append(filename)
+
+            # If this layer is plotted with frame, set the frame_file variable to this filename.
+            if layer_info.with_frame:
+                frame_file = filename
+
+            # Set template_use_popups to True if any layer has popups
+            template_use_popups = template_use_popups or layer_info.front_popups or layer_info.back_popups
 
         # Merge pdf files
         progress += progress_step
@@ -1174,7 +1227,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         assembly_file = f"{base_filename}_{template.name}.pdf"
         assembly_file = assembly_file.replace(' ', '_')
 
-        if not merge_and_scale_pdf(temp_dir, filelist, output_dir, assembly_file, frame_file, template.scale_or_crop, template.name, pymupdf_merge):
+        if not merge_and_scale_pdf(template_dir, filelist, output_dir, assembly_file, frame_file, template.scale_or_crop, template.name, pymupdf_merge):
             set_progress_status(100, "Failed when merging all layers of template " + template.name)
             return False
 

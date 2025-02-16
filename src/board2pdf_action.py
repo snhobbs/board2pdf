@@ -104,17 +104,19 @@ def run_with_dialog():
             # in case the files are deleted: use the OS temp directory
             temp_dir = tempfile.mkdtemp()
         else:
-            temp_dir = os.path.abspath(os.path.join(project_path, "temp"))
+            os.chdir(project_path)
+            output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(dialog_panel.outputDirPicker.Path)))
+            temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
         # Create the directory if it doesn't exist already
         os.makedirs(temp_dir, exist_ok=True)
 
-        pcb_file_path = os.path.join(temp_dir, "pcb-file.kicad_pcb")
+        pcb_file_path = os.path.join(temp_dir, pcb_file_name+".kicad_pcb")
         print("pcb_file_path:", pcb_file_path)
 
         # Save the pcb to temp dir
         try:
-            board.save_as(pcb_file_path, True, False)
+            board.save_as(pcb_file_path, True, True)
         except:
             exception_msg("Could not save pcb to temporary path")
             return
