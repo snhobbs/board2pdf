@@ -692,7 +692,9 @@ class Template:
                                      "scale_whitespace": template.get("scale_whitespace", "30"),
                                      "scaling_factor": template.get("scaling_factor", "3.0") }
 
-        frame_layer: str = template.get("frame", "")  # layer name of the frame layer
+        self.frame_layer: str = template.get("frame", "")  # layer name of the frame layer
+        self.drawing_sheet: str = template.get("drawing_sheet", "")  # 'boarf2pdf/project/file'
+        self.drawing_sheet_file: str = template.get("drawing_sheet_file", "")  # path to drawing sheet if drawing_sheet = 'file'
         popups: str = template.get("popups", "")  # setting saying if popups shall be taken from front, back or both
 
         # collection the settings of the enabled layers
@@ -708,7 +710,7 @@ class Template:
                     else:
                         layer_popups: str  = "None"
                     # Prepend to settings
-                    layer_info = LayerInfo(el, template, frame_layer, layer_popups)
+                    layer_info = LayerInfo(el, template, self.frame_layer, layer_popups)
                     self.settings.insert(0, layer_info)
 
     @property
@@ -824,7 +826,7 @@ def create_kicad_color_template(template_settings, template_file_path: str, laye
     
     return True
 
-def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str):
+def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str, board2pdf_path: str):
     # Template:{ name: Black And White TOP, mirrored: False, tented: False, scale_or_crop: {'scaling_method': '0', 'crop_whitespace': '10', 'scale_whitespace': '30', 'scaling_factor': '3.0'}, settings: [
     #  LayerInfo:{ name: F.Cu, color_hex: #F0F0F0, with_frame: False, transparency_value: 0, negative: False, footprint_value: True, reference_designator: True, front_popups: False, back_popups: False },
     #  LayerInfo:{ name: F.Paste, color_hex: #C4C4C4, with_frame: False, transparency_value: 0, negative: False, footprint_value: True, reference_designator: True, front_popups: False, back_popups: False },
@@ -837,11 +839,22 @@ def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str):
         settings_dict["black_and_white"] = False
         settings_dict["color_theme"] = "Board2Pdf-Template"
         settings_dict["description"] = ""
-        settings_dict["drawing_sheet"] = ""
+
+        if layer_info.with_frame:
+            if template.drawing_sheet == 'file':
+                settings_dict["drawing_sheet"] = template.drawing_sheet_file
+            elif template.drawing_sheet == 'project':
+                settings_dict["drawing_sheet"] = ""
+            else:
+                settings_dict["drawing_sheet"] = os.path.join(board2pdf_path, "drawing_sheet", "template.kicad_wks")
+        else:
+            settings_dict["drawing_sheet"] = ""
+
         if layers_dict[layer_info.name]['is_copper_layer']:
             settings_dict["drill_shape"] = "full"
         else:
             settings_dict["drill_shape"] = "none" # "full/small/none"
+
         settings_dict["front_fp_property_popups"] = layer_info.front_popups
         settings_dict["layers"] = [layer_info.name]
         settings_dict["layers_to_include_on_all_layers"] = []
@@ -941,6 +954,7 @@ class DebugDialog(wx.Dialog):
 
 def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_dir: str, dlg=None, **kwargs) -> bool:
     output_path: str = kwargs.pop('output_path', 'plot')
+    board2pdf_path: str = kwargs.pop('board2pdf_path', '')
     layers_dict: dict = kwargs.pop('layers_dict', {})
     templates: list = kwargs.pop('templates', [])
     enabled_templates: list = kwargs.pop('enabled_templates', [])
@@ -1141,7 +1155,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         # Create jobset file
         template_dir = os.path.join(temp_dir, template.name.replace(' ', '_'))
         os.makedirs(template_dir, exist_ok=True)
-        create_kicad_jobset(template, layers_dict, template_dir)
+        create_kicad_jobset(template, layers_dict, template_dir, board2pdf_path)
 
         # Set variables in kicad project file
         pro_file_path = os.path.join(Path(pcb_file_path).parent.resolve(), base_filename+".kicad_pro")

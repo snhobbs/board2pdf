@@ -4,6 +4,7 @@ import re
 import sys
 import wx
 import pathlib
+import json
 import logging
 import traceback
 import tempfile
@@ -36,6 +37,57 @@ def get_board() -> pcbnew.BOARD:
         set_board(pcbnew.GetBoard())
     return _board
 """
+def get_drawing_worksheet_from_project(project_file_path: str) -> bool | str:
+    try:
+        # Open the file and read the JSON data
+        with open(project_file_path, 'r') as file:
+            data = json.load(file)
+
+        # Check if 'pcbnew' exists
+        if 'pcbnew' in data:
+            if 'page_layout_descr_file' in data['pcbnew']:
+                return True, data['pcbnew']['page_layout_descr_file']
+
+    except FileNotFoundError:
+        exception_msg(f"Error when fetching drawing sheet path: The file {project_file_path} does not exist.", 'Error', wx.OK | wx.ICON_ERROR)
+        return False, ''
+    except json.JSONDecodeError:
+        exception_msg(f"Error when fetching drawing sheet path: Failed to decode JSON from the file.", 'Error', wx.OK | wx.ICON_ERROR)
+        return False, ''
+    except Exception as e:
+        exception_msg(f"Error when fetching drawing sheet path: An unexpected error occurred: {e}", 'Error', wx.OK | wx.ICON_ERROR)
+        return False, ''
+
+    return False, ''
+
+def set_drawing_worksheet_in_project(project_file_path: str, worksheet_path) -> bool:
+    try:
+        # Open the file and read the JSON data
+        with open(project_file_path, 'r') as file:
+            data = json.load(file)
+
+        # Check if 'pcbnew' exists, if not, create it
+        if 'pcbnew' not in data:
+            data['pcbnew'] = {}
+
+        # Update variables
+        data['pcbnew']['page_layout_descr_file'] = worksheet_path
+
+        # Write the updated JSON back to the file
+        with open(project_file_path, 'w') as file:
+            json.dump(data, file, indent=2)
+
+    except FileNotFoundError:
+        exception_msg(f"Error when updating drawing sheet path: The file {project_file_path} does not exist.", 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+    except json.JSONDecodeError:
+        exception_msg(f"Error when updating drawing sheet path: Failed to decode JSON from the file.", 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+    except Exception as e:
+        exception_msg(f"Error when updating drawing sheet path: An unexpected error occurred: {e}", 'Error', wx.OK | wx.ICON_ERROR)
+        return False
+
+    return True
 
 def exception_msg(info: str, tb=True):
     msg = f"{info}\n\n" + (
@@ -121,8 +173,26 @@ def run_with_dialog():
             exception_msg("Could not save pcb to temporary path")
             return
 
+        project_file_path = os.path.join(temp_dir, pcb_file_name+".kicad_pro")
+        return_status, project_worksheet_path = get_drawing_worksheet_from_project(project_file_path)
+        if return_status:
+            print("project_worksheet_path:", project_worksheet_path)
+            if project_worksheet_path.startswith("kicad-embed://"):
+                print("Worksheet is embedded")
+            elif not project_worksheet_path:
+                print("No worksheet specified")
+            elif os.path.isabs(project_worksheet_path):
+                print("Worksheet is specified with an absolute path")
+            else:
+                # The worksheet template is specified with a relative path. We must copy the worksheet as well, and change the relative path.
+                project_worksheet_absolute_path = os.path.abspath(os.path.join(project_path, project_worksheet_path))
+                print("Worksheet is specified with a relative path. The absolute path is:", project_worksheet_absolute_path)
+                shutil.copyfile(project_worksheet_absolute_path, os.path.join(temp_dir, "worksheet.kicad_wks"))
+                set_drawing_worksheet_in_project(project_file_path, "worksheet.kicad_wks")
+
         plot.plot_pdfs(project_path, pcb_file_path, pcb_file_name, temp_dir, dialog_panel,
                           output_path=dialog_panel.outputDirPicker.Path,
+                          board2pdf_path=board2pdf_dir,
                           layers_dict=layers_dict,
                           templates=dialog_panel.config.templates,
                           enabled_templates=dialog_panel.templatesSortOrderBox.GetItems(),
