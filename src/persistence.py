@@ -73,13 +73,47 @@ class Persistence:
 
     def load(self) -> dict:
         self._config.read(self._configfile)
-
+        
         values = {}  # alternative output
         for (section, option), (varname, post_action) in self._options.items():
             if self._config.has_option(section, option):
                 val = self._config.get(section, option)
                 values[varname] = post_action(val) if post_action else val
-                setattr(self, varname, values[varname])
-                _logger.info(f"{varname}={values[varname]}")
 
+                # Check for and replace old layernames
+                layer_names = {
+                    'B.Adhesive' : 'B.Adhes',
+                    'F.Adhesive' : 'F.Adhes',
+                    'B.Silkscreen' : 'B.SilkS',
+                    'F.Silkscreen' : 'F.SilkS',
+                    'User.Drawings' : 'Dwgs.User',
+                    'User.Comments' : 'Cmts.User',
+                    'User.Eco1' : 'Eco1.User',
+                    'User.Eco2' : 'Eco2.User',
+                    'B.Courtyard' : 'B.CrtYd',
+                    'F.Courtyard' : 'F.CrtYd'
+                }
+
+                varname_values = values[varname]
+                if varname == 'templates':
+                    for name in varname_values:
+                        for var in varname_values[name]:
+                            if var == 'enabled_layers':
+                                enabled_layers = varname_values[name][var].split(',')
+                                for i, layer in enumerate(enabled_layers):
+                                    if layer in layer_names:
+                                        enabled_layers[i] = layer_names[layer]
+                                varname_values[name][var] = ','.join(enabled_layers)
+                            if var == 'layers' or var == 'layers_transparency' or var == 'layers_negative' or var == 'layers_footprint_values' or var == 'layers_reference_designators':
+                                layer_dict = {}
+                                for layer in varname_values[name][var]:
+                                    if layer in layer_names:
+                                        layer_dict[layer_names[layer]] = varname_values[name][var][layer]
+                                    else:
+                                        layer_dict[layer] = varname_values[name][var][layer]
+                                varname_values[name][var] = layer_dict
+                
+                setattr(self, varname, varname_values)
+                _logger.info(f"{varname}={varname_values}")
+        
         return values

@@ -187,7 +187,10 @@ def run_with_dialog():
                 # The worksheet template is specified with a relative path. We must copy the worksheet as well, and change the relative path.
                 project_worksheet_absolute_path = os.path.abspath(os.path.join(project_path, project_worksheet_path))
                 print("Worksheet is specified with a relative path. The absolute path is:", project_worksheet_absolute_path)
-                shutil.copyfile(project_worksheet_absolute_path, os.path.join(temp_dir, "worksheet.kicad_wks"))
+                try:
+                    shutil.copyfile(project_worksheet_absolute_path, os.path.join(temp_dir, "worksheet.kicad_wks"))
+                except:
+                    exception_msg(f"Failed to copy worksheet file {project_worksheet_absolute_path}")
                 set_drawing_worksheet_in_project(project_file_path, "worksheet.kicad_wks")
 
         plot.plot_pdfs(project_path, pcb_file_path, pcb_file_name, temp_dir, dialog_panel,
