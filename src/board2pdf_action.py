@@ -49,13 +49,13 @@ def get_drawing_worksheet_from_project(project_file_path: str) -> bool | str:
                 return True, data['pcbnew']['page_layout_descr_file']
 
     except FileNotFoundError:
-        exception_msg(f"Error when fetching drawing sheet path: The file {project_file_path} does not exist.", 'Error', wx.OK | wx.ICON_ERROR)
+        exception_msg(f"Error when fetching drawing sheet path: The file {project_file_path} does not exist.")
         return False, ''
     except json.JSONDecodeError:
-        exception_msg(f"Error when fetching drawing sheet path: Failed to decode JSON from the file.", 'Error', wx.OK | wx.ICON_ERROR)
+        exception_msg(f"Error when fetching drawing sheet path: Failed to decode JSON from the file.")
         return False, ''
     except Exception as e:
-        exception_msg(f"Error when fetching drawing sheet path: An unexpected error occurred: {e}", 'Error', wx.OK | wx.ICON_ERROR)
+        exception_msg(f"Error when fetching drawing sheet path: An unexpected error occurred: {e}")
         return False, ''
 
     return False, ''
@@ -78,13 +78,13 @@ def set_drawing_worksheet_in_project(project_file_path: str, worksheet_path) -> 
             json.dump(data, file, indent=2)
 
     except FileNotFoundError:
-        exception_msg(f"Error when updating drawing sheet path: The file {project_file_path} does not exist.", 'Error', wx.OK | wx.ICON_ERROR)
+        exception_msg(f"Error when updating drawing sheet path: The file {project_file_path} does not exist.")
         return False
     except json.JSONDecodeError:
-        exception_msg(f"Error when updating drawing sheet path: Failed to decode JSON from the file.", 'Error', wx.OK | wx.ICON_ERROR)
+        exception_msg(f"Error when updating drawing sheet path: Failed to decode JSON from the file.")
         return False
     except Exception as e:
-        exception_msg(f"Error when updating drawing sheet path: An unexpected error occurred: {e}", 'Error', wx.OK | wx.ICON_ERROR)
+        exception_msg(f"Error when updating drawing sheet path: An unexpected error occurred: {e}")
         return False
 
     return True
@@ -160,7 +160,11 @@ def run_with_dialog():
             output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(dialog_panel.outputDirPicker.Path)))
             temp_dir = os.path.abspath(os.path.join(output_dir, "temp"))
 
-        # Create the directory if it doesn't exist already
+        # Delete the temp_dir if it exists to make sure there are no old temp files
+        if os.path.isdir(temp_dir):
+            shutil.rmtree(temp_dir)
+
+        # Create the temp_dir
         os.makedirs(temp_dir, exist_ok=True)
 
         pcb_file_path = os.path.join(temp_dir, pcb_file_name+".kicad_pcb")
