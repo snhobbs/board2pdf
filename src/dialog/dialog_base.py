@@ -93,7 +93,7 @@ class SettingsDialogPanel ( wx.Panel ):
         bSizer5.Add( self.m_button_template_disable, 0, wx.ALL, 5 )
 
 
-        bSizer4.Add( bSizer5, 0, wx.ALIGN_RIGHT, 5 )
+        bSizer4.Add( bSizer5, 0, 0, 5 )
 
 
         sortingSizer.Add( bSizer4, 1, wx.EXPAND, 5 )
@@ -136,7 +136,7 @@ class SettingsDialogPanel ( wx.Panel ):
         bSizer51.Add( self.m_button4, 0, wx.ALL, 5 )
 
 
-        bSizer41.Add( bSizer51, 0, wx.ALIGN_RIGHT, 5 )
+        bSizer41.Add( bSizer51, 0, 0, 5 )
 
 
         layersSizer.Add( bSizer41, 1, wx.EXPAND, 5 )
@@ -341,7 +341,7 @@ class SettingsDialogPanel ( wx.Panel ):
 
         gSizer10 = wx.GridSizer( 0, 2, 0, 0 )
 
-        self.m_staticText_frame_layer = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Layer for fram and title block", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_frame_layer = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"Layer for frame and title block", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_frame_layer.Wrap( -1 )
 
         gSizer10.Add( self.m_staticText_frame_layer, 0, wx.ALL, 5 )
@@ -484,7 +484,7 @@ class SettingsDialogPanel ( wx.Panel ):
         bSizer52.Add( self.m_button_layer_disable, 0, wx.ALL, 5 )
 
 
-        bSizer42.Add( bSizer52, 0, wx.ALIGN_RIGHT, 5 )
+        bSizer42.Add( bSizer52, 0, 0, 5 )
 
 
         bSizer512.Add( bSizer42, 1, wx.EXPAND, 5 )
@@ -524,7 +524,7 @@ class SettingsDialogPanel ( wx.Panel ):
         bSizer511.Add( self.m_button_layer_enable, 0, wx.ALL, 5 )
 
 
-        bSizer411.Add( bSizer511, 0, wx.ALIGN_RIGHT, 5 )
+        bSizer411.Add( bSizer511, 0, 0, 5 )
 
 
         layersSizer1.Add( bSizer411, 1, wx.EXPAND, 5 )
