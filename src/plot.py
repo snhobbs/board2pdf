@@ -834,6 +834,7 @@ def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str, bo
     
     jobs_list = []
     for layer_info in template.settings:
+        # https://gitlab.com/kicad/code/kicad/-/blob/master/common/jobs/job_export_pcb_pdf.cpp
         settings_dict = {}
         settings_dict["back_fp_property_popups"] = layer_info.back_popups
         settings_dict["black_and_white"] = False
@@ -861,15 +862,15 @@ def create_kicad_jobset(template: dict, layers_dict: dict, template_dir: str, bo
         settings_dict["mirror"] = template.mirrored
         settings_dict["negative"] = layer_info.negative
         settings_dict["output_filename"] = layer_info.name
-        settings_dict["pdf_gen_mode"] = "one-page-per-layer-one-file"
+        settings_dict["pdf_gen_mode"] = "one-page-per-layer-one-file" # "all-layers-separate-files/all-layers-one-file"
         settings_dict["pdf_metadata"] = True
         settings_dict["plot_drawing_sheet"] = layer_info.with_frame
         settings_dict["plot_footprint_values"] = layer_info.footprint_value
-        settings_dict["plot_invisible_text"] = False
         settings_dict["plot_pad_numbers"] = False
         settings_dict["plot_ref_des"] = layer_info.reference_designator
         settings_dict["single_document"] = False
         settings_dict["sketch_pads_on_fab_layers"] = False
+        settings_dict["subtract_solder_mask_from_silk"] = False
         settings_dict["use_drill_origin"] = False
 
         job_dict = {}
