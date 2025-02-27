@@ -2,21 +2,16 @@ import os
 import shutil
 import sys
 import re
-#import pcbnew
 import wx
 import wx.stc
 import traceback
 import logging
 import json
 import subprocess
-#from subprocess import PIPE, run
 import platform
 from pathlib import Path
 
-try:
-    from .pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
-except ImportError:
-    from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
+from pypdf import PdfReader, PdfWriter, PageObject, Transformation, generic
 
 # Try to import PyMuPDF.
 has_pymupdf = True
@@ -71,36 +66,6 @@ def io_file_error_msg(function: str, input_file: str, folder: str = '', more: st
         wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
     except wx._core.PyNoAppError:
         print(f'Error: {msg}', file=sys.stderr)
-
-
-def colorize_pdf_pymupdf(folder, input_file, output_file, color, transparency):
-    # If transparency is non zero, run colorize_pdf_pymupdf_with_transparency instead.
-    if not transparency == 0:
-        return colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, color, transparency)
-
-    try:
-        with pymupdf.open(os.path.join(folder, input_file)) as doc:
-            xref_number = doc[0].get_contents()
-            stream_bytes = doc.xref_stream(xref_number[0])
-            new_color = ''.join([f'{c:.3g} ' for c in color])
-            _logger.debug(f'{new_color=}')
-            stream_bytes = re.sub(br'(\s)0 0 0 (RG|rg)', bytes(fr'\g<1>{new_color}\g<2>', 'ascii'), stream_bytes)
-
-            doc.update_stream(xref_number[0], stream_bytes)
-            doc.save(os.path.join(folder, output_file), clean=True)
-
-    except RuntimeError as e:
-        if "invalid key in dict" in str(e):
-            io_file_error_msg(colorize_pdf_pymupdf.__name__, input_file, folder,
-                              "This error can be due to PyMuPdf not being able to handle pdfs created by KiCad 7.0.1 due to a bug in KiCad 7.0.1. Upgrade KiCad or switch to pypdf instead.\n\n")
-        return False
-
-    except:
-        io_file_error_msg(colorize_pdf_pymupdf.__name__, input_file, folder)
-        return False
-
-    return True
-
 
 def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, color, transparency):
     opacity = 1-float(transparency / 100)
@@ -207,48 +172,6 @@ def colorize_pdf_pymupdf_with_transparency(folder, input_file, output_file, colo
 
     return True
 
-
-def colorize_pdf_pypdf(folder, input_file, output_file, color, transparency):
-    try:
-        with open(os.path.join(folder, input_file), "rb") as f:
-            class ErrorHandler(object):
-                def write(self, data):
-                    if "UserWarning" not in data:
-                        io_file_error_msg(colorize_pdf_pypdf.__name__, input_file, folder, data + "\n\n", tb=False)
-                        return False
-
-            if sys.stderr is None:
-                handler = ErrorHandler()
-                sys.stderr = handler
-
-            source = PdfReader(f)
-            output = PdfWriter()
-
-            page = source.pages[0]
-            content_object = page["/Contents"].get_object()
-            content = generic.ContentStream(content_object, source)
-
-            for i, (operands, operator) in enumerate(content.operations):
-                if operator in (b"rg", b"RG"):
-                    if operands == [0, 0, 0]:
-                        content.operations[i] = (
-                            [generic.FloatObject(intensity) for intensity in color], operator)
-                    # else:
-                    #    print(operator, operands[0], operands[1], operands[2], "The type is : ", type(operands[0]),
-                    #          type(operands[1]), type(operands[2]))
-
-            page[generic.NameObject("/Contents")] = content
-            output.add_page(page)
-
-            with open(os.path.join(folder, output_file), "wb") as output_stream:
-                output.write(output_stream)
-
-    except Exception:
-        io_file_error_msg(colorize_pdf_pypdf.__name__, input_file, folder)
-        return False
-
-    return True
-
 def create_blank_page(input_file_path: str, output_file_path: str):
     try:
         # Open input file and create a page with the same size
@@ -286,7 +209,7 @@ def get_page_size(file_path: str):
     return True, page_width, page_height
 
 def merge_and_scale_pdf(input_folder: str, input_files: list, output_folder: str, output_file: str, frame_file: str,
-                    scale_or_crop: dict, template_name: str, pymupdf_merge: bool):
+                    scale_or_crop: dict, template_name: str):
     # I haven't found a way to scale the pdf and preserve the popup-menus.
     # For now, I'm taking the easy way out and handle the merging differently depending
     # on if scaling is used or not. At least the popup-menus are preserved when not using scaling.
@@ -296,10 +219,7 @@ def merge_and_scale_pdf(input_folder: str, input_files: list, output_folder: str
         # If scaling_method = 3, use a different method when using pymupdf
         output_file_path = os.path.join(output_folder, output_file)
         scaling_factor = float(scale_or_crop['scaling_factor'])
-        if(pymupdf_merge):
-            return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_file_path, frame_file, template_name, scaling_factor)
-        else:
-            return merge_pdf_pypdf(input_folder, input_files, output_file_path, frame_file, template_name, scaling_factor)
+        return merge_pdf_pymupdf_with_scaling(input_folder, input_files, output_file_path, frame_file, template_name, scaling_factor)
 
     # If scaling_method is 1 or 2 the merged file is not the final file.
     if(scale_or_crop['scaling_method'] == '1' or scale_or_crop['scaling_method'] == '2'):
@@ -312,10 +232,7 @@ def merge_and_scale_pdf(input_folder: str, input_files: list, output_folder: str
         input_files.remove(frame_file)
 
     # Merge input_files to output_file
-    if(pymupdf_merge):
-        return_value = merge_pdf_pymupdf(input_folder, input_files, merged_file_path, frame_file, template_name)
-    else:
-        return_value = merge_pdf_pypdf(input_folder, input_files, merged_file_path, frame_file, template_name, 1.0)
+    return_value = merge_pdf_pymupdf(input_folder, input_files, merged_file_path, frame_file, template_name)
     if not return_value:
         return False
 
@@ -349,21 +266,8 @@ def merge_and_scale_pdf(input_folder: str, input_files: list, output_folder: str
         # Scale the cropped file.
         scaled_file_path = os.path.join(output_folder, output_file)
 
-        if(pymupdf_merge):
-            new_file_list = [cropped_file, frame_file]
-            return merge_pdf_pymupdf_with_scaling(input_folder, new_file_list, scaled_file_path, frame_file, template_name, 1.0)
-        else:
-            return_value, frame_file_width, frame_file_height = get_page_size(os.path.join(input_folder, frame_file))
-            if not return_value:
-                return False
-            
-            resized_cropped_file = "resized_" + cropped_file
-            resized_cropped_file_path = os.path.join(input_folder, resized_cropped_file)
-            
-            resize_page_pypdf(cropped_file_path, resized_cropped_file_path, frame_file_width, frame_file_height)
-            
-            new_file_list = [frame_file, resized_cropped_file]
-            return merge_pdf_pypdf(input_folder, new_file_list, scaled_file_path, frame_file, template_name, 1.0)
+        new_file_list = [cropped_file, frame_file]
+        return merge_pdf_pymupdf_with_scaling(input_folder, new_file_list, scaled_file_path, frame_file, template_name, 1.0)
             
     return True
 
@@ -494,82 +398,6 @@ def merge_pdf_pymupdf_with_scaling(input_folder: str, input_files: list, output_
         return False
 
     return True
-
-def merge_pdf_pypdf(input_folder: str, input_files: list, output_file_path: str, frame_file: str,
-                    template_name: str, layer_scale: float):
-    try:
-        page = None
-        for filename in input_files:
-            try:
-                filepath = os.path.join(input_folder, filename)
-                pdf_reader = PdfReader(filepath)
-                src_page: PageObject = pdf_reader.pages[0]
-
-                op = Transformation()
-                if layer_scale > 1.0:
-                    if filename == frame_file:
-                        x_offset = src_page.mediabox.width * (layer_scale - 1.0) / 2
-                        y_offset = src_page.mediabox.height * (layer_scale - 1.0) / 2
-                        op = op.translate(x_offset, y_offset)
-                    else:
-                        op = op.scale(layer_scale)
-
-                if page is None:
-                    page = PageObject.create_blank_page(width=src_page.mediabox.width * layer_scale,
-                                                        height=src_page.mediabox.height * layer_scale)
-                    page.cropbox.lower_left = ((page.mediabox.width - src_page.mediabox.width) / 2,
-                                               (page.mediabox.height - src_page.mediabox.height) / 2)
-                    page.cropbox.upper_right = ((page.mediabox.width + src_page.mediabox.width) / 2,
-                                                (page.mediabox.height + src_page.mediabox.height) / 2)
-
-                page.merge_transformed_page(src_page, op)
-
-            except Exception:
-                error_bitmap = ""
-                error_msg = traceback.format_exc()
-                if 'KeyError: 0' in error_msg:
-                    error_bitmap = "This error can be caused by the presence of a bitmap image on this layer. Bitmaps are only allowed on the layer furthest down in the layer list. See Issue #11 for more information.\n\n"
-                io_file_error_msg(merge_pdf_pypdf.__name__, filename, input_folder, error_bitmap)
-                return False
-
-        output = PdfWriter()
-        output.add_page(page)
-        output.add_outline_item(title=template_name, page_number=0)
-        with open(output_file_path, "wb") as output_stream:
-            output.write(output_stream)
-
-    except:
-        io_file_error_msg(merge_pdf_pypdf.__name__, output_file_path)
-        return False
-
-    return True
-
-def resize_page_pypdf(input_file_path: str, output_file_path: str, page_width: float, page_height: float):
-    reader = PdfReader(input_file_path)
-    page = reader.pages[0]
-    writer = PdfWriter()
-
-    w = float(page.mediabox.width)
-    h = float(page.mediabox.height)
-    scale_factor = min(page_height/h, page_width/w)
-
-    # Calculate the final amount of blank space in width and height
-    space_w = page_width - w*scale_factor
-    space_h = page_height - h*scale_factor
-
-    # Calculate offsets to center the scaled result
-    x_offset = -page.cropbox.left*scale_factor + space_w/2
-    y_offset = -page.cropbox.bottom*scale_factor + space_h/2
-
-    transform = Transformation().scale(scale_factor).translate(x_offset, y_offset)
-
-    page.add_transformation(transform)
-
-    page.cropbox = generic.RectangleObject((0, 0, page_width, page_height))
-    page.mediabox = generic.RectangleObject((0, 0, page_width, page_height))
-
-    writer.add_page(page)
-    writer.write(output_file_path)
 
 def create_pdf_from_pages(input_folder, input_files, output_folder, output_file, use_popups):
     try:
@@ -963,24 +791,8 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
     del_temp_files: bool = kwargs.pop('del_temp_files', True)
     del_single_page_files: bool = kwargs.pop('del_single_page_files', True)
     asy_file_extension = kwargs.pop('assembly_file_extension', '__Assembly')
-    colorize_lib: str = kwargs.pop('colorize_lib', '')
-    merge_lib: str = kwargs.pop('merge_lib', '')
-    page_info: str = kwargs.pop('page_info', '')
-    info_variable: str = kwargs.pop('info_variable', '0')
 
     if dlg is None:
-        if(colorize_lib == 'kicad'):
-            pymupdf_color = False
-            kicad_color = True
-        elif(colorize_lib == 'pymupdf' or colorize_lib == 'fitz'):
-            pymupdf_color = True
-            kicad_color = False
-        else:
-            pymupdf_color = False
-            kicad_color = False
-
-        pymupdf_merge = has_pymupdf and merge_lib != 'pypdf'
-
         def set_progress_status(progress: int, status: str):
             print(f'{int(progress):3d}%: {status}')
 
@@ -988,10 +800,6 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
             print(f"{caption}: {text}")
 
     elif isinstance(dlg, wx.Panel):
-        pymupdf_color = dlg.m_radio_pymupdf.GetValue()
-        kicad_color = dlg.m_radio_kicad.GetValue()
-        pymupdf_merge = dlg.m_radio_merge_pymupdf.GetValue()
-
         def set_progress_status(progress: int, status: str):
             dlg.m_staticText_status.SetLabel(f'Status: {status}')
             dlg.m_progress.SetValue(int(progress))
@@ -1004,12 +812,12 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         print(f"Error: Unknown dialog type {type(dlg)}", file=sys.stderr)
         return False
 
-    if (pymupdf_color or pymupdf_merge or create_svg) and not has_pymupdf:
-        msg_box(
-            "PyMuPdf wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com",
-            'Error', wx.OK | wx.ICON_ERROR)
-        set_progress_status(100, "Failed to load PyMuPDF.")
-        return False
+    #if (pymupdf_color or pymupdf_merge or create_svg) and not has_pymupdf:
+    #    msg_box(
+    #        "PyMuPdf wasn't loaded.\n\nIt must be installed for it to be used for coloring, for merging and for creating SVGs.\n\nMore information under Install dependencies in the Wiki at board2pdf.dennevi.com",
+    #        'Error', wx.OK | wx.ICON_ERROR)
+    #    set_progress_status(100, "Failed to load PyMuPDF.")
+    #    return False
 
     if not has_pdfcropmargins:
         # Check if any of the enabled templates uses pdfCropMargins
@@ -1026,20 +834,12 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
             set_progress_status(100, "Failed to load pdfCropMargins.")
             return False
 
-    # colorize_pdf function points to colorize_pdf_pymupdf if pymupdf_color is true, else it points to colorize_pdf_pypdf
-    # This function is only used if kicad_color is False
-    colorize_pdf = colorize_pdf_pymupdf if pymupdf_color else colorize_pdf_pypdf
-
     os.chdir(project_path)
     output_dir = os.path.abspath(os.path.expanduser(os.path.expandvars(output_path)))
 
     progress = 5
     set_progress_status(progress, "Started plotting...")
 
-    #plot_controller = pcbnew.PLOT_CONTROLLER(board)
-    #plot_options = plot_controller.GetPlotOptions()
-
-    #base_filename = os.path.basename(os.path.splitext(board.GetFileName())[0])
     final_assembly_file = base_filename + asy_file_extension + ".pdf"
     final_assembly_file_with_path = os.path.abspath(os.path.join(output_dir, final_assembly_file))
 
@@ -1061,17 +861,8 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         set_progress_status(100, "Failed to write to output file.")
         return False
 
-    #plot_options.SetOutputDirectory(temp_dir)
-    os.chdir(temp_dir)
-
-    # Build a dict to translate layer names to layerID
-    #layer_names = {}
-    #for i in range(pcbnew.PCBNEW_LAYER_ID_START, pcbnew.PCBNEW_LAYER_ID_START + pcbnew.PCB_LAYER_ID_COUNT):
-    #    layer_names[board.GetStandardLayerName(i)] = i
-
     steps: int = 2  # number of process steps
     templates_list: list[Template] = []
-    warn_about_transparancy = False
     for t in enabled_templates:
         # {  "Test-template": {"mirrored": true, "enabled_layers": "B.Fab,B.Mask,Edge.Cuts,F.Adhesive", "frame": "In4.Cu",
         #          "layers": {"B.Fab": "#000012", "B.Mask": "#000045"}}  }
@@ -1079,79 +870,28 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
             temp = Template(t, templates[t])
             _logger.debug(temp)
 
-            # If not using PyMuPdf, check if any layers are transparant
-            if not pymupdf_color:
-                if temp.has_transparency:
-                    warn_about_transparancy = True
-
             # Count how many steps it will take to complete this operation
-            if kicad_color:
-                steps += 1 + temp.steps_without_coloring
-            else:
-                steps += 1 + temp.steps
+            steps += 1 + temp.steps_without_coloring
 
             # Build list of templates that shall be used
             templates_list.append(temp)
     progress_step: float = 95 / steps
-
-    if warn_about_transparancy:
-        msg_box("One or more layers have transparency set. Transparancy only works when using PyMuPDF for coloring.",
-                'Warning', wx.OK | wx.ICON_WARNING)
-
-    """
-    try:
-        # Set General Options:
-        plot_options.SetPlotInvisibleText(False)
-        plot_options.SetUseAuxOrigin(False)
-        plot_options.SetScale(1.0)
-        plot_options.SetAutoScale(False)
-    except:
-        msg_box(traceback.format_exc(), 'Error', wx.OK | wx.ICON_ERROR)
-        set_progress_status(100, "Failed to set plot_options")
-        return False
-    """
     
-    if kicad_color:
-        #template_file_path = os.path.join(r'C:\Users\denne\AppData\Roaming\kicad\9.0\colors', "Board2Pdf-Template.json")
-        if platform.system() == 'Windows':
-            template_file_path = os.path.join(os.getenv('APPDATA'), "kicad", "9.0", "colors", "Board2Pdf-Template.json")
-        elif platform.system() == 'Linux':
-            template_file_path = os.path.join(os.getenv('HOME'), ".config", "kicad", "9.0", "colors", "Board2Pdf-Template.json")
-        else: # MacOS
-            template_file_path = os.path.join(os.getenv('HOME'), "Library", "Preferences", "kicad", "9.0", "colors", "Board2Pdf-Template.json")
+    if platform.system() == 'Windows':
+        template_file_path = os.path.join(os.getenv('APPDATA'), "kicad", "9.0", "colors", "Board2Pdf-Template.json")
+    elif platform.system() == 'Linux':
+        template_file_path = os.path.join(os.getenv('HOME'), ".config", "kicad", "9.0", "colors", "Board2Pdf-Template.json")
+    else: # MacOS
+        template_file_path = os.path.join(os.getenv('HOME'), "Library", "Preferences", "kicad", "9.0", "colors", "Board2Pdf-Template.json")
 
     use_popups = False
     template_filelist = []
-
-    #title_block = board.GetTitleBlock()
-    #info_variable_int = int(info_variable)
-
-    #if(info_variable_int>=1 and info_variable_int<=9):
-    #    previous_comment = title_block.GetComment(info_variable_int-1)
     
     # Iterate over the templates
-    for page_count, template in enumerate(templates_list):
-        if kicad_color:
-            #sm = pcbnew.GetSettingsManager()
-            #template_file_path = os.path.join(sm.GetColorSettingsPath(), "board2pdf.json")
-            
-            if not create_kicad_color_template(template.settings, template_file_path, layers_dict):
-                set_progress_status(100, f"Failed to create color template for template {template.name}")
-                return False
-
-            #plot_controller.SetColorMode(True)
-            #sm.ReloadColorSettings()
-            #cs = sm.GetColorSettings("board2pdf")
-            #plot_options.SetColorSettings(cs)
-            #plot_options.SetBlackAndWhite(False)
-        
-        #page_info_tmp = page_info.replace("${template_name}", template.name)
-        #page_info_tmp = page_info_tmp.replace("${page_nr}", str(page_count + 1))
-        #page_info_tmp = page_info_tmp.replace("${total_pages}", str(len(templates_list)))
-        #if(info_variable_int>=1 and info_variable_int<=9):
-        #    title_block.SetComment(info_variable_int-1, page_info_tmp)
-        #board.SetTitleBlock(title_block)
-        
+    for page_count, template in enumerate(templates_list):            
+        if not create_kicad_color_template(template.settings, template_file_path, layers_dict):
+            set_progress_status(100, f"Failed to create color template for template {template.name}")
+            return False
         
         # Create jobset file
         template_dir = os.path.join(temp_dir, template.name.replace(' ', '_'))
@@ -1168,6 +908,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "jobset", "run", "-f", "jobset.kicad_jobset", pcb_file_path]
         result = subprocess.run(cli_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         return_code = result.returncode
+        os.chdir(project_path)
 
         if return_code != 0:
             # Create text to show in DebugDialog
@@ -1186,38 +927,6 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         #    for layer_info in template.settings:
         #        progress += progress_step
         #        set_progress_status(progress, f"Plotting {layer_info.name} for template {template.name}")
-        
-        """
-        template_use_popups = False
-        frame_file = 'None'
-        filelist = []
-        # Change color of pdf files
-        for layer_info in template.settings:
-            ln = layer_info.name.replace('.', '_')
-            input_file = f"{base_filename}-{ln}.pdf"
-            output_file = f"{base_filename}-{ln}-colored.pdf"
-            if not kicad_color and ( layer_info.has_color or layer_info.has_transparency ):
-                progress += progress_step
-                set_progress_status(progress, f"Coloring {layer_info.name} for template {template.name}")
-
-                if not colorize_pdf(temp_dir, input_file, output_file, layer_info.color_rgb, layer_info.transparency):
-                    set_progress_status(100, f"Failed when coloring {layer_info.name} for template {template.name}")
-                    return False
-
-                filelist.append(output_file)
-            else:
-                filelist.append(input_file)
-
-            if layer_info.with_frame:
-                # the frame layer is scaled by 1.0, all others by `layer_scale`
-                
-                
-                #### Seems wrong to set frame_file to this!! We should be able to check which layer is chosen.
-                frame_file = filelist[-1]
-
-            # Set template_use_popups to True if any layer has popups
-            template_use_popups = template_use_popups or layer_info.front_popups or layer_info.back_popups
-        """
 
         # Build list of plotted pdfs
         filelist = []
@@ -1242,7 +951,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         assembly_file = f"{base_filename}_{template.name}.pdf"
         assembly_file = assembly_file.replace(' ', '_')
 
-        if not merge_and_scale_pdf(template_dir, filelist, output_dir, assembly_file, frame_file, template.scale_or_crop, template.name, pymupdf_merge):
+        if not merge_and_scale_pdf(template_dir, filelist, output_dir, assembly_file, frame_file, template.scale_or_crop, template.name):
             set_progress_status(100, "Failed when merging all layers of template " + template.name)
             return False
 
@@ -1250,19 +959,14 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         # Set use_popups to True if any template has popups
         use_popups = use_popups or template_use_popups
 
-    if kicad_color:
-        # Delete Board2Pdf color template
-        """
-        try:
-            os.remove(template_file_path)
-        except:
-            msg_box(f"Delete color template file failed\n\n" + traceback.format_exc(), 'Error',
-                    wx.OK | wx.ICON_ERROR)
-            set_progress_status(100, "Failed to delete color template file")
-            return False
-        """
-    #if(info_variable_int>=1 and info_variable_int<=9):
-    #    title_block.SetComment(info_variable_int-1, previous_comment)
+    # Delete Board2Pdf color template
+    try:
+        os.remove(template_file_path)
+    except:
+        msg_box(f"Delete color template file failed\n\n" + traceback.format_exc(), 'Error',
+                wx.OK | wx.ICON_ERROR)
+        set_progress_status(100, "Failed to delete color template file")
+        return False
 
     # Add all generated pdfs to one file
     progress += progress_step
@@ -1289,7 +993,6 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
             template_pdf.close()
 
     # Delete temp files if setting says so
-    """
     if del_temp_files:
         try:
             shutil.rmtree(temp_dir)
@@ -1298,7 +1001,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
                     wx.OK | wx.ICON_ERROR)
             set_progress_status(100, "Failed to delete temp files")
             return False
-    """
+
     # Delete single page files if setting says so
     if del_single_page_files:
         for template_file in template_filelist:

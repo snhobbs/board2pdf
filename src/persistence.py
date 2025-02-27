@@ -16,8 +16,6 @@ class Persistence:
         ('main', 'del_temp_files'): ('del_temp_files', lambda x: x == "True"),
         ('main', 'delete_single_page_files'): ('del_single_page_files', lambda x: x == "True"),
         ('main', 'assembly_file_extension'): ('assembly_file_extension', None),
-        ('main', 'page_info'): ('page_info', None),
-        ('main', 'info_variable'): ('info_variable', None),
     }
     _typeconv: dict = {
         bool: lambda x: "True" if x else "False",
@@ -39,8 +37,6 @@ class Persistence:
         self.del_temp_files: bool = True
         self.del_single_page_files: bool = True
         self.assembly_file_extension: str = "__Assembly"
-        self.page_info: str = 'Board2Pdf: ${template_name} - Page ${page_nr}/${total_pages}'
-        self.info_variable: str = '4'
         
         self.default_settings_file_path: str = ''
         self.global_settings_file_path: str = ''

@@ -1,14 +1,11 @@
 import os
 import shutil
-import re
 import sys
 import wx
-import pathlib
 import json
 import logging
 import traceback
 import tempfile
-from pathlib import Path
 
 from kipy import KiCad
 from kipy.board import BoardLayer
@@ -25,18 +22,6 @@ import dialog
 import persistence
 _log.debug("File: %s\tVersion: %s", __file__, __version__)
 
-"""
-_board = None
-def set_board(board: pcbnew.BOARD):
-    global _board
-    assert isinstance(board, pcbnew.BOARD)
-    _board = board
-
-def get_board() -> pcbnew.BOARD:
-    if _board is None:
-        set_board(pcbnew.GetBoard())
-    return _board
-"""
 def get_drawing_worksheet_from_project(project_file_path: str) -> bool | str:
     try:
         # Open the file and read the JSON data
@@ -147,9 +132,6 @@ def run_with_dialog():
             layers_dict[layer_std_name]['in_use'] = True
             if(layer_user_name != layer_std_name):
                 layers_dict[layer_std_name]['user_name'] = layer_user_name
-    
-    #for layer, value in layers_dict.items():
-    #    print(layer, value['user_name'], value['in_use'], value['is_copper_layer'])
 
     def perform_export(dialog_panel):
         if dialog_panel.m_checkBox_delete_temp_files.IsChecked():
@@ -199,6 +181,7 @@ def run_with_dialog():
 
         plot.plot_pdfs(project_path, pcb_file_path, pcb_file_name, temp_dir, dialog_panel,
                           output_path=dialog_panel.outputDirPicker.Path,
+                          kicad_cli_path=dialog_panel.m_filePicker_kicad_cli.Path,
                           board2pdf_path=board2pdf_dir,
                           layers_dict=layers_dict,
                           templates=dialog_panel.config.templates,
@@ -206,9 +189,7 @@ def run_with_dialog():
                           create_svg=dialog_panel.m_checkBox_create_svg.IsChecked(),
                           del_temp_files=dialog_panel.m_checkBox_delete_temp_files.IsChecked(),
                           del_single_page_files=dialog_panel.m_checkBox_delete_single_page_files.IsChecked(),
-                          assembly_file_extension=config.assembly_file_extension,
-                          page_info=dialog_panel.m_textCtrl_page_info.GetValue(),
-                          info_variable=str(dialog_panel.m_comboBox_info_variable.GetCurrentSelection()))
+                          assembly_file_extension=config.assembly_file_extension)
         dialog_panel.m_progress.SetValue(100)
         dialog_panel.Refresh()
         dialog_panel.Update()
@@ -221,7 +202,6 @@ def run_with_dialog():
         dialog_panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
         dialog_panel.m_checkBox_create_svg.SetValue(config.create_svg)
         dialog_panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
-        dialog_panel.m_textCtrl_page_info.SetValue(config.page_info)
         dlg.panel.m_comboBox_info_variable.SetSelection(int(config.info_variable))
         dialog_panel.ClearTemplateSettings()
         dialog_panel.hide_template_settings()
@@ -241,12 +221,6 @@ def run_with_dialog():
     dlg.panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
     dlg.panel.m_checkBox_create_svg.SetValue(config.create_svg)
     dlg.panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
-    dlg.panel.m_textCtrl_page_info.SetValue(config.page_info)
-    if not config.info_variable:
-        info_variable_int = 0
-    else:
-        info_variable_int = int(config.info_variable)
-    dlg.panel.m_comboBox_info_variable.SetSelection(info_variable_int)
     dlg.panel.m_staticText_status.SetLabel(f'Status: loaded {configfile_name} settings')
 
     # Check if able to import PyMuPDF.
@@ -278,34 +252,6 @@ def run_with_dialog():
             _log.error("pymupdf partially initialized, falling back on pypdf. Error: %s", str(e))
             has_pymupdf = False
 
-    #if pcbnew.Version()[0:3] == "6.0":
-    #    # KiCad 6.0 has no support for color. 7.0 has support, but the drawing sheet (frame) is always the same color.
-    #    dlg.panel.m_radio_kicad.Disable()
-
-    #if ( pcbnew.Version()[0:3] == "6.0" or pcbnew.Version()[0:3] == "7.0" ):
-    #    # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
-    #    if has_pymupdf:
-    #        dlg.panel.m_radio_merge_pymupdf.SetValue(True)
-    #    else:
-    #        dlg.panel.m_radio_merge_pypdf.SetValue(True)
-    #else:
-    #    # Set KiCad as default engine for coloring
-    #   dlg.panel.m_radio_kicad.SetValue(True)
-    
-    # If it was possible to import and open PyMuPdf, select pymupdf for coloring otherwise select pypdf.
-    #if has_pymupdf:
-    #    dlg.panel.m_radio_pymupdf.SetValue(True)
-    #else:
-    #    dlg.panel.m_radio_pypdf.SetValue(True)
-    
-    dlg.panel.m_radio_kicad.SetValue(True)
-
-    # If it was possible to import and open PyMuPdf, select pymupdf for merging otherwise select pypdf.
-    if has_pymupdf:
-        dlg.panel.m_radio_merge_pymupdf.SetValue(True)
-    else:
-        dlg.panel.m_radio_merge_pypdf.SetValue(True)
-
     # Check if able to import pdfCropMargins.
     has_pdfcropmargins = True
     try:
@@ -325,48 +271,5 @@ def run_with_dialog():
 
 if __name__ == "__main__":
     app = wx.App()
-    #rt = RoundTracks()
-    #rt.ShowModal()
     run_with_dialog()
     app.MainLoop()
-    #rt.Destroy()
-
-
-"""
-class board2pdf(pcbnew.ActionPlugin):
-    def defaults(self):
-        self.name = f"Board2Pdf\nversion {__version__}"
-        self.category = "Plot"
-        self.description = "Plot pcb to pdf."
-        self.show_toolbar_button = True  # Optional, defaults to False
-        self.icon_file_name = os.path.join(os.path.dirname(__file__), 'icon.png')  # Optional
-
-    def Run(self):
-        run_with_dialog()
-
-
-def main():
-    if not wx.App.Get():
-        _log.debug("No existing app found, creating App")
-        app = wx.App()
-    run_with_dialog()
-
-
-if __name__ == "__main__":
-    logging.basicConfig()
-    _log.setLevel(logging.DEBUG)
-    board = None
-    try:
-        board_path = pathlib.Path(sys.argv[1]).absolute()
-        assert board_path.exists()
-        board = pcbnew.LoadBoard(str(board_path))
-    except IndexError:
-        _log.info("No board path passed as argument, trying kicad environment")
-        board = pcbnew.GetBoard()
-
-    if board is not None:
-        set_board(board)
-        main()
-    else:
-        _log.error("No board path passed or found in environment")
-"""
