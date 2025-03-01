@@ -1,4 +1,14 @@
-# Board2Pdf
+# Board2Pdf 2.0
+
+The main branch is currently a work in progress. The stable version of Board2Pdf can be found in the v1.9.x branch.
+
+Board2Pdf 1.9.x uses the old SWIG API and works with KiCad v6 to v9.
+Board2Pdf 2.0.x uses the new IPC API and is only compatible with KiCad v9 and later.
+
+The current status of Board2Pdf 2.0.0 is:
+* Plugin works pretty good, but could use some more work.
+* I haven't started with Board2Pdf-CLI yet.
+* I haven't started with the pip package yet, and I will probably wait until most people have switched over to KiCad v9 before I release 2.0.x as a pip package, since when I do that the latest available version will only work with KICad v9.
 
 Board2Pdf is a KiCad Action Plugin to create good looking pdf files from the board. The outputted pdf is vector based
 and searchable.
@@ -13,7 +23,7 @@ found [here](https://github.com/f-secure-foundry/usbarmory "USB armory from With
 When loaded the plugin looks like this. Here the user can configure how the pdf shall look.
 ![Screenshot](https://gitlab.com/dennevi/Board2Pdf/-/raw/main/resources/screenshot.png "Screenshot")
 
-This plugin ONLY works with the KiCad 6.0 and later. It does NOT work with KiCad 5.1.x or earlier versions.
+The 2.0 version of this plugin ONLY works with the KiCad 9.0 and later. For KiCad 6.0 to 9.0, use the 1.9.x version in the 1.9.x branch.
 
 [https://gitlab.com/dennevi/Board2Pdf/](https://gitlab.com/dennevi/Board2Pdf/)
 
@@ -30,19 +40,15 @@ Also, see Dependencies below.
 
 ## Dependencies
 
-For basic functionality Board2Pdf uses [pypdf](https://github.com/py-pdf/pypdf) which is included when installing Board2Pdf. You don’t need to install any dependencies if this functionality is enough for you.
-
-If you install [PyMuPDF](https://github.com/pymupdf/PyMuPDF) you can create the pdf files faster. It also enables you to convert the output file to SVG, and it has better support for bookmarks (table of content).
-
-Board2Pdf uses [pdfCropMargins](https://github.com/abarker/pdfCropMargins) for some of the crop and scaling options. pdfCropMargins includes PyMuPDF so if you choose to install pdfCropMargins you don't have to install PyMuPDF.
+Board2Pdf 2.0 uses [pypdf](https://github.com/py-pdf/pypdf), [PyMuPDF](https://github.com/pymupdf/PyMuPDF) and [pdfCropMargins](https://github.com/abarker/pdfCropMargins). All dependencis will be installed autimatically when you install Board2Pdf from the Plugin And Content Manager.
 
 More information in [Wiki - Install dependencies](https://gitlab.com/dennevi/Board2Pdf/-/wikis/Install-dependencies).
 
 ## Problem with Ubuntu and some other Linux distros
 
-When PyMuPDF (fitz) is installed with pip, KiCad crashes with a segmentation fault when Board2Pdf is loaded. Board2Pdf loads when the PCB Editor loads, so the crash happens directly when the PCB Editor is started. If this happens to you, you have two options:
-1. Uninstall PyMuPDF using `python -m pip uninstall --upgrade PyMuPDF` or `pip uninstall --upgrade PyMuPDF` and use pypdf instead.
-2. Uninstall PyMuPDF as in (1), but install it again using the apt package manager: `sudo apt install python3-fitz`
+When PyMuPDF (fitz) is installed with pip, KiCad crashes with a segmentation fault when Board2Pdf is loaded. Board2Pdf loads when the PCB Editor loads, so the crash happens directly when the PCB Editor is started. If this happens to you, you can try this:
+* Uninstall PyMuPDF using `python -m pip uninstall --upgrade PyMuPDF` or `pip uninstall --upgrade PyMuPDF`
+* Install it again using the apt package manager: `sudo apt install python3-fitz`
 
 ## Usage - GUI
 
