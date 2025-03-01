@@ -1,11 +1,10 @@
 import os
 import shutil
-import sys
 import wx
-import json
 import logging
-import traceback
 import tempfile
+
+from utils import exception_msg, get_drawing_worksheet_from_project, set_drawing_worksheet_in_project
 
 from kipy import KiCad
 from kipy.board import BoardLayer
@@ -13,74 +12,11 @@ from kipy.util.board_layer import canonical_name, is_copper_layer
 
 _log=logging.getLogger("board2pdf")
 
-dirname = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-_package = os.path.basename(dirname)
-
 from _version import __version__
 import plot
 import dialog
 import persistence
 _log.debug("File: %s\tVersion: %s", __file__, __version__)
-
-def get_drawing_worksheet_from_project(project_file_path: str) -> bool | str:
-    try:
-        # Open the file and read the JSON data
-        with open(project_file_path, 'r') as file:
-            data = json.load(file)
-
-        # Check if 'pcbnew' exists
-        if 'pcbnew' in data:
-            if 'page_layout_descr_file' in data['pcbnew']:
-                return True, data['pcbnew']['page_layout_descr_file']
-
-    except FileNotFoundError:
-        exception_msg(f"Error when fetching drawing sheet path: The file {project_file_path} does not exist.")
-        return False, ''
-    except json.JSONDecodeError:
-        exception_msg(f"Error when fetching drawing sheet path: Failed to decode JSON from the file.")
-        return False, ''
-    except Exception as e:
-        exception_msg(f"Error when fetching drawing sheet path: An unexpected error occurred: {e}")
-        return False, ''
-
-    return False, ''
-
-def set_drawing_worksheet_in_project(project_file_path: str, worksheet_path) -> bool:
-    try:
-        # Open the file and read the JSON data
-        with open(project_file_path, 'r') as file:
-            data = json.load(file)
-
-        # Check if 'pcbnew' exists, if not, create it
-        if 'pcbnew' not in data:
-            data['pcbnew'] = {}
-
-        # Update variables
-        data['pcbnew']['page_layout_descr_file'] = worksheet_path
-
-        # Write the updated JSON back to the file
-        with open(project_file_path, 'w') as file:
-            json.dump(data, file, indent=2)
-
-    except FileNotFoundError:
-        exception_msg(f"Error when updating drawing sheet path: The file {project_file_path} does not exist.")
-        return False
-    except json.JSONDecodeError:
-        exception_msg(f"Error when updating drawing sheet path: Failed to decode JSON from the file.")
-        return False
-    except Exception as e:
-        exception_msg(f"Error when updating drawing sheet path: An unexpected error occurred: {e}")
-        return False
-
-    return True
-
-def exception_msg(info: str, tb=True):
-    msg = f"{info}\n\n" + (
-        traceback.format_exc() if tb else '')
-    try:
-        wx.MessageBox(msg, 'Error', wx.OK | wx.ICON_ERROR)
-    except wx._core.PyNoAppError:
-        print(f'Error: {msg}', file=sys.stderr)
 
 def run_with_dialog():
     kicad = KiCad()
