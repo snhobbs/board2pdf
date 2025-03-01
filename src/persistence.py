@@ -16,6 +16,7 @@ class Persistence:
         ('main', 'del_temp_files'): ('del_temp_files', lambda x: x == "True"),
         ('main', 'delete_single_page_files'): ('del_single_page_files', lambda x: x == "True"),
         ('main', 'assembly_file_extension'): ('assembly_file_extension', None),
+        ('main', 'kicad_cli_path'): ('kicad_cli_path', None),
     }
     _typeconv: dict = {
         bool: lambda x: "True" if x else "False",
@@ -37,6 +38,7 @@ class Persistence:
         self.del_temp_files: bool = True
         self.del_single_page_files: bool = True
         self.assembly_file_extension: str = "__Assembly"
+        self.kicad_cli_path: str = ""
         
         self.default_settings_file_path: str = ''
         self.global_settings_file_path: str = ''

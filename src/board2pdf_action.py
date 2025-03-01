@@ -202,7 +202,6 @@ def run_with_dialog():
         dialog_panel.m_checkBox_delete_temp_files.SetValue(config.del_temp_files)
         dialog_panel.m_checkBox_create_svg.SetValue(config.create_svg)
         dialog_panel.m_checkBox_delete_single_page_files.SetValue(config.del_single_page_files)
-        dlg.panel.m_comboBox_info_variable.SetSelection(int(config.info_variable))
         dialog_panel.ClearTemplateSettings()
         dialog_panel.hide_template_settings()
 

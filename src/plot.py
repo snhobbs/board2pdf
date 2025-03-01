@@ -783,6 +783,7 @@ class DebugDialog(wx.Dialog):
 
 def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_dir: str, dlg=None, **kwargs) -> bool:
     output_path: str = kwargs.pop('output_path', 'plot')
+    kicad_cli_path: str = kwargs.pop('kicad_cli_path', '')
     board2pdf_path: str = kwargs.pop('board2pdf_path', '')
     layers_dict: dict = kwargs.pop('layers_dict', {})
     templates: list = kwargs.pop('templates', [])
@@ -905,7 +906,7 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         # Plot layers to pdf files
         os.chdir(template_dir)
         print("template_dir:", template_dir)
-        cli_command = [r'C:\Program Files\KiCad\9.0\bin\kicad-cli.exe', "jobset", "run", "-f", "jobset.kicad_jobset", pcb_file_path]
+        cli_command = [kicad_cli_path, "jobset", "run", "-f", "jobset.kicad_jobset", pcb_file_path]
         result = subprocess.run(cli_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         return_code = result.returncode
         os.chdir(project_path)
