@@ -317,8 +317,13 @@ def plot_pdfs(project_path: str, pcb_file_path: str, base_filename: str, temp_di
         frame_file = 'None'
         template_use_popups = False
         for layer_info in template.settings:
-            # Add the file to the list
-            filename = os.path.join(layer_info.name, base_filename+".pdf")
+            # Add the file to the list. It should only be one .pdf in the directory
+            layer_dir = os.path.join(template_dir, layer_info.name)
+            generated_files = os.listdir(layer_dir)
+            for file in generated_files:
+                if file.endswith('.pdf'):
+                    filename = os.path.join(layer_info.name, file)
+                    break
             filelist.append(filename)
 
             # If this layer is plotted with frame, set the frame_file variable to this filename.
