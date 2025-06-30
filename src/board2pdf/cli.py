@@ -7,10 +7,10 @@ import sys
 from pathlib import Path
 
 try:
-    from . import plot
+    from . import plot, _version
 except ImportError as e:
     print(e)
-    import plot
+    import plot, _version
 
 _logger = logging.getLogger(__name__)
 _log_levels = {'NOTSET': logging.NOTSET, 'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARN': logging.WARN,
@@ -74,6 +74,7 @@ def parse_args():
                         help='File extension to use for the merged PDF. Default is `__Assembly`.')
     parser.add_argument('--output', default=None, required=False,
                         help='Output file name. Takes precedent over --ext argument if set.')
+    parser.add_argument('--version', action='version', version=_version.__version__)
     return parser.parse_args()
 
 
