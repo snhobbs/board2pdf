@@ -8,7 +8,8 @@ from pathlib import Path
 
 try:
     from . import plot
-except ImportError:
+except ImportError as e:
+    print(e)
     import plot
 
 _logger = logging.getLogger(__name__)

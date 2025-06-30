@@ -13,7 +13,9 @@ classifiers = [
 ]
 
 dependencies = [
-  "pymupdf"
+  "kicad-python>=0.2.0",
+  "PyMuPDF>=1.25.2",
+  "pypdf>=5.1.0"
 ]
 
 [project.urls]
@@ -27,7 +29,7 @@ board2pdf= "board2pdf.cli:main"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["src", "src/board2pdf"]
+where=['src']
 
 [build-system]
 requires = [

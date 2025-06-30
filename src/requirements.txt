@@ -1,4 +1,0 @@
-kicad-python>=0.2.0
-wxPython~=4.2
-PyMuPDF>=1.25.2
-pypdf>=5.1.0
